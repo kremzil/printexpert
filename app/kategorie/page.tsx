@@ -15,7 +15,7 @@ import { categories } from "@/data/categories"
 import { products } from "@/data/products"
 
 const productCountByCategory = products.reduce((map, product) => {
-  map.set(product.category, (map.get(product.category) ?? 0) + 1)
+  map.set(product.categorySlug, (map.get(product.categorySlug) ?? 0) + 1)
   return map
 }, new Map<string, number>())
 
@@ -43,13 +43,17 @@ export default function CategoriesPage() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((category) => (
-          <Link key={category.slug} href="/catalog" className="group">
+          <Link
+            key={category.slug}
+            href={`/catalog?cat=${category.slug}`}
+            className="group"
+          >
             <Card className="h-full overflow-hidden py-0 transition-colors group-hover:border-primary/30">
               <CardHeader className="p-0">
                 <div className="relative aspect-[4/3] w-full">
                   <Image
                     src={category.image}
-                    alt={category.title}
+                    alt={category.name}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 100vw"
@@ -58,7 +62,7 @@ export default function CategoriesPage() {
               </CardHeader>
               <CardContent className="space-y-2 px-4 pb-4">
                 <div className="flex items-center justify-between gap-3">
-                  <CardTitle className="text-base">{category.title}</CardTitle>
+                  <CardTitle className="text-base">{category.name}</CardTitle>
                   <Badge variant="secondary">
                     {productCountByCategory.get(category.slug) ?? 0} produktov
                   </Badge>

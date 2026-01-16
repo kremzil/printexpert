@@ -31,7 +31,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound()
   }
 
-  const category = categoryBySlug.get(product.category)
+  const category = categoryBySlug.get(product.categorySlug)
 
   return (
     <section className="space-y-6">
@@ -69,14 +69,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <h1 className="text-2xl font-semibold">{product.title}</h1>
             {category ? (
               <Badge variant="secondary" className="w-fit">
-                {category.title}
+                {category.name}
               </Badge>
             ) : null}
             <p className="text-sm text-muted-foreground">
               Tento produkt vám radi pripravíme podľa vašich požiadaviek.
             </p>
             {product.price ? (
-              <div className="text-lg font-semibold">{product.price} ?</div>
+              <div className="text-lg font-semibold">{product.price} €</div>
             ) : (
               <div className="text-sm text-muted-foreground">Cena na vyžiadanie</div>
             )}

@@ -2,6 +2,6 @@ export type Product = {
   slug: string;
   title: string;
   price?: number;
-  category: string;
+  categorySlug: string;
   image: string;
 };
