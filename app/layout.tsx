@@ -1,43 +1,42 @@
-import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import type { Metadata } from "next"
+import Image from "next/image"
+import Link from "next/link"
+import { Geist, Geist_Mono, Inter } from "next/font/google"
+
 import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
   navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-import "./globals.css";
+} from "@/components/ui/navigation-menu"
+import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-});
+})
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
+})
 
 export const metadata: Metadata = {
   title: "PrintExpert",
   description: "Tlačové služby a produkty",
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="sk" className={inter.variable}>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="flex min-h-screen flex-col">
           <header className="border-b">
             <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -59,6 +58,14 @@ export default function RootLayout({
                       className={navigationMenuTriggerStyle()}
                     >
                       <Link href="/">Domov</Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      asChild
+                      className={navigationMenuTriggerStyle()}
+                    >
+                      <Link href="/kategorie">Kategórie</Link>
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                   <NavigationMenuItem>
@@ -92,5 +99,5 @@ export default function RootLayout({
         </div>
       </body>
     </html>
-  );
+  )
 }

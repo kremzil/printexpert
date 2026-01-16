@@ -14,6 +14,7 @@ Follow the rules below to keep changes safe, consistent, and reviewable.
 - Site UI text must be in Slovak.
 - Assistant responses must be in Russian.
 - Do not replace Slovak text with Unicode escape sequences; keep strings readable.
+- Keep source files in UTF-8 (no BOM) to avoid broken Slovak characters.
 
 ## Setup commands (use these)
 - Install deps: `npm install`
