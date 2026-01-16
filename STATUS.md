@@ -1,36 +1,22 @@
-# Состояние проекта
+# Статус проекта
 
 Дата: 2026-01-16  
 Версия: 0.1.0
 
-## Что сделано
-- Базовый layout с шапкой, навигацией и футером.
-- Созданы страницы: `/`, `/catalog`, `/product/[slug]`, `/kontaktujte-nas`, `/kategorie`.
-- Добавлены категории и товары, привязанные к изображениям в `public/products/*`.
-- Каталог отображает карточки с изображениями, категориями и ценой/«Na vyžiadanie».
-- Карточка товара показывает изображение, категорию и описание с ценой по запросу.
-- Страница контактов оформлена через shadcn/ui Form + React Hook Form + Zod.
-- Breadcrumb на всех страницах, кроме главной.
-- Подключены логотип и SVG-иконка (`app/icon.svg`).
+## БД и Prisma
+- PostgreSQL 16 в dev через `docker-compose.yml` (контейнер `shop-db`).
+- Prisma schema: модель `User` + миграция `20260116134024_init`.
+- Prisma Client генерируется в `lib/generated/prisma`, подключение через `@prisma/adapter-pg` и `pg` пул (`lib/prisma.ts`).
+- Переменные окружения: `.env.example` (dev) и `.env.production.example` (prod/VPS).
+- Проверка подключения БД: `app/api/health/route.ts` выполняет `SELECT 1`.
 
-## Текущее состояние
-- Тексты интерфейса на словацком.
-- Данные хранятся локально в `data/`.
-- Фото товаров лежат в `public/products/` по категориям.
-- Форма контактов: client-side валидация, без отправки.
-- Фильтрация по категориям пока не реализована (страница категорий ведет в каталог).
+## Подготовка к деплою
+- Есть `docker-compose.prod.yml` (только Postgres) и скрипты `prod:*` в `package.json`.
+- Есть шаблон `.env.production.example` с `POSTGRES_PASSWORD` и `DATABASE_URL`.
+- Инструкции деплоя описаны в `DEPLOY.md`, но шаги про `web` требуют добавления сервиса.
 
-## Файлы и ключевые места
-- Layout и навигация: `app/layout.tsx`
-- Каталог: `app/catalog/page.tsx`
-- Карточка товара: `app/product/[slug]/page.tsx`
-- Категории: `app/kategorie/page.tsx`
-- Контакты: `app/kontaktujte-nas/page.tsx`
-- Данные категорий: `data/categories.ts`
-- Данные товаров: `data/products.ts`
-- Типы: `types/product.ts`, `types/category.ts`
-
-## Открытые задачи
-- Настроить отправку формы (API/почта) при необходимости.
-- Добавить фильтрацию каталога по категориям.
-- Заполнить цены/описания, если потребуется.
+## Что еще не сделано
+- Нет сервиса `web` и `Dockerfile` для production-сборки Next.js.
+- Миграции есть, но данные каталога пока в `data/*` и `public/products/*`.
+- Нет сидов/инициализации данных для БД.
+- Не настроен reverse proxy/SSL для VPS.

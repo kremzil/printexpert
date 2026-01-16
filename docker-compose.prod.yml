@@ -9,6 +9,24 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    image: shop-web
+    container_name: shop-web
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
