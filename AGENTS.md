@@ -52,9 +52,14 @@ Use it as the primary reference when relevant:
   - shadcn/ui documentation index (LLM-friendly).
   - Use for: shadcn CLI usage, components.json, theming, component patterns.
 
+- `llms/prisma-llms.txt` and `llms/prisma-llms-full.txt`
+  - Prisma ORM and database documentation (index + full text).
+  - Use for: Prisma setup, schema, migrations, client usage, database connections.
+
 Rules:
 - If a task is about Next.js behavior or correct patterns, check `llms/next-llms-full.txt` first.
 - If a task is about UI components, theming, or shadcn setup, check `llms/shadcn-llms.txt` first.
+- If a task is about databases or Prisma, check `llms/prisma-llms.txt` and `llms/prisma-llms-full.txt` first.
 - Prefer these local docs over general web guesses.
 
 ## Next.js conventions

@@ -6,16 +6,35 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker logs -f shop-db",
+    "db:ps": "docker ps",
+    "prisma:studio": "prisma studio",
+    "db:reset": "docker compose down -v && docker compose up -d",
+
+    "prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
+    "prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.production down",
+    "prod:logs": "docker logs -f shop-db",
+
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "postinstall": "prisma generate",
+    
+    "health": "node -e \"fetch('http://localhost:3000/api/health').then(r=>r.text()).then(console.log).catch(e=>{console.error(e);process.exit(1)})\""
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
     "@hookform/resolvers": "^5.2.2",
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.2",
+    "pg": "^8.17.1",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
