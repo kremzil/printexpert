@@ -11,15 +11,25 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { categories } from "@/data/categories"
-import { products } from "@/data/products"
+import { getCategories, getProducts } from "@/lib/catalog"
 
-const productCountByCategory = products.reduce((map, product) => {
-  map.set(product.categorySlug, (map.get(product.categorySlug) ?? 0) + 1)
-  return map
-}, new Map<string, number>())
+export default async function CategoriesPage() {
+  const categories = await getCategories()
+  const products = await getProducts({})
+  const categorySlugById = new Map(
+    categories.map((category) => [category.id, category.slug])
+  )
+  const productCountByCategory = products.reduce((map, product) => {
+    const categorySlug = categorySlugById.get(product.categoryId)
 
-export default function CategoriesPage() {
+    if (!categorySlug) {
+      return map
+    }
+
+    map.set(categorySlug, (map.get(categorySlug) ?? 0) + 1)
+    return map
+  }, new Map<string, number>())
+
   return (
     <section className="space-y-6">
       <div className="space-y-2">

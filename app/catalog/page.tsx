@@ -12,10 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { categories } from "@/data/categories"
-import { products } from "@/data/products"
-
-const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
+import { getCategories, getProducts } from "@/lib/catalog"
 
 type CatalogPageProps = {
   searchParams?: Promise<{
@@ -26,14 +23,14 @@ type CatalogPageProps = {
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {}
   const selectedCategorySlug = resolvedSearchParams.cat
+  const categories = await getCategories()
+  const filteredProducts = await getProducts({
+    categorySlug: selectedCategorySlug,
+  })
+  const categoryById = new Map(categories.map((category) => [category.id, category]))
   const activeCategory = categories.find(
     (category) => category.slug === selectedCategorySlug
   )
-  const filteredProducts = activeCategory
-    ? products.filter((product) => product.categorySlug === activeCategory.slug)
-    : selectedCategorySlug
-      ? []
-      : products
   const activeCategoryLabel = activeCategory
     ? activeCategory.name
     : selectedCategorySlug
@@ -102,7 +99,8 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProducts.map((product) => {
-            const category = categoryBySlug.get(product.categorySlug)
+            const category = categoryById.get(product.categoryId)
+            const primaryImage = product.images[0]
 
             return (
               <Link
@@ -114,8 +112,8 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                   <CardHeader className="p-0">
                     <div className="relative aspect-[4/3] w-full">
                       <Image
-                        src={product.image}
-                        alt={product.title}
+                        src={primaryImage.url}
+                        alt={primaryImage.alt ?? product.name}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                         sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 100vw"
@@ -124,10 +122,10 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                   </CardHeader>
                   <CardContent className="space-y-2 px-4 pb-4">
                     <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="text-base">{product.title}</CardTitle>
-                      {product.price ? (
+                      <CardTitle className="text-base">{product.name}</CardTitle>
+                      {product.priceFrom ? (
                         <span className="text-sm text-muted-foreground">
-                          {product.price} €
+                          {product.priceFrom.toString()} €
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">

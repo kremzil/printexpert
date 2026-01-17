@@ -1,30 +1,32 @@
-# Статус проекта
+# Текущее состояние
 
-Дата: 2026-01-16  
-Версия: 0.1.0
+Дата: 2026-01-17  
+Версия: 0.1.2
 
 ## БД и Prisma
 - PostgreSQL 16 в dev через `docker-compose.yml` (контейнер `shop-db`).
-- Prisma schema: модель `User` + миграция `20260116134024_init`.
-- Prisma Client генерируется в `lib/generated/prisma`, подключение через `@prisma/adapter-pg` и `pg` пул (`lib/prisma.ts`).
-- Переменные окружения: `.env.example` (dev) и `.env.production.example` (prod/VPS).
-- Проверка подключения БД: `app/api/health/route.ts` выполняет `SELECT 1`.
+- Prisma schema: `User` + новые модели `Category`, `Product`, `ProductImage` и enum `PriceType`.
+- Миграция создана и применена: `20260117195653_add_category_product_productimage`.
+- Prisma Client генерируется в `lib/generated/prisma` и используется через `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
+- Сидирование настроено и идемпотентно: `npm run db:seed` (источник `data/*`, изображения пересоздаются на каждый продукт).
+- Prisma health-check: `app/api/health/route.ts` выполняет `SELECT 1`.
 
-## Подготовка к деплою
-- Есть `docker-compose.prod.yml` с сервисами `db` и `web` + скрипты `prod:*` в `package.json`.
-- Добавлен `Dockerfile` для production-сборки Next.js (standalone).
-- `next.config.ts` настроен на `output: "standalone"`.
-- Есть `.env.production.example` и локальный `.env.production` с `POSTGRES_PASSWORD` и `DATABASE_URL`.
-- Инструкции деплоя описаны в `DEPLOY.md` (сборка, запуск, миграции).
+## Каталог (DB-backed)
+- Страницы `/kategorie`, `/catalog`, `/product/[slug]` читают данные из Postgres через `lib/catalog.ts`.
+- Фильтр по категории: `/catalog?cat=<slug>`.
+- Неактивные категории/товары скрыты; прямой доступ к неактивному товару -> 404.
+- Файлы `data/*` сохранены в репозитории (не удалены).
 
-## Сайт: страницы и маршруты
+## Продакшен и деплой
+- `docker-compose.prod.yml` с сервисами `db` и `web`, команды `prod:*` в `package.json`.
+- `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.
+- Шаблоны env: `.env.production.example`.
+- Документация деплоя: `DEPLOY.md`.
+
+## Роуты
 - App Router: `/`, `/kategorie`, `/catalog`, `/kontaktujte-nas`, `/product/[slug]`.
-- API: `/api/health` (проверка БД через `SELECT 1`).
-- Статические: `/icon.svg`.
-- Фронтенд: страницы каталога и карточек товаров используют данные из `data/*` и изображения из `public/products/*`.
-- Бэкенд: Prisma подключен, но доменные сущности/CRUD пока не заведены (кроме `User`).
+- API: `/api/health`.
+- Статика: `/icon.svg`.
 
-## Что еще не сделано
-- Миграции есть, но данные каталога пока в `data/*` и `public/products/*`.
-- Нет сидов/инициализации данных для БД.
-- Не настроен reverse proxy/SSL для VPS.
+## Бэклог / follow-ups
+- Админка для CRUD категорий/товаров (будущая задача).

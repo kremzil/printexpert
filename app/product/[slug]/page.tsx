@@ -12,10 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent } from "@/components/ui/card"
-import { categories } from "@/data/categories"
-import { products } from "@/data/products"
-
-const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
+import { getProductBySlug } from "@/lib/catalog"
 
 type ProductPageProps = {
   params: Promise<{
@@ -25,13 +22,13 @@ type ProductPageProps = {
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params
-  const product = products.find((item) => item.slug === slug)
+  const product = await getProductBySlug(slug)
 
   if (!product) {
     notFound()
   }
 
-  const category = categoryBySlug.get(product.categorySlug)
+  const primaryImage = product.images[0]
 
   return (
     <section className="space-y-6">
@@ -50,15 +47,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{product.title}</BreadcrumbPage>
+            <BreadcrumbPage>{product.name}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border">
           <Image
-            src={product.image}
-            alt={product.title}
+            src={primaryImage.url}
+            alt={primaryImage.alt ?? product.name}
             fill
             className="object-cover"
             sizes="(min-width: 1024px) 520px, 100vw"
@@ -66,17 +63,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
         <Card className="py-6">
           <CardContent className="space-y-3">
-            <h1 className="text-2xl font-semibold">{product.title}</h1>
-            {category ? (
+            <h1 className="text-2xl font-semibold">{product.name}</h1>
+            {product.category ? (
               <Badge variant="secondary" className="w-fit">
-                {category.name}
+                {product.category.name}
               </Badge>
             ) : null}
             <p className="text-sm text-muted-foreground">
               Tento produkt vám radi pripravíme podľa vašich požiadaviek.
             </p>
-            {product.price ? (
-              <div className="text-lg font-semibold">{product.price} €</div>
+            {product.priceFrom ? (
+              <div className="text-lg font-semibold">{product.priceFrom.toString()} €</div>
             ) : (
               <div className="text-sm text-muted-foreground">Cena na vyžiadanie</div>
             )}
