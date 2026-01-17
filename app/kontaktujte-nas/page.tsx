@@ -1,9 +1,4 @@
-"use client"
-
 import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
 
 import {
   Breadcrumb,
@@ -13,25 +8,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-
-const formSchema = z.object({
-  name: z.string().min(2, "Zadajte meno."),
-  email: z.string().email("Zadajte platný e-mail."),
-  message: z.string().min(10, "Správa musí mať aspoň 10 znakov."),
-})
-
-type ContactFormValues = z.infer<typeof formSchema>
+import { ContactForm } from "@/components/contact-form"
 
 const team = [
   {
@@ -112,19 +89,6 @@ const contactBlocks = [
 ]
 
 export default function ContactPage() {
-  const form = useForm<ContactFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      message: "",
-    },
-  })
-
-  const onSubmit = (values: ContactFormValues) => {
-    console.log(values)
-  }
-
   return (
     <div className="space-y-16">
       <section className="rounded-2xl border bg-muted/40 px-6 py-12 text-center">
@@ -217,56 +181,7 @@ export default function ContactPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Ozveme sa vám do 24 hodín počas pracovných dní.
           </p>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Meno</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Vaše meno" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl>
-                      <Input placeholder="vas@email.sk" type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="message"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Správa</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Čo pre vás môžeme urobiť?"
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                Odoslať správu
-              </Button>
-            </form>
-          </Form>
+          <ContactForm />
         </div>
         <div className="rounded-xl border bg-muted/40 p-6">
           <h2 className="text-xl font-semibold">Kde nás nájdete</h2>
