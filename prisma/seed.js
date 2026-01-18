@@ -97,25 +97,45 @@ async function main() {
       },
     });
 
-    await prisma.productImage.deleteMany({
-      where: { productId: saved.id },
-    });
-
     const imageList = Array.isArray(product.image)
       ? product.image
       : product.image
       ? [product.image]
       : [];
 
-    if (imageList.length > 0) {
-      await prisma.productImage.createMany({
-        data: imageList.map((url, index) => ({
+    if (imageList.length === 0) {
+      await prisma.productImage.deleteMany({
+        where: { productId: saved.id },
+      });
+    } else {
+      for (const [index, url] of imageList.entries()) {
+        await prisma.productImage.upsert({
+          where: {
+            productId_url: {
+              productId: saved.id,
+              url,
+            },
+          },
+          update: {
+            alt: product.title ?? null,
+            sortOrder: index,
+            isPrimary: index === 0,
+          },
+          create: {
+            productId: saved.id,
+            url,
+            alt: product.title ?? null,
+            sortOrder: index,
+            isPrimary: index === 0,
+          },
+        });
+      }
+
+      await prisma.productImage.deleteMany({
+        where: {
           productId: saved.id,
-          url,
-          alt: product.title ?? null,
-          sortOrder: index,
-          isPrimary: index === 0,
-        })),
+          url: { notIn: imageList },
+        },
       });
     }
   }

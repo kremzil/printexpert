@@ -21,6 +21,7 @@ Follow the rules below to keep changes safe, consistent, and reviewable.
 - Run dev: `npm run dev`
 - Build: `npm run build`
 - Lint: `npm run lint`
+- If a Prisma migration is needed, ask the user to run `npx prisma migrate dev` in their terminal (interactive TTY required).
 
 If a command fails, report the error clearly and propose the minimal fix.
 

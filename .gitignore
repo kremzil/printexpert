@@ -48,3 +48,6 @@ next-env.d.ts
 # mcp
 .mcp.json
 /lib/generated/prisma
+
+# Plans
+/plans

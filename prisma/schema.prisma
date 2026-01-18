@@ -66,4 +66,5 @@ model ProductImage {
   isPrimary Boolean @default(false)
 
   @@index([productId])
+  @@unique([productId, url])
 }

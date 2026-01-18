@@ -17,6 +17,7 @@ export const products: Product[] = [
     slug: "plagaty",
     title: "Plagáty",
     categorySlug: "male-formaty",
+    priceFrom: 12.5,
     image: "/products/maleFormaty/plagaty.webp",
   },
   {

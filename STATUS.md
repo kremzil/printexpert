@@ -8,7 +8,7 @@
 - Prisma schema: `User` + новые модели `Category`, `Product`, `ProductImage` и enum `PriceType`.
 - Миграция создана и применена: `20260117195653_add_category_product_productimage`.
 - Prisma Client генерируется в `lib/generated/prisma` и используется через `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
-- Сидирование настроено и идемпотентно: `npm run db:seed` (источник `data/*`, изображения пересоздаются на каждый продукт).
+- Сидирование настроено и идемпотентно: `npm run db:seed` (источник `data/*`, изображения upsert по `(productId, url)` с обновлением `sortOrder/isPrimary`; лишние изображения удаляются).
 - Prisma health-check: `app/api/health/route.ts` выполняет `SELECT 1`.
 
 ## Каталог (DB-backed)
