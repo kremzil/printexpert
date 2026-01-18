@@ -1,3 +1,5 @@
+import fs from "fs"
+import path from "path"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -12,6 +14,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent } from "@/components/ui/card"
+import { PriceCalculatorLetaky } from "@/components/product/price-calculator-letaky"
 import { getProductBySlug } from "@/lib/catalog"
 
 type ProductPageProps = {
@@ -29,6 +32,19 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const primaryImage = product.images[0]
+  const calculatorFileBySlug: Record<string, string> = {
+    letaky: "wp2print_dom_export_1424.json",
+    "samolepiaca-folia": "wp2print_dom_export_1440.json",
+  }
+  const calculatorFile = calculatorFileBySlug[slug]
+  const calculatorData = calculatorFile
+    ? JSON.parse(
+        fs.readFileSync(
+          path.join(process.cwd(), "data", "wp", calculatorFile),
+          "utf8"
+        )
+      )
+    : null
 
   return (
     <section className="space-y-6">
@@ -80,6 +96,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </CardContent>
         </Card>
       </div>
+      {calculatorData ? <PriceCalculatorLetaky data={calculatorData} /> : null}
     </section>
   )
 }
