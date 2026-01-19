@@ -31,18 +31,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const primaryImage = product.images[0]
-  const wpProductIdBySlug: Record<string, number> = {
-    letaky: 1424,
-    "samolepiaca-folia": 1440,
-    billboard: 1457,
-    "billboardy-a-ine-bbs-plagaty": 1457,
-    backlight: 1431,
-    citylight: 1430,
-    "city-lighty": 1430,
-  }
-  const wpProductId = wpProductIdBySlug[slug]
-  const calculatorData = wpProductId
-    ? await getWpCalculatorData(wpProductId)
+  const calculatorData = product.wpProductId
+    ? await getWpCalculatorData(product.wpProductId)
     : null
 
   return (

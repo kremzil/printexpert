@@ -1,6 +1,7 @@
 export type Product = {
   slug: string;
   title: string;
+  wpProductId?: number;
   price?: number;
   priceFrom?: number;
   vatRate?: number;

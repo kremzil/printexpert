@@ -19,6 +19,10 @@ type DeleteMatrixInput = {
   mtypeId: number
 }
 
+type UpdateProductWpIdInput = {
+  productId: string
+}
+
 type PhpSerializable =
   | string
   | number
@@ -268,6 +272,30 @@ export async function deleteMatrix(input: DeleteMatrixInput) {
   ])
 
   revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function updateProductWpId(
+  input: UpdateProductWpIdInput,
+  formData: FormData
+) {
+  const rawWpProductId = String(formData.get("wpProductId") ?? "").trim()
+  const wpProductId = rawWpProductId ? Number(rawWpProductId) : null
+
+  if (rawWpProductId && Number.isNaN(wpProductId)) {
+    return
+  }
+
+  const prisma = getPrisma()
+  const updated = await prisma.product.update({
+    where: { id: input.productId },
+    data: { wpProductId },
+    select: { slug: true },
+  })
+
+  revalidatePath(`/admin/products/${input.productId}`)
+  if (updated?.slug) {
+    revalidatePath(`/product/${updated.slug}`)
+  }
 }
 
 export async function createMatrixPriceRows(input: DeleteMatrixInput) {

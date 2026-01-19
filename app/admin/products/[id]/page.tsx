@@ -17,6 +17,7 @@ import {
   createMatrix,
   createMatrixPriceRows,
   deleteMatrix,
+  updateProductWpId,
   updateMatrixPrices,
 } from "./actions"
 
@@ -36,18 +37,8 @@ export default async function AdminProductPage({
     notFound()
   }
 
-  const wpProductIdBySlug: Record<string, number> = {
-    letaky: 1424,
-    "samolepiaca-folia": 1440,
-    billboard: 1457,
-    "billboardy-a-ine-bbs-plagaty": 1457,
-    backlight: 1431,
-    citylight: 1430,
-    "city-lighty": 1430,
-  }
-  const wpProductId = wpProductIdBySlug[product.slug]
-  const calculatorData = wpProductId
-    ? await getWpCalculatorData(wpProductId)
+  const calculatorData = product.wpProductId
+    ? await getWpCalculatorData(product.wpProductId)
     : null
   const ntpLabelByValue: Record<string, string> = {
     "0": "Fixná",
@@ -194,18 +185,38 @@ export default async function AdminProductPage({
                 Dáta z WP tabuliek pre výpočet ceny.
               </p>
             </div>
-            {wpProductId ? (
-              <Badge variant="outline">WP ID: {wpProductId}</Badge>
+            {product.wpProductId ? (
+              <Badge variant="outline">WP ID: {product.wpProductId}</Badge>
             ) : (
               <Badge variant="outline">Bez WP ID</Badge>
             )}
           </div>
 
-          {wpProductId ? (
+          <form
+            action={updateProductWpId.bind(null, { productId: product.id })}
+            className="flex flex-wrap items-end gap-3"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="wpProductId">WP ID</Label>
+              <Input
+                id="wpProductId"
+                name="wpProductId"
+                type="number"
+                inputMode="numeric"
+                placeholder="Napríklad 1424"
+                defaultValue={product.wpProductId?.toString() ?? ""}
+              />
+            </div>
+            <Button type="submit" size="sm">
+              Uložiť WP ID
+            </Button>
+          </form>
+
+          {product.wpProductId ? (
             <form
               action={createMatrix.bind(null, {
                 productId: product.id,
-                wpProductId,
+                wpProductId: product.wpProductId,
               })}
               className="grid gap-4"
             >

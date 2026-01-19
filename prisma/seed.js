@@ -307,6 +307,7 @@ async function main() {
       update: {
         name: product.title,
         categoryId: category.id,
+        wpProductId: product.wpProductId ?? null,
         excerpt: product.excerpt ?? null,
         description: product.description ?? null,
         priceType: product.priceType ?? "ON_REQUEST",
@@ -318,6 +319,7 @@ async function main() {
         slug: product.slug,
         name: product.title,
         categoryId: category.id,
+        wpProductId: product.wpProductId ?? null,
         excerpt: product.excerpt ?? null,
         description: product.description ?? null,
         priceType: product.priceType ?? "ON_REQUEST",

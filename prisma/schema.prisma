@@ -48,6 +48,7 @@ model Product {
   name        String
   categoryId  String         @db.Uuid
   category    Category       @relation(fields: [categoryId], references: [id])
+  wpProductId Int?
   excerpt     String?
   description String?
   priceType   PriceType      @default(ON_REQUEST)

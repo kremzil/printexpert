@@ -11,6 +11,7 @@ export const products: Product[] = [
     slug: "letaky",
     title: "Letáky",
     categorySlug: "male-formaty",
+    wpProductId: 1424,
     image: "/products/maleFormaty/letaky.webp",
   },
   {
@@ -72,6 +73,7 @@ export const products: Product[] = [
     slug: "backlight",
     title: "Backlight",
     categorySlug: "velke-formaty",
+    wpProductId: 1431,
     image: "/products/velkeFormaty/backlight.webp",
   },
   {
@@ -84,18 +86,21 @@ export const products: Product[] = [
     slug: "billboard",
     title: "Billboard",
     categorySlug: "velke-formaty",
+    wpProductId: 1457,
     image: "/products/velkeFormaty/billboard.webp",
   },
   {
     slug: "citylight",
     title: "Citylight",
     categorySlug: "velke-formaty",
+    wpProductId: 1430,
     image: "/products/velkeFormaty/citylight.webp",
   },
   {
     slug: "samolepiaca-folia",
     title: "Samolepiaca fólia",
     categorySlug: "velke-formaty",
+    wpProductId: 1440,
     image: "/products/velkeFormaty/samolepFolie.webp",
   },
   {
