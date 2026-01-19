@@ -1,5 +1,3 @@
-import fs from "fs"
-import path from "path"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -16,6 +14,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { PriceCalculatorLetaky } from "@/components/product/price-calculator-letaky"
 import { getProductBySlug } from "@/lib/catalog"
+import { getWpCalculatorData } from "@/lib/wp-calculator"
 
 type ProductPageProps = {
   params: Promise<{
@@ -32,18 +31,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const primaryImage = product.images[0]
-  const calculatorFileBySlug: Record<string, string> = {
-    letaky: "wp2print_dom_export_1424.json",
-    "samolepiaca-folia": "wp2print_dom_export_1440.json",
+  const wpProductIdBySlug: Record<string, number> = {
+    letaky: 1424,
+    "samolepiaca-folia": 1440,
+    billboard: 1457,
+    "billboardy-a-ine-bbs-plagaty": 1457,
+    backlight: 1431,
+    citylight: 1430,
+    "city-lighty": 1430,
   }
-  const calculatorFile = calculatorFileBySlug[slug]
-  const calculatorData = calculatorFile
-    ? JSON.parse(
-        fs.readFileSync(
-          path.join(process.cwd(), "data", "wp", calculatorFile),
-          "utf8"
-        )
-      )
+  const wpProductId = wpProductIdBySlug[slug]
+  const calculatorData = wpProductId
+    ? await getWpCalculatorData(wpProductId)
     : null
 
   return (

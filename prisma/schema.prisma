@@ -108,3 +108,83 @@ model PricingEntry {
   @@index([pricingModelId, attrsKey])
   @@index([pricingModelId, breakpoint])
 }
+
+model WpMatrixType {
+  mtypeId         Int     @id
+  productId       Int
+  mtype           Int
+  title           String?
+  defQuantity     Int?
+  attributes      String?
+  aterms          String?
+  numbers         String?
+  numStyle        Int?
+  numType         Int?
+  bqNumbers       String?
+  ltextAttr       Int?
+  bookMinQuantity Int?
+  pqStyle         Int?
+  pqNumbers       String?
+  sorder          Int?
+  minQMailed      Int?
+}
+
+model WpMatrixPrice {
+  id       Int     @id @default(autoincrement())
+  mtypeId  Int
+  aterms   String
+  number   BigInt
+  price    Decimal @db.Decimal(18, 2)
+
+  @@unique([mtypeId, aterms, number])
+  @@index([mtypeId])
+}
+
+model WpTerm {
+  termId    Int     @id
+  name      String
+  slug      String?
+  termGroup Int?
+}
+
+model WpTermTaxonomy {
+  termTaxonomyId Int     @id
+  termId         Int
+  taxonomy       String
+  description    String?
+  parent         Int?
+  count          Int?
+
+  @@index([termId])
+  @@index([taxonomy])
+}
+
+model WpTermRelationship {
+  id              Int @id @default(autoincrement())
+  objectId        Int
+  termTaxonomyId  Int
+  termOrder       Int?
+
+  @@unique([objectId, termTaxonomyId])
+  @@index([objectId])
+  @@index([termTaxonomyId])
+}
+
+model WpTermMeta {
+  metaId    Int    @id
+  termId    Int
+  metaKey   String?
+  metaValue String?
+
+  @@index([termId])
+  @@index([metaKey])
+}
+
+model WpAttributeTaxonomy {
+  attributeId     Int     @id
+  attributeName   String
+  attributeLabel  String
+  attributeType   String?
+  attributeOrder  Int?
+  attributePublic Int?
+}

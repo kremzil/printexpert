@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "WpMatrixPrice" ALTER COLUMN "price" SET DATA TYPE DECIMAL(18,2);

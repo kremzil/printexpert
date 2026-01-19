@@ -56,3 +56,23 @@ export async function getProductBySlug(slug: string) {
     },
   });
 }
+
+export async function getAdminProducts() {
+  const prisma = getPrisma();
+  return prisma.product.findMany({
+    orderBy: [{ name: "asc" }],
+    include: {
+      category: true,
+    },
+  });
+}
+
+export async function getAdminProductById(id: string) {
+  const prisma = getPrisma();
+  return prisma.product.findUnique({
+    where: { id },
+    include: {
+      category: true,
+    },
+  });
+}

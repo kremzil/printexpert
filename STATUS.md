@@ -1,44 +1,64 @@
 # Статус проекта
 
-Дата: 2026-01-18  
-Версия: 0.1.3
+Дата: 2026-01-19  
+Версия: 0.1.4
 
-## Система и Prisma
+## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
-- Prisma schema: `User` + сущности `Category`, `Product`, `ProductImage` и enum `PriceType`.
+- Prisma schema: `User` + каталог `Category`, `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц.
 - Миграция: `20260117195653_add_category_product_productimage`.
-- Prisma Client генерируется в `lib/generated/prisma` с адаптером `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
-- Сидирование: `npm run db:seed` (читает `data/*`, делает upsert по `(productId, url)` и обновляет `sortOrder/isPrimary`; лишние изображения удаляются).
-- Prisma health-check: `app/api/health/route.ts` выполняет `SELECT 1`.
+- Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
+- Сидинг: `npm run db:seed` (читает `data/*`).
+- Health-check: `app/api/health/route.ts` (SELECT 1).
 
 ## Каталог (DB-backed)
 - Страницы `/kategorie`, `/catalog`, `/product/[slug]` читают данные из Postgres через `lib/catalog.ts`.
-- Фильтрация по категории: `/catalog?cat=<slug>`.
-- Скрытые категории/товары не показываются; slug без совпадения -> 404.
-- `data/*` используется только для сидирования (не для runtime).
+- Фильтр по категории: `/catalog?cat=<slug>`.
+- Продукт без slug → 404.
 
-## Деплой и окружение
-- `docker-compose.prod.yml` поднимает `db` и `web`, добавлены `prod:*` скрипты в `package.json`.
-- `Dockerfile` под production Next.js (standalone), в `next.config.ts` включен `output: "standalone"`.
-- Примеры env: `.env.production.example`.
-- Документировано: `DEPLOY.md`.
+## Админка
+Маршруты:
+- `/admin` — список товаров.
+- `/admin/products/[id]` — карточка товара + матрицы цен.
+- `/admin/vlastnosti` — свойства (атрибуты).
+- `/admin/vlastnosti/[attributeId]` — значения свойства.
 
-## Маршруты
-- App Router: `/`, `/kategorie`, `/catalog`, `/kontaktujte-nas`, `/product/[slug]`.
-- API: `/api/health`.
-- Статическое: `/icon.svg`.
+Что реализовано:
+- Список товаров с переходом в карточку.
+- Отображение карточки товара (сохранение полей пока не реализовано).
+- Матрицы цен из WP-таблиц:
+  - Создание матрицы на основе выбранных свойств и значений.
+  - Генерация строк цен по комбинациям выбранных значений × breakpoints.
+  - Редактирование цен и сохранение одной кнопкой на матрицу.
+  - Удаление матрицы с подтверждением.
+- Свойства (атрибуты):
+  - Создание/удаление свойства с подтверждением.
+  - Значения свойства: создание/удаление.
 
-## Калькулятор цен и DOM-экспорты
-- Добавлены DOM-экспорты ценовых матриц для товаров (по одному JSON на продукт).
-- Калькулятор поддерживает два типа: фиксированный размер и площадной (area-based, `ntp = 2`).
-- Учитываются скрытые finishing-матрицы при подборе цены.
-- Для площадных товаров цена ниже первого брейкпоинта считается пропорционально базовой цене (1 м²).
-- Страница товара подхватывает нужный DOM-экспорт по slug.
+Ограничения:
+- `wpProductIdBySlug` пока хардкодом в `app/admin/products/[id]/page.tsx` и `app/product/[slug]/page.tsx`.
+- Новые строки `WpMatrixPrice` создаются только через кнопку генерации цен.
+- Нет авторизации.
 
-## Примечания
-- Источник ценовых данных: `data/wp/wp2print_dom_export_*.json`.
-- Подключены товары: `letaky`, `samolepiaca-folia`.
+## WP-матрицы и калькулятор
+- Таблицы: `WpMatrixType`, `WpMatrixPrice`, `WpTerm`, `WpTermTaxonomy`, `WpTermRelationship`, `WpTermMeta`, `WpAttributeTaxonomy`.
+- Импорт JSON → DB: `scripts/import-wp-calculator-tables.js`.
+- Логика парсинга и данных матриц: `lib/wp-calculator.ts`.
+- Привязка WP продукта через `wpProductIdBySlug`.
 
-## Идеи / follow-ups
-- Добавить CRUD для категорий и товаров (админка).
-- Подключать новые DOM-экспорты по мере расширения ассортимента.
+## Контакты
+- Форма обратной связи (если включена): `/api/contact`.
+- Валидация: Zod.
+- Защита: honeypot + rate limit.
+
+## Деплой и сборка
+- `docker-compose.prod.yml` поднимает `db` и `web`.
+- `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.
+- Пример env: `.env.production.example`.
+
+## Следующие шаги
+- Перенос WP productId в таблицу `Product` вместо хардкода.
+- Реализация сохранения карточки товара.
+- Редактирование параметров матрицы (title/numType/breakpoints).
+- Поиск/фильтры в админке.
+- Авторизация.
