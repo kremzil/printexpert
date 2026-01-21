@@ -69,6 +69,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <Card className="py-6">
           <CardContent className="space-y-3">
             <h1 className="text-2xl font-semibold">{product.name}</h1>
+            {product.excerpt ? (
+              <div
+                className="text-sm text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: product.excerpt }}
+              />
+            ) : null}
             {product.category ? (
               <Badge variant="secondary" className="w-fit">
                 {product.category.name}
@@ -82,6 +88,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
             ) : (
               <div className="text-sm text-muted-foreground">Cena na vyžiadanie</div>
             )}
+            {product.description ? (
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: product.description }}
+              />
+            ) : null}
           </CardContent>
         </Card>
       </div>
