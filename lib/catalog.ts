@@ -17,14 +17,26 @@ export async function getCategoryBySlug(slug: string) {
   });
 }
 
-export async function getProducts({ categorySlug }: { categorySlug?: string }) {
+export async function getProducts({
+  categorySlug,
+  categorySlugs,
+}: {
+  categorySlug?: string;
+  categorySlugs?: string[];
+}) {
   const prisma = getPrisma();
+  const slugFilter =
+    categorySlugs && categorySlugs.length > 0
+      ? { in: categorySlugs }
+      : categorySlug
+        ? categorySlug
+        : undefined;
   return prisma.product.findMany({
     where: {
       isActive: true,
       category: {
         isActive: true,
-        ...(categorySlug ? { slug: categorySlug } : {}),
+        ...(slugFilter ? { slug: slugFilter } : {}),
       },
     },
     orderBy: [{ name: "asc" }],

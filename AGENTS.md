@@ -92,6 +92,7 @@ Rules:
 This environment may have MCP servers enabled (Codex):
 - `next-devtools` — inspect routes/errors/logs/metadata from the running dev server
 - `shadcn` — install components from the shadcn registry
+- `Prisma-Local`
 
 Use MCP when it speeds up debugging or component setup, but keep code changes minimal.
 

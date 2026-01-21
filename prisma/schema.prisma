@@ -32,13 +32,16 @@ enum PricingKind {
 }
 
 model Category {
-  id          String    @id @default(uuid()) @db.Uuid
-  slug        String    @unique
+  id          String     @id @default(uuid()) @db.Uuid
+  slug        String     @unique
   name        String
   image       String
   description String?
-  sortOrder   Int       @default(0)
-  isActive    Boolean   @default(true)
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  parentId    String?    @db.Uuid
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
   products    Product[]
 }
 

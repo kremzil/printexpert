@@ -129,3 +129,13 @@
 ## Примечания
 - Данные берутся из БД, а `attributes/aterms` остаются в PHP‑serialized формате.
 - Разбор `attributes/aterms` выполняется в `lib/wp-calculator.ts`.
+
+## Данные товара из wp_posts (для SEO и карточек)
+- Таблица: `wp_posts` (экспорт `kpkp_wp2print_table_wp_posts.json`).
+- Фильтр: `post_type = "product"`, `post_status = "publish"`.
+- Маппинг в `Product`: 
+  - `post_name` → `slug` (сохраняем старые URL)
+  - `post_title` → `name`
+  - `post_excerpt` → `excerpt`
+  - `post_content` → `description`
+

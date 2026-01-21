@@ -24,10 +24,36 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {}
   const selectedCategorySlug = resolvedSearchParams.cat
   const categories = await getCategories()
+  const categoryById = new Map(
+    categories.map((category) => [category.id, category])
+  )
+  const categoryBySlug = new Map(
+    categories.map((category) => [category.slug, category])
+  )
+  const childrenByParentId = categories.reduce((map, category) => {
+    const key = category.parentId ?? "root"
+    if (!map.has(key)) {
+      map.set(key, [])
+    }
+    map.get(key).push(category)
+    return map
+  }, new Map<string, typeof categories>())
+  const rootCategories = childrenByParentId.get("root") ?? []
+  const selectedCategory = selectedCategorySlug
+    ? categoryBySlug.get(selectedCategorySlug)
+    : null
+  const selectedChildren = selectedCategory
+    ? childrenByParentId.get(selectedCategory.id) ?? []
+    : []
+  const selectedSlugs =
+    selectedCategory && selectedChildren.length > 0
+      ? [selectedCategory.slug, ...selectedChildren.map((child) => child.slug)]
+      : selectedCategory
+        ? [selectedCategory.slug]
+        : undefined
   const filteredProducts = await getProducts({
-    categorySlug: selectedCategorySlug,
+    categorySlugs: selectedSlugs,
   })
-  const categoryById = new Map(categories.map((category) => [category.id, category]))
   const activeCategory = categories.find(
     (category) => category.slug === selectedCategorySlug
   )
@@ -58,7 +84,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
           Kompletný prehľad našich produktov podľa kategórie.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="space-y-3">
         <Button
           asChild
           size="sm"
@@ -66,18 +92,40 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         >
           <Link href="/catalog">Všetky</Link>
         </Button>
-        {categories.map((category) => {
-          const isActive = activeCategory?.slug === category.slug
+        {rootCategories.map((category) => {
+          const children = childrenByParentId.get(category.id) ?? []
+          const isActiveParent =
+            activeCategory?.slug === category.slug ||
+            children.some((child) => child.slug === activeCategory?.slug)
 
           return (
-            <Button
-              key={category.slug}
-              asChild
-              size="sm"
-              variant={isActive ? "default" : "outline"}
-            >
-              <Link href={`/catalog?cat=${category.slug}`}>{category.name}</Link>
-            </Button>
+            <div key={category.slug} className="flex flex-wrap items-center gap-2">
+              <Button
+                asChild
+                size="sm"
+                variant={isActiveParent ? "default" : "outline"}
+              >
+                <Link href={`/catalog?cat=${category.slug}`}>
+                  {category.name}
+                </Link>
+              </Button>
+              {children.map((child) => {
+                const isActive = activeCategory?.slug === child.slug
+
+                return (
+                  <Button
+                    key={child.slug}
+                    asChild
+                    size="sm"
+                    variant={isActive ? "default" : "outline"}
+                  >
+                    <Link href={`/catalog?cat=${child.slug}`}>
+                      {child.name}
+                    </Link>
+                  </Button>
+                )
+              })}
+            </div>
           )
         })}
       </div>

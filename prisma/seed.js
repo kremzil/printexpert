@@ -268,6 +268,20 @@ async function main() {
     "products"
   );
 
+  await prisma.category.deleteMany({
+    where: {
+      slug: {
+        in: [
+          "peciatky-peciatky-standardne",
+          "peciatky-peciatky-podlhovaste",
+          "peciatky-peciatky-stvorcove",
+          "peciatky-peciatky-okruhle",
+          "peciatky-peciatky-ovalne",
+        ],
+      },
+    },
+  });
+
   const categoryBySlug = new Map();
 
   for (const category of categories) {
@@ -279,6 +293,7 @@ async function main() {
         description: category.description ?? null,
         sortOrder: category.sortOrder ?? 0,
         isActive: category.isActive ?? true,
+        parentId: null,
       },
       create: {
         slug: category.slug,
@@ -287,10 +302,29 @@ async function main() {
         description: category.description ?? null,
         sortOrder: category.sortOrder ?? 0,
         isActive: category.isActive ?? true,
+        parentId: null,
       },
     });
 
     categoryBySlug.set(saved.slug, saved);
+  }
+
+  for (const category of categories) {
+    if (!category.parentSlug) {
+      continue;
+    }
+
+    const parent = categoryBySlug.get(category.parentSlug);
+    const child = categoryBySlug.get(category.slug);
+
+    if (!parent || !child) {
+      continue;
+    }
+
+    await prisma.category.update({
+      where: { id: child.id },
+      data: { parentId: parent.id },
+    });
   }
 
   for (const product of products) {
