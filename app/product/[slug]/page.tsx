@@ -58,7 +58,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div className="space-y-4">
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border bg-muted/30">
+          <div className="relative aspect-4/5 w-full overflow-hidden rounded-xl border bg-muted/30">
             <Image
               src={primaryImage.url}
               alt={primaryImage.alt ?? product.name}

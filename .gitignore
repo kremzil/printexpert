@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Plans
 /plans
+
+#data
+/data/wp
