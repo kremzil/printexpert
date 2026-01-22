@@ -23,6 +23,10 @@ type UpdateProductWpIdInput = {
   productId: string
 }
 
+type UpdateProductDetailsInput = {
+  productId: string
+}
+
 type PhpSerializable =
   | string
   | number
@@ -304,6 +308,72 @@ export async function updateProductWpId(
     revalidatePath(`/product/${updated.slug}`)
   }
   updateTag("wp-matrix")
+}
+
+export async function updateProductDetails(
+  input: UpdateProductDetailsInput,
+  formData: FormData
+) {
+  const name = String(formData.get("name") ?? "").trim()
+  const slug = String(formData.get("slug") ?? "").trim()
+  const excerpt = String(formData.get("excerpt") ?? "").trim()
+  const description = String(formData.get("description") ?? "").trim()
+  const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
+  const vatRateRaw = String(formData.get("vatRate") ?? "").trim()
+
+  if (!name || !slug || !vatRateRaw) {
+    return
+  }
+
+  const normalizedPriceFrom = priceFromRaw.replace(",", ".")
+  const normalizedVatRate = vatRateRaw.replace(",", ".")
+  const priceFromValue = normalizedPriceFrom
+    ? Number(normalizedPriceFrom)
+    : null
+  const vatRateValue = Number(normalizedVatRate)
+
+  if (
+    (normalizedPriceFrom && Number.isNaN(priceFromValue)) ||
+    Number.isNaN(vatRateValue)
+  ) {
+    return
+  }
+
+  const prisma = getPrisma()
+  const existing = await prisma.product.findUnique({
+    where: { id: input.productId },
+    select: { slug: true },
+  })
+
+  if (!existing) {
+    return
+  }
+
+  const updated = await prisma.product.update({
+    where: { id: input.productId },
+    data: {
+      name,
+      slug,
+      excerpt: excerpt || null,
+      description: description || null,
+      priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
+      vatRate: normalizedVatRate,
+    },
+    select: { slug: true },
+  })
+
+  updateTag(
+    "products",
+    `product-id:${input.productId}`,
+    `product:${existing.slug}`,
+    `product:${updated.slug}`
+  )
+  revalidatePath("/admin")
+  revalidatePath(`/admin/products/${input.productId}`)
+  revalidatePath(`/product/${existing.slug}`)
+  if (updated.slug !== existing.slug) {
+    revalidatePath(`/product/${updated.slug}`)
+  }
 }
 
 export async function createMatrixPriceRows(input: DeleteMatrixInput) {

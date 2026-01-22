@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
+import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { getAdminProductById } from "@/lib/catalog"
 import { getPrisma } from "@/lib/prisma"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
@@ -19,6 +20,7 @@ import {
   createMatrix,
   createMatrixPriceRows,
   deleteMatrix,
+  updateProductDetails,
   updateProductWpId,
   updateMatrixPrices,
 } from "./actions"
@@ -104,8 +106,6 @@ async function AdminProductDetails({
     "3": "Obvod",
     "4": "Šírka × 2",
   }
-  const selectClassName =
-    "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
   const { attributes, termTaxonomies, terms } = attributeData
   const termById = new Map(terms.map((term) => [term.termId, term]))
   const termIdsByTaxonomy = new Map<string, number[]>()
@@ -153,15 +153,18 @@ async function AdminProductDetails({
 
           <Separator />
 
-          <form className="space-y-5">
+          <form
+            action={updateProductDetails.bind(null, { productId: product.id })}
+            className="space-y-5"
+          >
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Názov</Label>
-                <Input id="name" name="name" defaultValue={product.name} />
+                <Input id="name" name="name" defaultValue={product.name} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" name="slug" defaultValue={product.slug} />
+                <Input id="slug" name="slug" defaultValue={product.slug} required />
               </div>
             </div>
 
@@ -191,6 +194,9 @@ async function AdminProductDetails({
                 <Input
                   id="priceFrom"
                   name="priceFrom"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
                   defaultValue={product.priceFrom?.toString() ?? ""}
                 />
               </div>
@@ -199,14 +205,18 @@ async function AdminProductDetails({
                 <Input
                   id="vatRate"
                   name="vatRate"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
                   defaultValue={product.vatRate.toString()}
+                  required
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Zmeny sa zatiaľ neukladajú.</span>
-              <Button type="button" variant="secondary" size="sm" disabled>
+              <span>Uložte zmeny pre aktualizáciu produktu.</span>
+              <Button type="submit" variant="secondary" size="sm">
                 Uložiť zmeny
               </Button>
             </div>
@@ -251,100 +261,19 @@ async function AdminProductDetails({
           </form>
 
           {product.wpProductId ? (
-            <form
-              action={createMatrix.bind(null, {
-                productId: product.id,
-                wpProductId: product.wpProductId,
-              })}
-              className="grid gap-4"
-            >
-              <div className="grid gap-3 md:grid-cols-[1.3fr_0.9fr_0.9fr_1.3fr_auto]">
-                <div className="space-y-2">
-                  <Label htmlFor="matrix-title">Názov matice</Label>
-                  <Input
-                    id="matrix-title"
-                    name="title"
-                    placeholder="Názov matice… (napr. Základná A4)"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="matrix-kind">Typ matice</Label>
-                  <select
-                    id="matrix-kind"
-                    name="kind"
-                    className={selectClassName}
-                    defaultValue="simple"
-                  >
-                    <option value="simple">Základná</option>
-                    <option value="finishing">Dokončovacia</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="matrix-num-type">Typ množstva</Label>
-                  <select
-                    id="matrix-num-type"
-                    name="numType"
-                    className={selectClassName}
-                    defaultValue="0"
-                  >
-                    <option value="0">Fixná</option>
-                    <option value="2">Plocha (šírka × výška)</option>
-                    <option value="3">Obvod</option>
-                    <option value="4">Šírka × 2</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="matrix-breakpoints">Breakpointy</Label>
-                  <Input
-                    id="matrix-breakpoints"
-                    name="numbers"
-                    placeholder="Breakpointy… (napr. 100|200|500)"
-                  />
-                </div>
-                <Button type="submit" size="sm">
-                  Pridať maticu
-                </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-muted-foreground">
+                Nové matice pridávajte cez výber vlastností.
               </div>
-              <div className="rounded-lg border px-4 py-4">
-                <div className="text-sm font-medium">
-                  Vyberte vlastnosti a hodnoty pre maticu
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Matica bude obsahovať iba vybrané hodnoty.
-                </p>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  {attributesWithTerms.map(({ attribute, terms }) => (
-                    <div key={attribute.attributeId} className="rounded-md border p-3">
-                      <div className="text-sm font-medium">
-                        {attribute.attributeLabel || attribute.attributeName}
-                      </div>
-                      {terms.length === 0 ? (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          Bez hodnôt pre túto vlastnosť.
-                        </div>
-                      ) : (
-                        <div className="mt-2 max-h-40 space-y-1 overflow-y-auto text-sm">
-                          {terms.map((term) => (
-                            <label
-                              key={term.termId}
-                              className="flex items-center gap-2"
-                            >
-                              <input
-                                type="checkbox"
-                                name={`terms:${attribute.attributeId}`}
-                                value={term.termId}
-                                className="size-4"
-                              />
-                              <span>{term.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </form>
+              <ProductMatrixDialog
+                productName={product.name}
+                attributes={attributesWithTerms}
+                createMatrixAction={createMatrix.bind(null, {
+                  productId: product.id,
+                  wpProductId: product.wpProductId,
+                })}
+              />
+            </div>
           ) : (
             <div className="text-sm text-muted-foreground">
               Najprv nastavte WP ID pre tento produkt.
