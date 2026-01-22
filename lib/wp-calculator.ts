@@ -28,6 +28,7 @@ type MatrixPriceEntry = {
 type Matrix = {
   kind: "simple" | "finishing"
   mtid: string
+  title: string | null
   ntp: string
   material: string | null
   selects: MatrixSelect[]
@@ -323,6 +324,7 @@ export async function getWpCalculatorData(
     return {
       kind,
       mtid: String(row.mtypeId),
+      title: row.title ?? null,
       ntp: String(row.numType ?? 0),
       material: null,
       selects,

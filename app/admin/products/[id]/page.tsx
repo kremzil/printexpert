@@ -348,8 +348,8 @@ async function AdminProductDetails({
                     <details key={matrix.mtid} className="rounded-lg border">
                       <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-4 py-3 text-sm">
                         <Badge variant="secondary">{kindLabel}</Badge>
-                        <span className="text-muted-foreground">
-                          MTID: {matrix.mtid}
+                        <span className="font-medium">
+                          {matrix.title ?? `Matica ${matrix.mtid}`}
                         </span>
                         <span className="text-muted-foreground">
                           Typ množstva: {ntpLabel}
@@ -393,7 +393,7 @@ async function AdminProductDetails({
                               className="rounded-md bg-muted/30 px-3 py-2"
                             >
                               <div className="text-xs text-muted-foreground">
-                                Atribút {select.aid}
+                                {select.label}
                               </div>
                               <div className="mt-1 flex flex-wrap gap-2 text-sm">
                                 {select.options.length > 0 ? (
