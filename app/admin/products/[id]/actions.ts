@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 
 type UpdateMatrixPricesInput = {
   productId: string
@@ -316,8 +317,8 @@ export async function updateProductDetails(
 ) {
   const name = String(formData.get("name") ?? "").trim()
   const slug = String(formData.get("slug") ?? "").trim()
-  const excerpt = String(formData.get("excerpt") ?? "").trim()
-  const description = String(formData.get("description") ?? "").trim()
+  const excerptInput = String(formData.get("excerpt") ?? "")
+  const descriptionInput = String(formData.get("description") ?? "")
   const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
   const vatRateRaw = String(formData.get("vatRate") ?? "").trim()
 
@@ -340,6 +341,10 @@ export async function updateProductDetails(
   }
 
   const prisma = getPrisma()
+  const sanitizedDescription = sanitizeHtml(descriptionInput)
+  const description = sanitizedDescription.trim()
+  const sanitizedExcerpt = sanitizeHtml(excerptInput)
+  const excerpt = sanitizedExcerpt.trim()
   const existing = await prisma.product.findUnique({
     where: { id: input.productId },
     select: { slug: true },

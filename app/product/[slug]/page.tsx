@@ -14,6 +14,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { getProductBySlug } from "@/lib/catalog"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
 
 type ProductPageProps = {
@@ -37,6 +38,10 @@ async function ProductDetails({
   const primaryImage = product.images[0]
   const calculatorData = product.wpProductId
     ? await getWpCalculatorData(product.wpProductId)
+    : null
+
+  const descriptionHtml = product.description
+    ? sanitizeHtml(product.description)
     : null
 
   return (
@@ -127,12 +132,12 @@ async function ProductDetails({
         </div>
       </div>
 
-      {product.description ? (
+      {descriptionHtml ? (
         <div className="space-y-3">
           <h2 className="text-2xl font-semibold">Popis</h2>
           <div
-            className="prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: product.description }}
+            className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-md [&_iframe]:border-0 [&_video]:w-full [&_video]:rounded-md"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
           />
         </div>
       ) : null}

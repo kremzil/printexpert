@@ -10,9 +10,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
+import { ProductDescriptionEditor } from "@/components/admin/product-description-editor"
 import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
+import { ProductTitleEditor } from "@/components/admin/product-title-editor"
 import { getAdminProductById } from "@/lib/catalog"
 import { getPrisma } from "@/lib/prisma"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
@@ -131,9 +132,12 @@ async function AdminProductDetails({
   return (
     <section className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className="text-sm text-muted-foreground">Administrácia</div>
-          <h1 className="text-2xl font-semibold">{product.name}</h1>
+          <ProductTitleEditor
+            initialName={product.name}
+            initialSlug={product.slug}
+          />
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/admin">Späť na produkty</Link>
@@ -157,36 +161,20 @@ async function AdminProductDetails({
             action={updateProductDetails.bind(null, { productId: product.id })}
             className="space-y-5"
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">Názov</Label>
-                <Input id="name" name="name" defaultValue={product.name} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" name="slug" defaultValue={product.slug} required />
-              </div>
-            </div>
-
             <div className="space-y-2">
-              <Label htmlFor="excerpt">Krátky popis</Label>
-              <Textarea
-                id="excerpt"
+              <ProductDescriptionEditor
                 name="excerpt"
-                rows={3}
-                defaultValue={product.excerpt ?? ""}
+                label="Krátky popis"
+                initialValue={product.excerpt ?? ""}
+                placeholder="Začnite písať krátky popis..."
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Detailný popis</Label>
-              <Textarea
-                id="description"
-                name="description"
-                rows={6}
-                defaultValue={product.description ?? ""}
-              />
-            </div>
+            <ProductDescriptionEditor
+              name="description"
+              initialValue={product.description ?? ""}
+              placeholder="Začnite písať popis..."
+            />
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
