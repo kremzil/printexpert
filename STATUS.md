@@ -59,6 +59,13 @@
 - Валидация: Zod.
 - Защита: honeypot + rate limit.
 
+## Оптимизации UI/доступность
+- Добавлен skip‑link к основному контенту.
+- Убраны `transition-all`, заменены на явные списки свойств.
+- Добавлены `aria-label` для icon‑only действий и `aria-live` для сообщений статуса.
+- Явные `<label>` для полей в админских формах и корректные placeholders с примерами.
+- Улучшены focus‑стили для модалок и комбобокса, добавлено `overscroll-contain`.
+
 ## Деплой и сборка
 - `docker-compose.prod.yml` поднимает `db` и `web`.
 - `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.

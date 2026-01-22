@@ -77,7 +77,11 @@ export function ContactForm() {
             <FormItem>
               <FormLabel>Meno</FormLabel>
               <FormControl>
-                <Input placeholder="Vaše meno" {...field} />
+                <Input
+                  placeholder="Vaše meno… (napr. Jana Nováková)"
+                  autoComplete="name"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -90,7 +94,13 @@ export function ContactForm() {
             <FormItem>
               <FormLabel>E-mail</FormLabel>
               <FormControl>
-                <Input placeholder="vas@email.sk" type="email" {...field} />
+                <Input
+                  placeholder="vas@email.sk…"
+                  type="email"
+                  autoComplete="email"
+                  spellCheck={false}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -104,8 +114,9 @@ export function ContactForm() {
               <FormLabel>Správa</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Čo pre vás môžeme urobiť?"
+                  placeholder="Čo pre vás môžeme urobiť… (napr. 500 ks A5 letákov)"
                   rows={4}
+                  autoComplete="off"
                   {...field}
                 />
               </FormControl>
@@ -117,12 +128,12 @@ export function ContactForm() {
           Odoslať správu
         </Button>
         {status === "success" && (
-          <p className="text-sm text-emerald-600">
+          <p className="text-sm text-emerald-600" aria-live="polite">
             Ďakujeme, ozveme sa čoskoro.
           </p>
         )}
         {status === "error" && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-destructive" aria-live="polite">
             Odoslanie zlyhalo. Skúste to prosím neskôr.
           </p>
         )}

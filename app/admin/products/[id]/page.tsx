@@ -241,7 +241,7 @@ async function AdminProductDetails({
                 name="wpProductId"
                 type="number"
                 inputMode="numeric"
-                placeholder="Napríklad 1424"
+                placeholder="Napríklad 1424…"
                 defaultValue={product.wpProductId?.toString() ?? ""}
               />
             </div>
@@ -259,29 +259,48 @@ async function AdminProductDetails({
               className="grid gap-4"
             >
               <div className="grid gap-3 md:grid-cols-[1.3fr_0.9fr_0.9fr_1.3fr_auto]">
-                <Input name="title" placeholder="Názov matice" />
-                <select
-                  name="kind"
-                  className={selectClassName}
-                  defaultValue="simple"
-                >
-                  <option value="simple">Základná</option>
-                  <option value="finishing">Dokončovacia</option>
-                </select>
-                <select
-                  name="numType"
-                  className={selectClassName}
-                  defaultValue="0"
-                >
-                  <option value="0">Fixná</option>
-                  <option value="2">Plocha (šírka × výška)</option>
-                  <option value="3">Obvod</option>
-                  <option value="4">Šírka × 2</option>
-                </select>
-                <Input
-                  name="numbers"
-                  placeholder="Breakpointy (napr. 100|200|500)"
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="matrix-title">Názov matice</Label>
+                  <Input
+                    id="matrix-title"
+                    name="title"
+                    placeholder="Názov matice… (napr. Základná A4)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="matrix-kind">Typ matice</Label>
+                  <select
+                    id="matrix-kind"
+                    name="kind"
+                    className={selectClassName}
+                    defaultValue="simple"
+                  >
+                    <option value="simple">Základná</option>
+                    <option value="finishing">Dokončovacia</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="matrix-num-type">Typ množstva</Label>
+                  <select
+                    id="matrix-num-type"
+                    name="numType"
+                    className={selectClassName}
+                    defaultValue="0"
+                  >
+                    <option value="0">Fixná</option>
+                    <option value="2">Plocha (šírka × výška)</option>
+                    <option value="3">Obvod</option>
+                    <option value="4">Šírka × 2</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="matrix-breakpoints">Breakpointy</Label>
+                  <Input
+                    id="matrix-breakpoints"
+                    name="numbers"
+                    placeholder="Breakpointy… (napr. 100|200|500)"
+                  />
+                </div>
                 <Button type="submit" size="sm">
                   Pridať maticu
                 </Button>
@@ -494,36 +513,48 @@ async function AdminProductDetails({
                               </thead>
                               <tbody>
                                 {rowsByCombo.size > 0 ? (
-                                  Array.from(rowsByCombo.values()).map((row) => (
-                                    <tr
-                                      key={row.aterms}
-                                      className="border-b last:border-b-0"
-                                    >
-                                      {selectLabels.map((select) => (
-                                        <td key={select.aid} className="px-2 py-2">
-                                          {row.terms[select.aid] ?? "—"}
-                                        </td>
-                                      ))}
-                                      {uniqueBreakpoints.map((breakpoint) => (
-                                        <td
-                                          key={`${row.aterms}-${breakpoint}`}
-                                          className="px-2 py-2 text-right"
-                                        >
-                                          {row.prices[String(breakpoint)] ? (
-                                            <input
-                                              name={`price|${encodeURIComponent(
-                                                row.aterms
-                                              )}|${breakpoint}`}
-                                              defaultValue={row.prices[String(breakpoint)]}
-                                              className="h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm"
-                                            />
-                                          ) : (
-                                            "—"
-                                          )}
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  ))
+                                  Array.from(rowsByCombo.values()).map((row) => {
+                                    const rowLabel = selectLabels
+                                      .map(
+                                        (select) => row.terms[select.aid] ?? "—"
+                                      )
+                                      .filter(Boolean)
+                                      .join(", ")
+                                    const priceLabelBase = rowLabel
+                                      ? `Cena pre ${rowLabel}`
+                                      : "Cena"
+                                    return (
+                                      <tr
+                                        key={row.aterms}
+                                        className="border-b last:border-b-0"
+                                      >
+                                        {selectLabels.map((select) => (
+                                          <td key={select.aid} className="px-2 py-2">
+                                            {row.terms[select.aid] ?? "—"}
+                                          </td>
+                                        ))}
+                                        {uniqueBreakpoints.map((breakpoint) => (
+                                          <td
+                                            key={`${row.aterms}-${breakpoint}`}
+                                            className="px-2 py-2 text-right"
+                                          >
+                                            {row.prices[String(breakpoint)] ? (
+                                              <input
+                                                name={`price|${encodeURIComponent(
+                                                  row.aterms
+                                                )}|${breakpoint}`}
+                                                defaultValue={row.prices[String(breakpoint)]}
+                                                aria-label={`${priceLabelBase} pri ${breakpoint}`}
+                                                className="h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm"
+                                              />
+                                            ) : (
+                                              "—"
+                                            )}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    )
+                                  })
                                 ) : (
                                   <tr>
                                     <td

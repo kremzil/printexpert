@@ -41,6 +41,7 @@ function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
     <ComboboxPrimitive.Clear
       data-slot="combobox-clear"
       render={<InputGroupButton variant="ghost" size="icon-xs" />}
+      aria-label="Vymazať výber"
       className={cn(className)}
       {...props}
     >
@@ -246,6 +247,7 @@ function ComboboxChip({
           render={<Button variant="ghost" size="icon-xs" />}
           className="-ml-1 opacity-50 hover:opacity-100"
           data-slot="combobox-chip-remove"
+          aria-label="Odstrániť položku"
         >
           <XIcon className="pointer-events-none" />
         </ComboboxPrimitive.ChipRemove>
@@ -262,7 +264,7 @@ function ComboboxChipsInput({
     <ComboboxPrimitive.Input
       data-slot="combobox-chip-input"
       className={cn(
-        "min-w-16 flex-1 outline-none",
+        "min-w-16 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className
       )}
       {...props}

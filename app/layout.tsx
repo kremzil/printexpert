@@ -38,6 +38,12 @@ export default function RootLayout({
     <html lang="sk" className={inter.variable}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="flex min-h-screen flex-col">
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow"
+          >
+            Preskočiť na hlavný obsah
+          </a>
           <header className="border-b">
             <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
               <Link href="/" className="flex items-center gap-2">
@@ -88,7 +94,10 @@ export default function RootLayout({
               </NavigationMenu>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+          <main
+            id="main-content"
+            className="mx-auto w-full max-w-6xl flex-1 px-4 py-8"
+          >
             {children}
           </main>
           <footer className="border-t">

@@ -5,6 +5,7 @@ import { cacheLife, cacheTag } from "next/cache"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
 import { createAttribute, deleteAttribute } from "./actions"
@@ -46,9 +47,30 @@ export default async function AdminPropertiesPage() {
             action={createAttribute}
             className="mb-6 grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_auto]"
           >
-            <Input name="label" placeholder="Názov vlastnosti" />
-            <Input name="name" placeholder="Slug (napr. farba)" />
-            <Input name="type" placeholder="Typ (napr. select)" />
+            <div className="space-y-1">
+              <Label htmlFor="attribute-label">Názov vlastnosti</Label>
+              <Input
+                id="attribute-label"
+                name="label"
+                placeholder="Názov vlastnosti… (napr. Formát)"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="attribute-name">Slug</Label>
+              <Input
+                id="attribute-name"
+                name="name"
+                placeholder="Slug… (napr. farba)"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="attribute-type">Typ</Label>
+              <Input
+                id="attribute-type"
+                name="type"
+                placeholder="Typ… (napr. select)"
+              />
+            </div>
             <Button type="submit" size="sm">
               Pridať vlastnosť
             </Button>

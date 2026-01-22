@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { getPrisma } from "@/lib/prisma"
 import { createTerm, deleteTerm } from "./actions"
 
@@ -119,8 +120,22 @@ async function AdminPropertyDetails({
                 })}
                 className="grid gap-3 md:grid-cols-[1.2fr_1fr_auto]"
               >
-                <Input name="name" placeholder="Názov hodnoty" />
-                <Input name="slug" placeholder="Slug (napr. matny-papier)" />
+                <div className="space-y-1">
+                  <Label htmlFor="term-name">Názov hodnoty</Label>
+                  <Input
+                    id="term-name"
+                    name="name"
+                    placeholder="Názov hodnoty… (napr. Matný papier)"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="term-slug">Slug</Label>
+                  <Input
+                    id="term-slug"
+                    name="slug"
+                    placeholder="Slug… (napr. matny-papier)"
+                  />
+                </div>
                 <Button type="submit" size="sm">
                   Pridať hodnotu
                 </Button>
