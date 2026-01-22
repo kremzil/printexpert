@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -21,7 +22,34 @@ type CatalogPageProps = {
 }
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const resolvedSearchParams = searchParams ? await searchParams : {}
+  return (
+    <Suspense
+      fallback={
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <div className="h-4 w-24 rounded bg-muted" />
+            <div className="h-7 w-1/2 rounded bg-muted" />
+            <div className="h-4 w-2/3 rounded bg-muted" />
+          </div>
+          <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
+            Načítavame katalóg…
+          </div>
+        </section>
+      }
+    >
+      <CatalogContent searchParamsPromise={searchParams} />
+    </Suspense>
+  )
+}
+
+async function CatalogContent({
+  searchParamsPromise,
+}: {
+  searchParamsPromise?: CatalogPageProps["searchParams"]
+}) {
+  const resolvedSearchParams = searchParamsPromise
+    ? await searchParamsPromise
+    : {}
   const selectedCategorySlug = resolvedSearchParams.cat
   const categories = await getCategories()
   const categoryById = new Map(
@@ -141,7 +169,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       {filteredProducts.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-8 text-sm text-muted-foreground">
-            Nenašli sme produkty v tejto kategórii. Skúste filter "Všetky".
+            Nenašli sme produkty v tejto kategórii. Skúste filter &quot;Všetky&quot;.
           </CardContent>
         </Card>
       ) : (
@@ -173,7 +201,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                       <CardTitle className="text-base">{product.name}</CardTitle>
                       {product.priceFrom ? (
                         <span className="text-sm text-muted-foreground">
-                          {product.priceFrom.toString()} €
+                          {product.priceFrom} €
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">

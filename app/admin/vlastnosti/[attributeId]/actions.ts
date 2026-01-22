@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 
@@ -36,14 +36,16 @@ export async function createTerm(
 
   const slug = normalizeSlug(rawSlug || name)
 
-  const latestTerm = await prisma.wpTerm.findFirst({
-    orderBy: { termId: "desc" },
-    select: { termId: true },
-  })
-  const latestTax = await prisma.wpTermTaxonomy.findFirst({
-    orderBy: { termTaxonomyId: "desc" },
-    select: { termTaxonomyId: true },
-  })
+  const [latestTerm, latestTax] = await Promise.all([
+    prisma.wpTerm.findFirst({
+      orderBy: { termId: "desc" },
+      select: { termId: true },
+    }),
+    prisma.wpTermTaxonomy.findFirst({
+      orderBy: { termTaxonomyId: "desc" },
+      select: { termTaxonomyId: true },
+    }),
+  ])
 
   const termId = (latestTerm?.termId ?? 0) + 1
   const termTaxonomyId = (latestTax?.termTaxonomyId ?? 0) + 1
@@ -70,6 +72,7 @@ export async function createTerm(
     }),
   ])
 
+  updateTag("attributes")
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }
 
@@ -97,5 +100,6 @@ export async function deleteTerm(input: DeleteTermInput) {
     }
   })
 
+  updateTag("attributes")
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }

@@ -395,6 +395,7 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
     data.globals.numbers_array,
     data.globals.smatrix,
     data.matrices,
+    baseSizeEntry,
     finishingHasSize,
     hiddenFinishingPair,
     selections,

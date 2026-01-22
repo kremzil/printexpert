@@ -1,6 +1,8 @@
 
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
+import { cacheLife, cacheTag } from "next/cache"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,27 +29,10 @@ type AdminProductPageProps = {
   }>
 }
 
-export default async function AdminProductPage({
-  params,
-}: AdminProductPageProps) {
-  const { id } = await params
-  const product = await getAdminProductById(id)
-
-  if (!product) {
-    notFound()
-  }
-
-  const calculatorData = product.wpProductId
-    ? await getWpCalculatorData(product.wpProductId)
-    : null
-  const ntpLabelByValue: Record<string, string> = {
-    "0": "Fixná",
-    "2": "Plocha (šírka × výška)",
-    "3": "Obvod",
-    "4": "Šírka × 2",
-  }
-  const selectClassName =
-    "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+async function getAttributesWithTerms() {
+  "use cache"
+  cacheTag("attributes")
+  cacheLife("minutes")
   const prisma = getPrisma()
   const attributes = await prisma.wpAttributeTaxonomy.findMany({
     orderBy: [{ attributeLabel: "asc" }, { attributeName: "asc" }],
@@ -69,6 +54,59 @@ export default async function AdminProductPage({
         orderBy: [{ name: "asc" }],
       })
     : []
+
+  return { attributes, termTaxonomies, terms }
+}
+
+export default async function AdminProductPage({
+  params,
+}: AdminProductPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <div className="h-4 w-24 rounded bg-muted" />
+            <div className="h-7 w-1/2 rounded bg-muted" />
+          </div>
+          <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
+            Načítavame administráciu produktu…
+          </div>
+        </section>
+      }
+    >
+      <AdminProductDetails paramsPromise={params} />
+    </Suspense>
+  )
+}
+
+async function AdminProductDetails({
+  paramsPromise,
+}: {
+  paramsPromise: AdminProductPageProps["params"]
+}) {
+  const { id } = await paramsPromise
+  const [product, attributeData] = await Promise.all([
+    getAdminProductById(id),
+    getAttributesWithTerms(),
+  ])
+
+  if (!product) {
+    notFound()
+  }
+
+  const calculatorData = product.wpProductId
+    ? await getWpCalculatorData(product.wpProductId)
+    : null
+  const ntpLabelByValue: Record<string, string> = {
+    "0": "Fixná",
+    "2": "Plocha (šírka × výška)",
+    "3": "Obvod",
+    "4": "Šírka × 2",
+  }
+  const selectClassName =
+    "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+  const { attributes, termTaxonomies, terms } = attributeData
   const termById = new Map(terms.map((term) => [term.termId, term]))
   const termIdsByTaxonomy = new Map<string, number[]>()
   termTaxonomies.forEach((row) => {
@@ -342,7 +380,7 @@ export default async function AdminProductPage({
                     {
                       aterms: string
                       terms: Record<string, string>
-                      prices: Record<number, string>
+                      prices: Record<string, string>
                     }
                   >()
 
@@ -354,7 +392,7 @@ export default async function AdminProductPage({
                         terms: row.terms,
                         prices: {},
                       } as const)
-                    existing.prices[row.breakpoint] = row.price
+                    existing.prices[String(row.breakpoint)] = row.price
                     rowsByCombo.set(row.aterms, existing)
                   }
 
@@ -471,12 +509,12 @@ export default async function AdminProductPage({
                                           key={`${row.aterms}-${breakpoint}`}
                                           className="px-2 py-2 text-right"
                                         >
-                                          {row.prices[breakpoint] ? (
+                                          {row.prices[String(breakpoint)] ? (
                                             <input
                                               name={`price|${encodeURIComponent(
                                                 row.aterms
                                               )}|${breakpoint}`}
-                                              defaultValue={row.prices[breakpoint]}
+                                              defaultValue={row.prices[String(breakpoint)]}
                                               className="h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm"
                                             />
                                           ) : (

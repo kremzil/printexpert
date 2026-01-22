@@ -1,5 +1,6 @@
 
 import Link from "next/link"
+import { cacheLife, cacheTag } from "next/cache"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,11 +9,18 @@ import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
 import { createAttribute, deleteAttribute } from "./actions"
 
-export default async function AdminPropertiesPage() {
+async function getAdminAttributes() {
+  "use cache"
+  cacheTag("attributes")
+  cacheLife("minutes")
   const prisma = getPrisma()
-  const attributes = await prisma.wpAttributeTaxonomy.findMany({
+  return prisma.wpAttributeTaxonomy.findMany({
     orderBy: [{ attributeLabel: "asc" }, { attributeName: "asc" }],
   })
+}
+
+export default async function AdminPropertiesPage() {
+  const attributes = await getAdminAttributes()
 
   return (
     <section className="space-y-6">

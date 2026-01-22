@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 
@@ -188,6 +188,7 @@ export async function updateMatrixPrices(
     )
   }
 
+  updateTag("wp-matrix")
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -216,15 +217,17 @@ export async function createMatrix(
     termsByAttribute.set(aid, set)
   }
 
-  const maxMtype = await prisma.wpMatrixType.findFirst({
-    orderBy: { mtypeId: "desc" },
-    select: { mtypeId: true },
-  })
-  const maxOrder = await prisma.wpMatrixType.findFirst({
-    where: { productId: input.wpProductId },
-    orderBy: { sorder: "desc" },
-    select: { sorder: true },
-  })
+  const [maxMtype, maxOrder] = await Promise.all([
+    prisma.wpMatrixType.findFirst({
+      orderBy: { mtypeId: "desc" },
+      select: { mtypeId: true },
+    }),
+    prisma.wpMatrixType.findFirst({
+      where: { productId: input.wpProductId },
+      orderBy: { sorder: "desc" },
+      select: { sorder: true },
+    }),
+  ])
 
   const mtypeId = (maxMtype?.mtypeId ?? 0) + 1
   const sorder = (maxOrder?.sorder ?? 0) + 1
@@ -256,6 +259,7 @@ export async function createMatrix(
     },
   })
 
+  updateTag("wp-matrix")
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -271,6 +275,7 @@ export async function deleteMatrix(input: DeleteMatrixInput) {
     }),
   ])
 
+  updateTag("wp-matrix")
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -292,10 +297,13 @@ export async function updateProductWpId(
     select: { slug: true },
   })
 
+  updateTag("products", `product-id:${input.productId}`)
   revalidatePath(`/admin/products/${input.productId}`)
   if (updated?.slug) {
+    updateTag("products", `product:${updated.slug}`)
     revalidatePath(`/product/${updated.slug}`)
   }
+  updateTag("wp-matrix")
 }
 
 export async function createMatrixPriceRows(input: DeleteMatrixInput) {
@@ -365,5 +373,6 @@ export async function createMatrixPriceRows(input: DeleteMatrixInput) {
     skipDuplicates: true,
   })
 
+  updateTag("wp-matrix")
   revalidatePath(`/admin/products/${input.productId}`)
 }

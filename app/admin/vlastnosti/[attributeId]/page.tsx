@@ -1,6 +1,8 @@
 
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
+import { cacheLife, cacheTag } from "next/cache"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,17 +17,17 @@ type AdminPropertyPageProps = {
   }>
 }
 
-export default async function AdminPropertyPage({
-  params,
-}: AdminPropertyPageProps) {
-  const { attributeId } = await params
+async function getAttributeDetails(attributeId: number) {
+  "use cache"
+  cacheTag("attributes")
+  cacheLife("minutes")
   const prisma = getPrisma()
   const attribute = await prisma.wpAttributeTaxonomy.findUnique({
-    where: { attributeId: Number(attributeId) },
+    where: { attributeId },
   })
 
   if (!attribute) {
-    notFound()
+    return { attribute: null, termTaxonomies: [], terms: [], taxonomy: "" }
   }
 
   const taxonomy = `pa_${attribute.attributeName}`
@@ -39,6 +41,45 @@ export default async function AdminPropertyPage({
         orderBy: [{ name: "asc" }],
       })
     : []
+
+  return { attribute, termTaxonomies, terms, taxonomy }
+}
+
+export default async function AdminPropertyPage({
+  params,
+}: AdminPropertyPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <div className="h-4 w-24 rounded bg-muted" />
+            <div className="h-7 w-1/2 rounded bg-muted" />
+          </div>
+          <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
+            Načítavame vlastnosť…
+          </div>
+        </section>
+      }
+    >
+      <AdminPropertyDetails paramsPromise={params} />
+    </Suspense>
+  )
+}
+
+async function AdminPropertyDetails({
+  paramsPromise,
+}: {
+  paramsPromise: AdminPropertyPageProps["params"]
+}) {
+  const { attributeId } = await paramsPromise
+  const { attribute, termTaxonomies, terms, taxonomy } =
+    await getAttributeDetails(Number(attributeId))
+
+  if (!attribute) {
+    notFound()
+  }
+
   const termById = new Map(terms.map((term) => [term.termId, term]))
 
   return (

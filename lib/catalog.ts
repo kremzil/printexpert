@@ -1,8 +1,26 @@
 import "server-only";
 
+import { cacheLife, cacheTag } from "next/cache";
+
 import { getPrisma } from "@/lib/prisma";
 
+const serializeProduct = <
+  T extends {
+    priceFrom: { toString(): string } | null;
+    vatRate: { toString(): string };
+  },
+>(
+  product: T
+) => ({
+  ...product,
+  priceFrom: product.priceFrom ? product.priceFrom.toString() : null,
+  vatRate: product.vatRate.toString(),
+});
+
 export async function getCategories() {
+  "use cache";
+  cacheTag("categories");
+  cacheLife("hours");
   const prisma = getPrisma();
   return prisma.category.findMany({
     where: { isActive: true },
@@ -11,6 +29,9 @@ export async function getCategories() {
 }
 
 export async function getCategoryBySlug(slug: string) {
+  "use cache";
+  cacheTag("categories", `category:${slug}`);
+  cacheLife("hours");
   const prisma = getPrisma();
   return prisma.category.findFirst({
     where: { slug, isActive: true },
@@ -24,6 +45,16 @@ export async function getProducts({
   categorySlug?: string;
   categorySlugs?: string[];
 }) {
+  "use cache";
+  const tags = new Set<string>(["products"]);
+  if (categorySlug) {
+    tags.add(`category:${categorySlug}`);
+  }
+  if (categorySlugs) {
+    categorySlugs.forEach((slug) => tags.add(`category:${slug}`));
+  }
+  cacheTag(...Array.from(tags));
+  cacheLife("hours");
   const prisma = getPrisma();
   const slugFilter =
     categorySlugs && categorySlugs.length > 0
@@ -31,7 +62,7 @@ export async function getProducts({
       : categorySlug
         ? categorySlug
         : undefined;
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       isActive: true,
       category: {
@@ -50,11 +81,16 @@ export async function getProducts({
       },
     },
   });
+
+  return products.map(serializeProduct);
 }
 
 export async function getProductBySlug(slug: string) {
+  "use cache";
+  cacheTag("products", `product:${slug}`);
+  cacheLife("hours");
   const prisma = getPrisma();
-  return prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { slug, isActive: true },
     include: {
       category: true,
@@ -67,24 +103,36 @@ export async function getProductBySlug(slug: string) {
       },
     },
   });
+
+  return product ? serializeProduct(product) : null;
 }
 
 export async function getAdminProducts() {
+  "use cache";
+  cacheTag("products");
+  cacheLife("hours");
   const prisma = getPrisma();
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     orderBy: [{ name: "asc" }],
     include: {
       category: true,
     },
   });
+
+  return products.map(serializeProduct);
 }
 
 export async function getAdminProductById(id: string) {
+  "use cache";
+  cacheTag("products", `product-id:${id}`);
+  cacheLife("hours");
   const prisma = getPrisma();
-  return prisma.product.findUnique({
+  const product = await prisma.product.findUnique({
     where: { id },
     include: {
       category: true,
     },
   });
+
+  return product ? serializeProduct(product) : null;
 }

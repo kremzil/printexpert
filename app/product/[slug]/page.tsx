@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
 import { PriceCalculatorLetaky } from "@/components/product/price-calculator-letaky"
 import { Badge } from "@/components/ui/badge"
@@ -21,8 +22,12 @@ type ProductPageProps = {
   }>
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
-  const { slug } = await params
+async function ProductDetails({
+  paramsPromise,
+}: {
+  paramsPromise: ProductPageProps["params"]
+}) {
+  const { slug } = await paramsPromise
   const product = await getProductBySlug(slug)
 
   if (!product) {
@@ -132,5 +137,26 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       ) : null}
     </section>
+  )
+}
+
+export default function ProductPage({ params }: ProductPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <div className="h-4 w-24 rounded bg-muted" />
+            <div className="h-7 w-1/2 rounded bg-muted" />
+            <div className="h-4 w-2/3 rounded bg-muted" />
+          </div>
+          <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
+            Načítavame detail produktu…
+          </div>
+        </section>
+      }
+    >
+      <ProductDetails paramsPromise={params} />
+    </Suspense>
   )
 }

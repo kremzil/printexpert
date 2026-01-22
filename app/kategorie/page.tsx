@@ -14,8 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCategories, getProducts } from "@/lib/catalog"
 
 export default async function CategoriesPage() {
-  const categories = await getCategories()
-  const products = await getProducts({})
+  const [categories, products] = await Promise.all([
+    getCategories(),
+    getProducts({}),
+  ])
   const categorySlugById = new Map(
     categories.map((category) => [category.id, category.slug])
   )

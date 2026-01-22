@@ -1,14 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
-
-type CreateAttributeInput = {
-  name: string
-  label: string
-  type: string
-}
 
 type DeleteAttributeInput = {
   attributeId: number
@@ -50,6 +44,7 @@ export async function createAttribute(formData: FormData) {
     },
   })
 
+  updateTag("attributes")
   revalidatePath("/admin/vlastnosti")
 }
 
@@ -99,5 +94,6 @@ export async function deleteAttribute(input: DeleteAttributeInput) {
     })
   })
 
+  updateTag("attributes")
   revalidatePath("/admin/vlastnosti")
 }

@@ -1,7 +1,7 @@
 # Статус проекта
 
-Дата: 2026-01-19  
-Версия: 0.1.4.5
+Дата: 2026-01-22  
+Версия: 0.1.5
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
@@ -16,6 +16,8 @@
 - Фильтр по категории: `/catalog?cat=<slug>` (родитель выбирает товары из подкатегорий).
 - Продукт без slug → 404.
  - `/kategorie` группирует категории по родителям и показывает подкатегории отдельными карточками.
+- `catalog` и `product/[slug]` обернуты в `<Suspense>` для устранения blocking-route по `searchParams/params`.
+- Данные для витрины сериализуются (Decimal → string) перед передачей в клиентские компоненты.
 
 ## Админка
 Маршруты:
@@ -39,12 +41,18 @@
 ## Ограничения:
 - Новые строки `WpMatrixPrice` создаются только через кнопку генерации цен.
 - Нет авторизации.
+- Нет сохранения карточки товара (поля только отображаются).
 
 ## WP-матрицы и калькулятор
 - Таблицы: `WpMatrixType`, `WpMatrixPrice`, `WpTerm`, `WpTermTaxonomy`, `WpTermRelationship`, `WpTermMeta`, `WpAttributeTaxonomy`.
 - Импорт JSON → DB: `scripts/import-wp-calculator-tables.js`.
 - Логика парсинга и данных матриц: `lib/wp-calculator.ts`.
 - Привязка WP продукта через `Product.wpProductId`.
+- Кэширование данных матриц и каталога: `use cache`, `cacheTag`, `cacheLife`.
+
+## Кэш и revalidate
+- Включены Cache Components (`cacheComponents: true`).
+- `updateTag()` в админских действиях для актуализации витрины (каталог, атрибуты, матрицы).
 
 ## Контакты
 - Форма обратной связи (если включена): `/api/contact`.
@@ -55,6 +63,7 @@
 - `docker-compose.prod.yml` поднимает `db` и `web`.
 - `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.
 - Пример env: `.env.production.example`.
+- ESLint игнорирует сгенерированные Prisma файлы и служебные скрипты.
 
 ## Решения
 - Однократный перенос данных из WP и переход на нормализованную схему пока **отложен**.

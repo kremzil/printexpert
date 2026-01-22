@@ -1,5 +1,7 @@
 import "server-only"
 
+import { cacheLife, cacheTag } from "next/cache"
+
 import { getPrisma } from "@/lib/prisma"
 
 type MatrixSelectOption = {
@@ -177,6 +179,9 @@ function buildClass(kind: Matrix["kind"], mtid: string, aid: string, attrName: s
 export async function getWpCalculatorData(
   wpProductId: number
 ): Promise<WpCalculatorData | null> {
+  "use cache"
+  cacheTag("wp-matrix")
+  cacheLife("hours")
   const prisma = getPrisma()
 
   const matrixTypes = await prisma.wpMatrixType.findMany({
@@ -208,12 +213,14 @@ export async function getWpCalculatorData(
     })
   }
 
-  const attributes = await prisma.wpAttributeTaxonomy.findMany({
-    where: { attributeId: { in: Array.from(attributeIds).map(Number) } },
-  })
-  const terms = await prisma.wpTerm.findMany({
-    where: { termId: { in: Array.from(termIds).map(Number) } },
-  })
+  const [attributes, terms] = await Promise.all([
+    prisma.wpAttributeTaxonomy.findMany({
+      where: { attributeId: { in: Array.from(attributeIds).map(Number) } },
+    }),
+    prisma.wpTerm.findMany({
+      where: { termId: { in: Array.from(termIds).map(Number) } },
+    }),
+  ])
 
   const attributeById = new Map(
     attributes.map((row) => [String(row.attributeId), row])
