@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react"
 
+import { Button } from "@/components/ui/button"
+
 type MatrixSelectOption = {
   value: string
   label: string
@@ -10,7 +12,7 @@ type MatrixSelectOption = {
 
 type MatrixSelect = {
   aid: string
-  name: string
+  label: string
   class: string
   options: MatrixSelectOption[]
 }
@@ -319,74 +321,74 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
 
   const perMatrix = useMemo(() => {
     return data.matrices.map((matrix) => {
-        const ntp = parseNumber(matrix.ntp) ?? 0
-        const breakpoints = parseBreakpoints(
-          getNumbersEntry(data.globals.numbers_array, matrix.mtid)
-        )
-        const baseQuantity = quantity < minQuantity ? minQuantity : quantity
-        const nmbVal = calculateQuantity(
-          baseQuantity,
-          width,
-          height,
-          ntp,
-          dimUnit,
-          aUnit
-        )
+      const ntp = parseNumber(matrix.ntp) ?? 0
+      const breakpoints = parseBreakpoints(
+        getNumbersEntry(data.globals.numbers_array, matrix.mtid)
+      )
+      const baseQuantity = quantity < minQuantity ? minQuantity : quantity
+      const nmbVal = calculateQuantity(
+        baseQuantity,
+        width,
+        height,
+        ntp,
+        dimUnit,
+        aUnit
+      )
 
-        if (nmbVal === null) {
-          return { matrix, price: null, nmbVal: null }
+      if (nmbVal === null) {
+        return { matrix, price: null, nmbVal: null }
+      }
+
+      const rounded =
+        ntp === 2 || ntp === 3 || ntp === 4 ? ceilDecimal(nmbVal, -1) : nmbVal
+      const scaleBelowMin = ntp === 2
+      const priceMap =
+        matrix.kind === "simple" ? data.globals.smatrix : data.globals.fmatrix
+
+      if (matrix.kind === "finishing") {
+        if (matrix.selects.length === 0) {
+          if (!hiddenFinishingPair) {
+            return { matrix, price: null, nmbVal: rounded }
+          }
+          const keyBase =
+            finishingHasSize && baseSizeEntry
+              ? `${baseSizeEntry}-${hiddenFinishingPair}`
+              : hiddenFinishingPair
+          const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
+            scaleBelowMin,
+          })
+          return { matrix, price, nmbVal: rounded }
         }
 
-        const rounded =
-          ntp === 2 || ntp === 3 || ntp === 4 ? ceilDecimal(nmbVal, -1) : nmbVal
-        const scaleBelowMin = ntp === 2
-        const priceMap =
-          matrix.kind === "simple" ? data.globals.smatrix : data.globals.fmatrix
-
-        if (matrix.kind === "finishing") {
-          if (matrix.selects.length === 0) {
-            if (!hiddenFinishingPair) {
-              return { matrix, price: null, nmbVal: rounded }
-            }
-            const keyBase =
-              finishingHasSize && baseSizeEntry
-                ? `${baseSizeEntry}-${hiddenFinishingPair}`
-                : hiddenFinishingPair
-            const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
-              scaleBelowMin,
-            })
-            return { matrix, price, nmbVal: rounded }
+        let totalPrice = 0
+        for (const select of matrix.selects) {
+          const selected = selections[matrix.mtid]?.[select.aid]
+          if (!selected) {
+            return { matrix, price: null, nmbVal: rounded }
           }
-
-          let total = 0
-          for (const select of matrix.selects) {
-            const selected = selections[matrix.mtid]?.[select.aid]
-            if (!selected) {
-              return { matrix, price: null, nmbVal: rounded }
-            }
-            const keyBase =
-              finishingHasSize && baseSizeEntry
-                ? `${baseSizeEntry}-${select.aid}:${selected}`
-                : `${select.aid}:${selected}`
-            const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
-              scaleBelowMin,
-            })
-            if (price === -1) {
-              return { matrix, price: -1, nmbVal: rounded }
-            }
-            total += price
+          const keyBase =
+            finishingHasSize && baseSizeEntry
+              ? `${baseSizeEntry}-${select.aid}:${selected}`
+              : `${select.aid}:${selected}`
+          const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
+            scaleBelowMin,
+          })
+          if (price === -1) {
+            return { matrix, price: -1, nmbVal: rounded }
           }
-
-          return { matrix, price: total, nmbVal: rounded }
+          totalPrice += price
         }
 
-        const selection = selections[matrix.mtid] ?? {}
-        const attrKey = buildAttrKey(selection, matrix.selects)
-        const price = getMatrixPrice(priceMap, attrKey, rounded, breakpoints, {
-          scaleBelowMin,
-        })
+        return { matrix, price: totalPrice, nmbVal: rounded }
+      }
 
-        return { matrix, price, nmbVal: rounded }
+      const selection = selections[matrix.mtid] ?? {}
+      const attrKey = buildAttrKey(selection, matrix.selects)
+      const price = getMatrixPrice(priceMap, attrKey, rounded, breakpoints, {
+        scaleBelowMin,
+      })
+
+      return { matrix, price, nmbVal: rounded }
     })
   }, [
     data.globals.fmatrix,
@@ -425,15 +427,8 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
   const hasUnavailable = perMatrix.some((entry) => entry.price === -1)
 
   return (
-    <section className="space-y-6 rounded-xl border bg-card p-6">
-      <div>
-        <h2 className="text-lg font-semibold">Kalkulačka ceny (test)</h2>
-        <p className="text-sm text-muted-foreground">
-          Tento nahlad pouziva WP2Print exportovane data.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
+    <section className="space-y-5 rounded-xl border bg-card p-5">
+      <div className="grid gap-4">
         <label className="space-y-2 text-sm font-medium">
           Množstvo
           <input
@@ -445,9 +440,9 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
           />
         </label>
         {hasAreaSizing ? (
-          <>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-medium">
-              S¡rka ({dimUnit})
+              Šírka ({dimUnit})
               <input
                 type="number"
                 min={minWidth}
@@ -461,7 +456,7 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
               />
             </label>
             <label className="space-y-2 text-sm font-medium">
-              Vìska ({dimUnit})
+              Výška ({dimUnit})
               <input
                 type="number"
                 min={minHeight}
@@ -474,7 +469,7 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
                 className="w-full rounded-md border px-3 py-2 text-sm"
               />
             </label>
-          </>
+          </div>
         ) : null}
         <label className="space-y-2 text-sm font-medium">
           Expresná výroba (%)
@@ -500,20 +495,19 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
 
       <div className="space-y-4">
         {data.matrices.map((matrix) => (
-          <div key={matrix.mtid} className="space-y-2 rounded-md border p-4">
-            <div className="text-sm font-semibold">
-              {matrix.kind === "simple" ? "Tlač" : "Finalizácia"} (mtid{" "}
-              {matrix.mtid})
+          <div key={matrix.mtid} className="space-y-3 rounded-md border p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {matrix.kind === "simple" ? "Tlač" : "Finalizácia"}
             </div>
             {matrix.selects.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-          Tento nahlad pouziva WP2Print exportovane data.
-        </p>
+                Táto položka sa vypočíta automaticky.
+              </p>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {matrix.selects.map((select) => (
-                  <label key={select.aid} className="text-sm font-medium">
-                    {select.name}
+                  <label key={select.aid} className="space-y-2 text-sm font-medium">
+                    {select.label}
                     <select
                       value={selections[matrix.mtid]?.[select.aid] ?? ""}
                       onChange={(event) =>
@@ -525,7 +519,7 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
                           },
                         }))
                       }
-                      className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
+                      className="w-full rounded-md border px-3 py-2 text-sm"
                     >
                       {select.options.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -541,16 +535,25 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
         ))}
       </div>
 
-      <div className="rounded-md border px-4 py-3 text-sm">
-        {hasUnavailable ? (
-          <div className="text-destructive">N/A - kombinácia nie je dostupná.</div>
-        ) : total === null ? (
-          <div className="text-muted-foreground">Zadajte všetky údaje.</div>
-        ) : (
-          <div className="text-lg font-semibold">
-            Výsledná cena: {total.toFixed(2)} €
-          </div>
-        )}
+      <div className="space-y-3 border-t pt-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Cena</span>
+          {hasUnavailable ? (
+            <span className="text-destructive">Kombinácia nie je dostupná.</span>
+          ) : total === null ? (
+            <span className="text-muted-foreground">Zadajte všetky údaje.</span>
+          ) : (
+            <span className="text-lg font-semibold">{total.toFixed(2)} €</span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button type="button" className="sm:flex-1">
+            Nahrať grafiku a objednať
+          </Button>
+          <Button type="button" variant="outline" className="sm:flex-1">
+            Nahrať neskôr
+          </Button>
+        </div>
       </div>
     </section>
   )

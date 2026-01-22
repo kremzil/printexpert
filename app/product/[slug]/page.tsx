@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { PriceCalculatorLetaky } from "@/components/product/price-calculator-letaky"
 import { Badge } from "@/components/ui/badge"
 import {
   Breadcrumb,
@@ -11,8 +12,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Card, CardContent } from "@/components/ui/card"
-import { PriceCalculatorLetaky } from "@/components/product/price-calculator-letaky"
 import { getProductBySlug } from "@/lib/catalog"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
 
@@ -36,7 +35,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     : null
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-10">
       <Breadcrumb className="w-fit text-xs">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -56,19 +55,41 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border">
-          <Image
-            src={primaryImage.url}
-            alt={primaryImage.alt ?? product.name}
-            fill
-            className="object-cover"
-            sizes="(min-width: 1024px) 520px, 100vw"
-          />
+
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="space-y-4">
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border bg-muted/30">
+            <Image
+              src={primaryImage.url}
+              alt={primaryImage.alt ?? product.name}
+              fill
+              className="object-contain"
+              sizes="(min-width: 1024px) 560px, 100vw"
+            />
+          </div>
+          {product.images.length > 1 ? (
+            <div className="grid grid-cols-4 gap-3">
+              {product.images.slice(0, 4).map((image, index) => (
+                <div
+                  key={`${image.url}-${index}`}
+                  className="relative aspect-square overflow-hidden rounded-md border bg-muted/30"
+                >
+                  <Image
+                    src={image.url}
+                    alt={image.alt ?? product.name}
+                    fill
+                    className="object-cover"
+                    sizes="(min-width: 1024px) 120px, 25vw"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <Card className="py-6">
-          <CardContent className="space-y-3">
-            <h1 className="text-2xl font-semibold">{product.name}</h1>
+
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h1 className="text-3xl font-semibold tracking-tight">{product.name}</h1>
             {product.excerpt ? (
               <div
                 className="text-sm text-muted-foreground"
@@ -83,21 +104,33 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <p className="text-sm text-muted-foreground">
               Tento produkt vám radi pripravíme podľa vašich požiadaviek.
             </p>
-            {product.priceFrom ? (
-              <div className="text-lg font-semibold">{product.priceFrom.toString()} €</div>
-            ) : (
-              <div className="text-sm text-muted-foreground">Cena na vyžiadanie</div>
-            )}
-            {product.description ? (
-              <div
-                className="prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: product.description }}
-              />
-            ) : null}
-          </CardContent>
-        </Card>
+          </div>
+
+          {calculatorData ? (
+            <PriceCalculatorLetaky data={calculatorData} />
+          ) : (
+            <div className="space-y-2 rounded-xl border bg-card p-5 text-sm">
+              {product.priceFrom ? (
+                <div className="text-lg font-semibold">
+                  Cena od {product.priceFrom.toString()} €
+                </div>
+              ) : (
+                <div className="text-muted-foreground">Cena na vyžiadanie.</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-      {calculatorData ? <PriceCalculatorLetaky data={calculatorData} /> : null}
+
+      {product.description ? (
+        <div className="space-y-3">
+          <h2 className="text-2xl font-semibold">Popis</h2>
+          <div
+            className="prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: product.description }}
+          />
+        </div>
+      ) : null}
     </section>
   )
 }
