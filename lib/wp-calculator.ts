@@ -28,6 +28,7 @@ type MatrixPriceEntry = {
 type Matrix = {
   kind: "simple" | "finishing"
   mtid: string
+  isActive: boolean
   title: string | null
   ntp: string
   material: string | null
@@ -178,7 +179,8 @@ function buildClass(kind: Matrix["kind"], mtid: string, aid: string, attrName: s
 }
 
 export async function getWpCalculatorData(
-  wpProductId: number
+  wpProductId: number,
+  includeInactive = false
 ): Promise<WpCalculatorData | null> {
   "use cache"
   cacheTag("wp-matrix")
@@ -186,7 +188,9 @@ export async function getWpCalculatorData(
   const prisma = getPrisma()
 
   const matrixTypes = await prisma.wpMatrixType.findMany({
-    where: { productId: wpProductId },
+    where: includeInactive
+      ? { productId: wpProductId }
+      : { productId: wpProductId, isActive: true },
     orderBy: [{ mtype: "asc" }, { sorder: "asc" }],
   })
 
@@ -324,6 +328,7 @@ export async function getWpCalculatorData(
     return {
       kind,
       mtid: String(row.mtypeId),
+      isActive: row.isActive ?? true,
       title: row.title ?? null,
       ntp: String(row.numType ?? 0),
       material: null,

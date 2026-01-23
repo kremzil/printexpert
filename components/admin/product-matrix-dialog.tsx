@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState, type ComponentProps } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -30,10 +30,27 @@ type MatrixAttribute = {
   }[]
 }
 
+type MatrixDialogSlot = {
+  attributeId: number
+  termIds: number[]
+}
+
+type MatrixDialogInitialValues = {
+  slots: MatrixDialogSlot[]
+  kind: "simple" | "finishing"
+  numType: string
+  numbers: string
+}
+
 type ProductMatrixDialogProps = {
   productName: string
   attributes: MatrixAttribute[]
-  createMatrixAction: (formData: FormData) => void
+  submitAction: (formData: FormData) => void
+  triggerLabel?: string
+  dialogTitle?: string
+  triggerVariant?: ComponentProps<typeof Button>["variant"]
+  triggerSize?: ComponentProps<typeof Button>["size"]
+  initialValues?: MatrixDialogInitialValues
 }
 
 const selectClassName =
@@ -42,17 +59,34 @@ const selectClassName =
 export function ProductMatrixDialog({
   productName,
   attributes,
-  createMatrixAction,
+  submitAction,
+  triggerLabel = "+ Pridať maticu",
+  dialogTitle = "Nová matica",
+  triggerVariant = "default",
+  triggerSize = "sm",
+  initialValues,
 }: ProductMatrixDialogProps) {
   const [open, setOpen] = useState(false)
-  const slotCounterRef = useRef(1)
+  const initialSlots = useMemo(() => {
+    if (initialValues?.slots?.length) {
+      return initialValues.slots.map((slot, index) => ({
+        id: `slot-${index + 1}`,
+        attributeId: slot.attributeId,
+        termIds: slot.termIds,
+      }))
+    }
+    return [{ id: "slot-1", attributeId: null, termIds: [] }]
+  }, [initialValues])
+  const slotCounterRef = useRef(initialSlots.length)
   const [attributeSlots, setAttributeSlots] = useState<
     { id: string; attributeId: number | null; termIds: number[] }[]
-  >([{ id: "slot-1", attributeId: null, termIds: [] }])
-  const [activeSlotId, setActiveSlotId] = useState("slot-1")
-  const [kind, setKind] = useState("simple")
-  const [numType, setNumType] = useState("0")
-  const [numbers, setNumbers] = useState("")
+  >(initialSlots)
+  const [activeSlotId, setActiveSlotId] = useState(
+    initialSlots[0]?.id ?? "slot-1"
+  )
+  const [kind, setKind] = useState(initialValues?.kind ?? "simple")
+  const [numType, setNumType] = useState(initialValues?.numType ?? "0")
+  const [numbers, setNumbers] = useState(initialValues?.numbers ?? "")
 
   const activeSlot = useMemo(
     () => attributeSlots.find((slot) => slot.id === activeSlotId) ?? null,
@@ -81,12 +115,12 @@ export function ProductMatrixDialog({
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen)
     if (!nextOpen) {
-      slotCounterRef.current = 1
-      setAttributeSlots([{ id: "slot-1", attributeId: null, termIds: [] }])
-      setActiveSlotId("slot-1")
-      setKind("simple")
-      setNumType("0")
-      setNumbers("")
+      slotCounterRef.current = initialSlots.length
+      setAttributeSlots(initialSlots)
+      setActiveSlotId(initialSlots[0]?.id ?? "slot-1")
+      setKind(initialValues?.kind ?? "simple")
+      setNumType(initialValues?.numType ?? "0")
+      setNumbers(initialValues?.numbers ?? "")
     }
   }
 
@@ -106,6 +140,9 @@ export function ProductMatrixDialog({
   }
 
   const handleAddSlot = () => {
+    if (kind === "finishing") {
+      return
+    }
     slotCounterRef.current += 1
     const id = `slot-${slotCounterRef.current}`
     setAttributeSlots((slots) => [
@@ -129,17 +166,17 @@ export function ProductMatrixDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button type="button" size="sm">
-          + Pridať maticu
+        <Button type="button" size={triggerSize} variant={triggerVariant}>
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent size="lg" className="max-h-[85vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{`Nová matica${title ? ` - ${title}` : ""}`}</DialogTitle>
+          <DialogTitle>{`${dialogTitle}${title ? ` - ${title}` : ""}`}</DialogTitle>
         </DialogHeader>
 
         <form
-          action={createMatrixAction}
+          action={submitAction}
           onSubmit={() => setOpen(false)}
           className="flex min-h-0 flex-col gap-5"
         >
@@ -160,6 +197,11 @@ export function ProductMatrixDialog({
           <div className="flex min-h-0 flex-col gap-4">
             <div className="flex items-center gap-2">
               <Label>Vlastnosť</Label>
+              {kind === "finishing" ? (
+                <span className="text-xs text-muted-foreground">
+                  Dokončovacia matica môže mať len jednu vlastnosť.
+                </span>
+              ) : null}
             </div>
 
             <Tabs value={activeSlotId} onValueChange={setActiveSlotId}>
@@ -183,17 +225,22 @@ export function ProductMatrixDialog({
                           role="button"
                           tabIndex={-1}
                           className={`ml-1 inline-flex size-4 items-center justify-center rounded-sm ${
-                            attributeSlots.length <= 1
+                            attributeSlots.length <= 1 ||
+                            kind === "finishing"
                               ? "cursor-not-allowed text-muted-foreground/50"
                               : "text-muted-foreground hover:text-foreground"
                           }`}
                           onClick={(event) => {
                             event.stopPropagation()
-                            if (attributeSlots.length <= 1) return
+                            if (attributeSlots.length <= 1 || kind === "finishing") {
+                              return
+                            }
                             handleRemoveSlot(slot.id)
                           }}
                           onKeyDown={(event) => {
-                            if (attributeSlots.length <= 1) return
+                            if (attributeSlots.length <= 1 || kind === "finishing") {
+                              return
+                            }
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault()
                               event.stopPropagation()
@@ -201,7 +248,9 @@ export function ProductMatrixDialog({
                             }
                           }}
                           aria-label="Odstrániť vlastnosť"
-                          aria-disabled={attributeSlots.length <= 1}
+                          aria-disabled={
+                            attributeSlots.length <= 1 || kind === "finishing"
+                          }
                         >
                           <XIcon className="size-3" />
                         </span>
@@ -214,6 +263,7 @@ export function ProductMatrixDialog({
                   size="xs"
                   variant="outline"
                   onClick={handleAddSlot}
+                  disabled={kind === "finishing"}
                 >
                   +
                 </Button>
@@ -341,7 +391,17 @@ export function ProductMatrixDialog({
                 name="kind"
                 className={selectClassName}
                 value={kind}
-                onChange={(event) => setKind(event.target.value)}
+                onChange={(event) => {
+                  const nextKind = event.target.value
+                  setKind(nextKind)
+                  if (nextKind === "finishing") {
+                    setAttributeSlots((slots) => slots.slice(0, 1))
+                    setActiveSlotId((current) =>
+                      current === "slot-1" ? current : "slot-1"
+                    )
+                    slotCounterRef.current = 1
+                  }
+                }}
               >
                 <option value="simple">Základná</option>
                 <option value="finishing">Dokončovacia</option>

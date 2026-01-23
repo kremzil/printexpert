@@ -37,7 +37,7 @@ async function ProductDetails({
 
   const primaryImage = product.images[0]
   const calculatorData = product.wpProductId
-    ? await getWpCalculatorData(product.wpProductId)
+    ? await getWpCalculatorData(product.wpProductId, false)
     : null
 
   const descriptionHtml = product.description

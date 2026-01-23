@@ -30,7 +30,7 @@
     "@base-ui/react": "^1.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.2.0",
-    "@prisma/client": "^7.2.0",
+    "@prisma/client": "^7.3.0",
     "@tiptap/extension-color": "^3.16.0",
     "@tiptap/extension-highlight": "^3.16.0",
     "@tiptap/extension-image": "^3.16.0",
@@ -65,7 +65,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.2",
-    "prisma": "^7.2.0",
+    "prisma": "^7.3.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

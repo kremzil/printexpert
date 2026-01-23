@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
+import { MatrixVisibilitySwitch } from "@/components/admin/matrix-visibility-switch"
 import { ProductDescriptionEditor } from "@/components/admin/product-description-editor"
 import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { ProductTitleEditor } from "@/components/admin/product-title-editor"
@@ -23,7 +24,9 @@ import {
   deleteMatrix,
   updateProductDetails,
   updateProductWpId,
+  updateMatrix,
   updateMatrixPrices,
+  updateMatrixVisibility,
 } from "./actions"
 
 type AdminProductPageProps = {
@@ -99,7 +102,7 @@ async function AdminProductDetails({
   }
 
   const calculatorData = product.wpProductId
-    ? await getWpCalculatorData(product.wpProductId)
+    ? await getWpCalculatorData(product.wpProductId, true)
     : null
   const ntpLabelByValue: Record<string, string> = {
     "0": "Fixná",
@@ -256,7 +259,7 @@ async function AdminProductDetails({
               <ProductMatrixDialog
                 productName={product.name}
                 attributes={attributesWithTerms}
-                createMatrixAction={createMatrix.bind(null, {
+                submitAction={createMatrix.bind(null, {
                   productId: product.id,
                   wpProductId: product.wpProductId,
                 })}
@@ -310,6 +313,13 @@ async function AdminProductDetails({
                     aid: select.aid,
                     label: select.label,
                   }))
+                  const editSlots = matrix.selects.map((select) => ({
+                    attributeId: Number(select.aid),
+                    termIds: select.options
+                      .map((option) => Number(option.value))
+                      .filter((value) => !Number.isNaN(value)),
+                  }))
+                  const editNumbers = breakpoints ?? ""
 
                   const rowsByCombo = new Map<
                     string,
@@ -348,9 +358,18 @@ async function AdminProductDetails({
                       </summary>
                       <div className="space-y-4 border-t px-4 py-4 text-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-muted-foreground">
-                            Breakpointy:{" "}
-                            {breakpoints ? breakpoints : "Nezadané"}
+                          <div className="flex flex-wrap items-center gap-4">
+                            <div className="text-muted-foreground">
+                              Breakpointy:{" "}
+                              {breakpoints ? breakpoints : "Nezadané"}
+                            </div>
+                            <MatrixVisibilitySwitch
+                              checked={matrix.isActive}
+                              action={updateMatrixVisibility.bind(null, {
+                                productId: product.id,
+                                mtypeId: Number(matrix.mtid),
+                              })}
+                            />
                           </div>
                           {matrix.prices.length === 0 ? (
                             <form
@@ -364,15 +383,35 @@ async function AdminProductDetails({
                               </Button>
                             </form>
                           ) : null}
-                          <ConfirmDeleteForm
-                            action={deleteMatrix.bind(null, {
-                              productId: product.id,
-                              mtypeId: Number(matrix.mtid),
-                            })}
-                            triggerText="Odstrániť maticu"
-                            title="Odstrániť maticu?"
-                            description="Týmto krokom odstránite maticu aj všetky jej ceny."
-                          />
+                          <div className="flex flex-col items-start gap-2 sm:items-end">
+                            <ProductMatrixDialog
+                              productName={product.name}
+                              attributes={attributesWithTerms}
+                              submitAction={updateMatrix.bind(null, {
+                                productId: product.id,
+                                mtypeId: Number(matrix.mtid),
+                              })}
+                              triggerLabel="Upraviť maticu"
+                              dialogTitle="Upraviť maticu"
+                              triggerVariant="outline"
+                              triggerSize="xs"
+                              initialValues={{
+                                slots: editSlots,
+                                kind: matrix.kind,
+                                numType: matrix.ntp,
+                                numbers: editNumbers,
+                              }}
+                            />
+                            <ConfirmDeleteForm
+                              action={deleteMatrix.bind(null, {
+                                productId: product.id,
+                                mtypeId: Number(matrix.mtid),
+                              })}
+                              triggerText="Odstrániť maticu"
+                              title="Odstrániť maticu?"
+                              description="Týmto krokom odstránite maticu aj všetky jej ceny."
+                            />
+                          </div>
                         </div>
                         <div className="space-y-2">
                           {matrix.selects.map((select) => (

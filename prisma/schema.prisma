@@ -117,6 +117,7 @@ model WpMatrixType {
   mtypeId         Int     @id
   productId       Int
   mtype           Int
+  isActive        Boolean @default(true)
   title           String?
   defQuantity     Int?
   attributes      String?

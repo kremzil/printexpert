@@ -20,6 +20,16 @@ type DeleteMatrixInput = {
   mtypeId: number
 }
 
+type UpdateMatrixInput = {
+  productId: string
+  mtypeId: number
+}
+
+type UpdateMatrixVisibilityInput = {
+  productId: string
+  mtypeId: number
+}
+
 type UpdateProductWpIdInput = {
   productId: string
 }
@@ -262,6 +272,146 @@ export async function createMatrix(
       numType,
       sorder,
     },
+  })
+
+  updateTag("wp-matrix")
+  revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function updateMatrix(
+  input: UpdateMatrixInput,
+  formData: FormData
+) {
+  const prisma = getPrisma()
+  const existingMatrix = await prisma.wpMatrixType.findUnique({
+    where: { mtypeId: input.mtypeId },
+    select: { attributes: true },
+  })
+  const title = String(formData.get("title") ?? "").trim()
+  const kind = String(formData.get("kind") ?? "simple").trim()
+  const numTypeRaw = String(formData.get("numType") ?? "0").trim()
+  const numbers = String(formData.get("numbers") ?? "").trim()
+  const termsByAttribute = new Map<string, Set<string>>()
+
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("terms:")) continue
+    const aid = key.slice("terms:".length)
+    const termId = String(value ?? "").trim()
+    if (!aid || !termId) continue
+    const set = termsByAttribute.get(aid) ?? new Set<string>()
+    set.add(termId)
+    termsByAttribute.set(aid, set)
+  }
+
+  const numType = Number.isNaN(Number(numTypeRaw)) ? 0 : Number(numTypeRaw)
+  const attributes = Array.from(termsByAttribute.keys())
+  const atermsEntries = attributes.reduce<Record<string, string[]>>(
+    (acc, aid) => {
+      acc[aid] = Array.from(termsByAttribute.get(aid) ?? [])
+      return acc
+    },
+    {}
+  )
+
+  if (attributes.length === 0) {
+    return
+  }
+
+  const previousAttributes = existingMatrix?.attributes
+    ? toStringArray(phpUnserialize(existingMatrix.attributes))
+    : []
+  const previousAttributeSet = new Set(previousAttributes)
+  const nextAttributeSet = new Set(attributes)
+  const attributesChanged =
+    previousAttributeSet.size !== nextAttributeSet.size ||
+    attributes.some((aid) => !previousAttributeSet.has(aid))
+
+  await prisma.wpMatrixType.update({
+    where: { mtypeId: input.mtypeId },
+    data: {
+      mtype: kind === "finishing" ? 1 : 0,
+      title: title || null,
+      attributes: phpSerialize(attributes),
+      aterms: phpSerialize(atermsEntries),
+      numbers: numbers || null,
+      numType,
+    },
+  })
+
+  const breakpoints = numbers
+    .split(/[|,;\s]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => Number(value))
+    .filter((value) => !Number.isNaN(value))
+  const termLists = attributes.map((aid) => ({
+    aid,
+    terms: Array.from(termsByAttribute.get(aid) ?? []),
+  }))
+  const combinations: string[] = []
+  const buildCombos = (index: number, current: string[]) => {
+    if (index >= termLists.length) {
+      combinations.push(current.join("-"))
+      return
+    }
+    const { aid, terms } = termLists[index]
+    terms.forEach((termId) => {
+      buildCombos(index + 1, [...current, `${aid}:${termId}`])
+    })
+  }
+  buildCombos(0, [])
+
+  if (attributesChanged) {
+    await prisma.wpMatrixPrice.deleteMany({
+      where: { mtypeId: input.mtypeId },
+    })
+    if (breakpoints.length > 0 && combinations.length > 0) {
+      await prisma.wpMatrixPrice.createMany({
+        data: combinations.flatMap((aterms) =>
+          breakpoints.map((number) => ({
+            mtypeId: input.mtypeId,
+            aterms,
+            number: BigInt(number),
+            price: "0",
+          }))
+        ),
+        skipDuplicates: true,
+      })
+    }
+  } else if (breakpoints.length > 0 && combinations.length > 0) {
+    const existingCount = await prisma.wpMatrixPrice.count({
+      where: { mtypeId: input.mtypeId },
+    })
+    if (existingCount > 0) {
+      await prisma.wpMatrixPrice.createMany({
+        data: combinations.flatMap((aterms) =>
+          breakpoints.map((number) => ({
+            mtypeId: input.mtypeId,
+            aterms,
+            number: BigInt(number),
+            price: "0",
+          }))
+        ),
+        skipDuplicates: true,
+      })
+    }
+  }
+
+  updateTag("wp-matrix")
+  revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function updateMatrixVisibility(
+  input: UpdateMatrixVisibilityInput,
+  formData: FormData
+) {
+  const rawValue = String(formData.get("isActive") ?? "0").trim()
+  const isActive = rawValue === "1"
+  const prisma = getPrisma()
+
+  await prisma.wpMatrixType.update({
+    where: { mtypeId: input.mtypeId },
+    data: { isActive },
   })
 
   updateTag("wp-matrix")
