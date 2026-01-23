@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Suspense } from "react"
@@ -19,6 +20,16 @@ type CatalogPageProps = {
   searchParams?: Promise<{
     cat?: string
   }>
+}
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    alternates: {
+      canonical: new URL("/catalog", siteUrl),
+    },
+  }
 }
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {

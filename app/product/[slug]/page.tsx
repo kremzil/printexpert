@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -25,6 +26,20 @@ type ProductPageProps = {
   searchParams?: Promise<{
     mode?: string
   }>
+}
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
+
+export async function generateMetadata({
+  params,
+}: ProductPageProps): Promise<Metadata> {
+  const { slug } = await params
+
+  return {
+    alternates: {
+      canonical: new URL(`/product/${slug}`, siteUrl),
+    },
+  }
 }
 
 async function ProductDetails({
