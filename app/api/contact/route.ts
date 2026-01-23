@@ -6,7 +6,7 @@ import { resolveAudienceContext } from "@/lib/audience-context"
 
 const payloadSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   message: z.string().min(10),
   company: z.string().optional(),
 })
@@ -98,7 +98,8 @@ export async function POST(request: Request) {
       },
     })
 
-    const { name, email, message } = parsed.data
+    const { name, message } = parsed.data
+    const email = parsed.data.email.trim().toLowerCase()
     const audienceLabel = audienceContext.audience.toUpperCase()
     await transport.sendMail({
       from: smtpFrom,

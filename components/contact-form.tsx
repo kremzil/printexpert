@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 
 const formSchema = z.object({
   name: z.string().min(2, "Zadajte meno."),
-  email: z.string().email("Zadajte platný e-mail."),
+  email: z.string().trim().toLowerCase().email("Zadajte platný e-mail."),
   message: z.string().min(10, "Správa musí mať aspoň 10 znakov."),
   company: z.string().optional(),
 })

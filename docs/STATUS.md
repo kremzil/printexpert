@@ -51,7 +51,7 @@
 ## Ограничения:
 - Новые строки `WpMatrixPrice` создаются только через кнопку генерации цен.
 - Докончавающая матрица может иметь только одно свойство.
-- Нет авторизации.
+- Нет ролей/прав доступа (только базовая аутентификация пользователя).
 
 ## WP-матрицы и калькулятор
 - Таблицы: `WpMatrixType`, `WpMatrixPrice`, `WpTerm`, `WpTermTaxonomy`, `WpTermRelationship`, `WpTermMeta`, `WpAttributeTaxonomy`.
@@ -99,7 +99,16 @@
 - Однократный перенос данных из WP и переход на нормализованную схему пока **отложен**.
 
 ## Следующие шаги
-- Авторизация. пока **отложен**.
+- Роли/права доступа. пока **отложен**.
+
+## Пользователи и аутентификация
+- Модели Prisma: `User`, `AuthToken` (magic link), `Session`.
+- Magic link: `POST /api/auth/magic`, подтверждение `GET /auth/magic` с установкой cookie `session`.
+- Логин по паролю: `POST /api/auth/login` (только если задан `passwordHash`).
+- Установка пароля: `POST /api/auth/password` (требуется активная сессия).
+- Выход: `POST /api/auth/logout`.
+- Кабинет: `/account` (без сессии редирект на `/auth`).
+- В хедере добавлены ссылки “Registrácia” и “Môj účet”.
 
 ## WP posts для SEO/описаний
 - Источник: `wp_posts` (файл `kpkp_wp2print_table_wp_posts.json`).

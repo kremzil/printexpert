@@ -11,6 +11,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
+import { Button } from "@/components/ui/button"
 import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import "./globals.css"
@@ -127,6 +128,14 @@ export default function RootLayout({
                 </NavigationMenuList>
               </NavigationMenu>
               <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/auth">Registrácia</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/account">Môj účet</Link>
+                  </Button>
+                </div>
                 <Suspense fallback={null}>
                   <AudienceHeaderSwitch />
                 </Suspense>
