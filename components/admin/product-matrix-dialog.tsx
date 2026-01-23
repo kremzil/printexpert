@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -87,11 +86,6 @@ export function ProductMatrixDialog({
   const [kind, setKind] = useState(initialValues?.kind ?? "simple")
   const [numType, setNumType] = useState(initialValues?.numType ?? "0")
   const [numbers, setNumbers] = useState(initialValues?.numbers ?? "")
-
-  const activeSlot = useMemo(
-    () => attributeSlots.find((slot) => slot.id === activeSlotId) ?? null,
-    [activeSlotId, attributeSlots]
-  )
 
   const selectedAttributeLabels = useMemo(() => {
     const labels = attributeSlots

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { startTransition, useEffect, useMemo, useState } from "react"
+import { startTransition, useMemo } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,17 +31,9 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const [query, setQuery] = useState(searchParams.get("q") ?? "")
-  const [status, setStatus] = useState(searchParams.get("status") ?? "all")
-  const [category, setCategory] = useState(
-    searchParams.get("category") ?? "all"
-  )
-
-  useEffect(() => {
-    setQuery(searchParams.get("q") ?? "")
-    setStatus(searchParams.get("status") ?? "all")
-    setCategory(searchParams.get("category") ?? "all")
-  }, [searchParams])
+  const query = searchParams.get("q") ?? ""
+  const status = searchParams.get("status") ?? "all"
+  const category = searchParams.get("category") ?? "all"
 
   const categoryOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -100,17 +92,14 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
   }
 
   const handleQueryChange = (value: string) => {
-    setQuery(value)
     updateParam("q", value.trim())
   }
 
   const handleStatusChange = (value: string) => {
-    setStatus(value)
     updateParam("status", value)
   }
 
   const handleCategoryChange = (value: string) => {
-    setCategory(value)
     updateParam("category", value)
   }
 
