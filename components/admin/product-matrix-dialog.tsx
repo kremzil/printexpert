@@ -179,18 +179,32 @@ export function ProductMatrixDialog({
                     return (
                       <TabsTrigger key={slot.id} value={slot.id}>
                         <span className="truncate">{label}</span>
-                        <button
-                          type="button"
-                          className="ml-1 inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          className={`ml-1 inline-flex size-4 items-center justify-center rounded-sm ${
+                            attributeSlots.length <= 1
+                              ? "cursor-not-allowed text-muted-foreground/50"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
                           onClick={(event) => {
                             event.stopPropagation()
+                            if (attributeSlots.length <= 1) return
                             handleRemoveSlot(slot.id)
                           }}
+                          onKeyDown={(event) => {
+                            if (attributeSlots.length <= 1) return
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              handleRemoveSlot(slot.id)
+                            }
+                          }}
                           aria-label="Odstrániť vlastnosť"
-                          disabled={attributeSlots.length <= 1}
+                          aria-disabled={attributeSlots.length <= 1}
                         >
                           <XIcon className="size-3" />
-                        </button>
+                        </span>
                       </TabsTrigger>
                     )
                   })}
