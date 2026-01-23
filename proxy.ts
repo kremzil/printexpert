@@ -15,7 +15,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const response = NextResponse.next()
+  const shouldRedirect = request.method === "GET" || request.method === "HEAD"
+  const redirectUrl = request.nextUrl.clone()
+  redirectUrl.searchParams.delete(AUDIENCE_QUERY_PARAM)
+  const response = shouldRedirect
+    ? NextResponse.redirect(redirectUrl)
+    : NextResponse.next()
   response.cookies.set(AUDIENCE_COOKIE_NAME, audience, {
     maxAge: AUDIENCE_COOKIE_MAX_AGE_SECONDS,
     httpOnly: true,

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Geist, Geist_Mono, Inter } from "next/font/google"
+import { Suspense } from "react"
 
 import {
   NavigationMenu,
@@ -10,6 +11,8 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
+import { AudienceModeSwitch } from "@/components/audience-mode-switch"
+import { resolveAudienceContext } from "@/lib/audience-context"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -29,6 +32,37 @@ export const metadata: Metadata = {
   description: "Tlačové služby a produkty",
 }
 
+async function AudienceBadge() {
+  const audienceContext = await resolveAudienceContext()
+  const label =
+    audienceContext.source === "default"
+      ? "Vyberte režim"
+      : audienceContext.audience === "b2b"
+        ? "Pre firmy"
+        : "Pre jednotlivcov"
+  return (
+    <span className="inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-semibold text-muted-foreground sm:text-xs">
+      {label}
+    </span>
+  )
+}
+
+async function AudienceFooterNote() {
+  const audienceContext = await resolveAudienceContext()
+  const footerLabel =
+    audienceContext.source === "default"
+      ? "Režim: nevybraný"
+      : audienceContext.audience === "b2b"
+        ? "Režim: B2B"
+        : "Režim: B2C"
+  return <span>{footerLabel}</span>
+}
+
+async function AudienceHeaderSwitch() {
+  const audienceContext = await resolveAudienceContext()
+  return <AudienceModeSwitch initialAudience={audienceContext.audience} />
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -45,7 +79,7 @@ export default function RootLayout({
             Preskočiť na hlavný obsah
           </a>
           <header className="border-b">
-            <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+            <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
               <Link href="/" className="flex items-center gap-2">
                 <Image
                   src="/printexpert-logo.svg"
@@ -92,6 +126,14 @@ export default function RootLayout({
                   </NavigationMenuItem>
                 </NavigationMenuList>
               </NavigationMenu>
+              <div className="flex items-center gap-3">
+                <Suspense fallback={null}>
+                  <AudienceHeaderSwitch />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <AudienceBadge />
+                </Suspense>
+              </div>
             </div>
           </header>
           <main
@@ -101,8 +143,11 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="border-t">
-            <div className="mx-auto flex h-14 max-w-6xl items-center px-4 text-sm text-muted-foreground">
-              © PrintExpert
+            <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 text-sm text-muted-foreground">
+              <span>© PrintExpert</span>
+              <Suspense fallback={null}>
+                <AudienceFooterNote />
+              </Suspense>
             </div>
           </footer>
         </div>
