@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache"
 
+import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
 
 type DeleteAttributeInput = {
@@ -15,6 +16,11 @@ const normalizeSlug = (value: string) =>
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "")
+
+const getAudienceTag = async () => {
+  const { audience } = await resolveAudienceContext()
+  return `audience:${audience}`
+}
 
 export async function createAttribute(formData: FormData) {
   const prisma = getPrisma()
@@ -44,7 +50,8 @@ export async function createAttribute(formData: FormData) {
     },
   })
 
-  updateTag("attributes")
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes", audienceTag)
   revalidatePath("/admin/vlastnosti")
 }
 
@@ -94,6 +101,7 @@ export async function deleteAttribute(input: DeleteAttributeInput) {
     })
   })
 
-  updateTag("attributes")
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes", audienceTag)
   revalidatePath("/admin/vlastnosti")
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache"
 
+import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
 
 type CreateTermInput = {
@@ -21,6 +22,11 @@ const normalizeSlug = (value: string) =>
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "")
+
+const getAudienceTag = async () => {
+  const { audience } = await resolveAudienceContext()
+  return `audience:${audience}`
+}
 
 export async function createTerm(
   input: CreateTermInput,
@@ -72,7 +78,8 @@ export async function createTerm(
     }),
   ])
 
-  updateTag("attributes")
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes", audienceTag)
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }
 
@@ -100,6 +107,7 @@ export async function deleteTerm(input: DeleteTermInput) {
     }
   })
 
-  updateTag("attributes")
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes", audienceTag)
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }

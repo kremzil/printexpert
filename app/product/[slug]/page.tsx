@@ -13,6 +13,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug } from "@/lib/catalog"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
@@ -21,15 +22,26 @@ type ProductPageProps = {
   params: Promise<{
     slug: string
   }>
+  searchParams?: Promise<{
+    mode?: string
+  }>
 }
 
 async function ProductDetails({
   paramsPromise,
+  searchParamsPromise,
 }: {
   paramsPromise: ProductPageProps["params"]
+  searchParamsPromise?: ProductPageProps["searchParams"]
 }) {
   const { slug } = await paramsPromise
-  const product = await getProductBySlug(slug)
+  const resolvedSearchParams = searchParamsPromise
+    ? await searchParamsPromise
+    : {}
+  const [audienceContext, product] = await Promise.all([
+    resolveAudienceContext({ searchParams: resolvedSearchParams }),
+    getProductBySlug(slug),
+  ])
 
   if (!product) {
     notFound()
@@ -37,12 +49,13 @@ async function ProductDetails({
 
   const primaryImage = product.images[0]
   const calculatorData = product.wpProductId
-    ? await getWpCalculatorData(product.wpProductId, false)
+    ? await getWpCalculatorData(product.wpProductId, true)
     : null
 
   const descriptionHtml = product.description
     ? sanitizeHtml(product.description)
     : null
+  const priceQualifier = audienceContext.audience === "b2b" ? "bez DPH" : "s DPH"
 
   return (
     <section className="space-y-10">
@@ -117,12 +130,12 @@ async function ProductDetails({
           </div>
 
           {calculatorData ? (
-            <PriceCalculatorLetaky data={calculatorData} />
+            <PriceCalculatorLetaky data={calculatorData} productId={product.id} />
           ) : (
             <div className="space-y-2 rounded-xl border bg-card p-5 text-sm">
               {product.priceFrom ? (
                 <div className="text-lg font-semibold">
-                  Cena od {product.priceFrom.toString()} €
+                  Cena od {product.priceFrom.toString()} € {priceQualifier}
                 </div>
               ) : (
                 <div className="text-muted-foreground">Cena na vyžiadanie.</div>
@@ -145,7 +158,7 @@ async function ProductDetails({
   )
 }
 
-export default function ProductPage({ params }: ProductPageProps) {
+export default function ProductPage({ params, searchParams }: ProductPageProps) {
   return (
     <Suspense
       fallback={
@@ -161,7 +174,10 @@ export default function ProductPage({ params }: ProductPageProps) {
         </section>
       }
     >
-      <ProductDetails paramsPromise={params} />
+      <ProductDetails
+        paramsPromise={params}
+        searchParamsPromise={searchParams}
+      />
     </Suspense>
   )
 }

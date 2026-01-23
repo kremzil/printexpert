@@ -3,6 +3,8 @@ import { createHash } from "node:crypto"
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 
+import { resolveAudienceContext } from "@/lib/audience-context"
+
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 const allowedImageTypes = new Set([
   "image/jpeg",
@@ -25,16 +27,26 @@ const resolveUploadPath = (hash: string, ext: string) => {
 }
 
 export async function POST(request: Request) {
+  const audienceContext = await resolveAudienceContext({ request })
   const formData = await request.formData()
   const file = formData.get("file")
   const kind = String(formData.get("kind") ?? "").trim()
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Chýba súbor." }, { status: 400 })
+    const response = NextResponse.json({ error: "Chýba súbor." }, { status: 400 })
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
   }
 
   if (file.size > MAX_UPLOAD_SIZE) {
-    return NextResponse.json({ error: "Súbor je príliš veľký." }, { status: 400 })
+    const response = NextResponse.json(
+      { error: "Súbor je príliš veľký." },
+      { status: 400 }
+    )
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
   }
 
   const contentType = file.type
@@ -42,11 +54,23 @@ export async function POST(request: Request) {
   const isVideo = allowedVideoTypes.has(contentType)
 
   if ((kind === "image" && !isImage) || (kind === "video" && !isVideo)) {
-    return NextResponse.json({ error: "Nepodporovaný typ súboru." }, { status: 400 })
+    const response = NextResponse.json(
+      { error: "Nepodporovaný typ súboru." },
+      { status: 400 }
+    )
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
   }
 
   if (!isImage && !isVideo) {
-    return NextResponse.json({ error: "Nepodporovaný typ súboru." }, { status: 400 })
+    const response = NextResponse.json(
+      { error: "Nepodporovaný typ súboru." },
+      { status: 400 }
+    )
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
@@ -57,5 +81,8 @@ export async function POST(request: Request) {
   await mkdir(path.dirname(absolutePath), { recursive: true })
   await writeFile(absolutePath, buffer)
 
-  return NextResponse.json({ url: publicUrl })
+  const response = NextResponse.json({ url: publicUrl })
+  response.headers.set("x-audience", audienceContext.audience)
+  response.headers.set("x-audience-source", audienceContext.source)
+  return response
 }

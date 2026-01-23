@@ -4,6 +4,13 @@ import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 
+type PriceResult = {
+  net: number
+  vatAmount: number
+  gross: number
+  currency: "EUR"
+}
+
 type MatrixSelectOption = {
   value: string
   label: string
@@ -23,6 +30,7 @@ type Matrix = {
   ntp: string
   material: string | null
   selects: MatrixSelect[]
+  isActive: boolean
 }
 
 type PricingGlobals = {
@@ -194,7 +202,13 @@ function getMatrixPrice(
   return lowerPrice + (upperPrice - lowerPrice) * ratio
 }
 
-export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
+export function PriceCalculatorLetaky({
+  data,
+  productId,
+}: {
+  data: LetakyPricingData
+  productId: string
+}) {
   const hasAreaSizing = data.matrices.some((matrix) => {
     const ntp = parseNumber(matrix.ntp) ?? 0
     return ntp === 2 || ntp === 3 || ntp === 4
@@ -232,6 +246,9 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
   )
   const [productionSpeedPercent, setProductionSpeedPercent] = useState(0)
   const [userDiscountPercent, setUserDiscountPercent] = useState(0)
+  const [serverPrice, setServerPrice] = useState<PriceResult | null>(null)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
   const aUnit = parseNumber(data.globals.a_unit) ?? FALLBACK_A_UNIT
@@ -426,6 +443,48 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
   }, [perMatrix, productionSpeedPercent, userDiscountPercent, orderMinPrice])
 
   const hasUnavailable = perMatrix.some((entry) => entry.price === -1)
+  const visibleMatrices = useMemo(
+    () => data.matrices.filter((matrix) => matrix.isActive !== false),
+    [data.matrices]
+  )
+
+  const requestServerPrice = async () => {
+    setIsSubmitting(true)
+    setServerError(null)
+    setServerPrice(null)
+    try {
+      const response = await fetch("/api/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          params: {
+            quantity,
+            width,
+            height,
+            selections,
+            productionSpeedPercent,
+            userDiscountPercent,
+          },
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        const message =
+          typeof payload?.error === "string"
+            ? payload.error
+            : "Cenu sa nepodarilo vypočítať."
+        setServerError(message)
+        return
+      }
+      setServerPrice(payload as PriceResult)
+    } catch (error) {
+      console.error("Server price error:", error)
+      setServerError("Cenu sa nepodarilo vypočítať.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <section className="space-y-5 rounded-xl border bg-card p-5">
@@ -495,7 +554,7 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
       </div>
 
       <div className="space-y-4">
-        {data.matrices.map((matrix) => (
+        {visibleMatrices.map((matrix) => (
           <div key={matrix.mtid} className="space-y-3 rounded-md border p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {matrix.kind === "simple" ? "Tlač" : "Finalizácia"}
@@ -547,8 +606,26 @@ export function PriceCalculatorLetaky({ data }: { data: LetakyPricingData }) {
             <span className="text-lg font-semibold">{total.toFixed(2)} €</span>
           )}
         </div>
+        {serverError ? (
+          <div className="text-sm text-destructive">{serverError}</div>
+        ) : null}
+        {serverPrice ? (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="font-medium">Serverovo potvrdená cena</div>
+            <div className="mt-1 flex flex-wrap gap-3 text-muted-foreground">
+              <span>Bez DPH: {serverPrice.net.toFixed(2)} €</span>
+              <span>DPH: {serverPrice.vatAmount.toFixed(2)} €</span>
+              <span>S DPH: {serverPrice.gross.toFixed(2)} €</span>
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button type="button" className="sm:flex-1">
+          <Button
+            type="button"
+            className="sm:flex-1"
+            onClick={requestServerPrice}
+            disabled={isSubmitting || total === null || hasUnavailable}
+          >
             Nahrať grafiku a objednať
           </Button>
           <Button type="button" variant="outline" className="sm:flex-1">

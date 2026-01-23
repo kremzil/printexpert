@@ -16,8 +16,9 @@
 
 ## Источник данных
 
-Сейчас расчёты берут данные из БД (таблицы, импортированные из WP).
-Сбор данных для калькулятора выполняется в `lib/wp-calculator.ts`.
+Расчёты берут данные из БД (WP-таблицы и внутренние матрицы).
+Сбор данных для калькулятора выполняется в `lib/wp-calculator.ts` и
+`lib/pricing.ts` (для внутренних матриц).
 
 ## Общая логика расчёта
 
@@ -97,6 +98,19 @@
   - важные поля: `mtype` (0/1), `numbers` (breakpoints), `numType` (ntp),
     `attributes`/`aterms` (PHP‑serialized связь атрибутов и терминов)
 
+### Внутренние матрицы (новый источник)
+- `PricingModel`
+  - связь: `productId` → `Product.id`
+  - `kind`: `BASE | FINISHING`
+  - `breakpoints`: JSON (числа или строка, парсится как список)
+  - `numType`: аналог `ntp`
+  - `sourceMtypeId`: используется как `mtid` для матрицы
+- `PricingEntry`
+  - связь: `pricingModelId` → `PricingModel.id`
+  - `attrsKey`: формат `aid:term-aid:term` (как в WP)
+  - `breakpoint`: число
+  - `price`: цена
+
 ### Матрицы цен
 - `WpMatrixPrice` (`wp_print_products_matrix_prices`)
   - связь: `mtypeId` → `WpMatrixType.mtypeId`
@@ -125,6 +139,12 @@
 2) Проверить, что для этих `mtypeId` есть строки в `WpMatrixPrice`.
 3) Атрибуты и названия подтягиваются из `WpAttributeTaxonomy` и `WpTerm`.
 4) В `app/product/[slug]/page.tsx` добавить `wpProductIdBySlug`.
+
+## Серверный источник истины
+- Серверный сервис `calculate(productId, params, audienceContext)` выполняет расчёт
+  и возвращает `net/vat/gross`.
+- `POST /api/price` вызывает серверный расчёт и не принимает цену от клиента.
+- Клиент отображает только предварительную цену.
 
 ## Примечания
 - Данные берутся из БД, а `attributes/aterms` остаются в PHP‑serialized формате.

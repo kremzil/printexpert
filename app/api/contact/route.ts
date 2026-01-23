@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import nodemailer from "nodemailer"
 import { z } from "zod"
 
+import { resolveAudienceContext } from "@/lib/audience-context"
+
 const payloadSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
@@ -36,20 +38,37 @@ const checkRateLimit = (ip: string) => {
 }
 
 export async function POST(request: Request) {
+  const audienceContext = await resolveAudienceContext({ request })
+
   try {
     const body = await request.json()
     const parsed = payloadSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
+      const response = NextResponse.json(
+        { error: "Invalid payload" },
+        { status: 400 }
+      )
+      response.headers.set("x-audience", audienceContext.audience)
+      response.headers.set("x-audience-source", audienceContext.source)
+      return response
     }
 
     if (parsed.data.company && parsed.data.company.trim().length > 0) {
-      return NextResponse.json({ ok: true })
+      const response = NextResponse.json({ ok: true })
+      response.headers.set("x-audience", audienceContext.audience)
+      response.headers.set("x-audience-source", audienceContext.source)
+      return response
     }
 
     const ip = getClientIp(request)
     if (!checkRateLimit(ip)) {
-      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
+      const response = NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429 }
+      )
+      response.headers.set("x-audience", audienceContext.audience)
+      response.headers.set("x-audience-source", audienceContext.source)
+      return response
     }
 
     const smtpHost = process.env.SMTP_HOST
@@ -60,7 +79,13 @@ export async function POST(request: Request) {
     const smtpTo = process.env.SMTP_TO ?? smtpFrom
 
     if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpFrom || !smtpTo) {
-      return NextResponse.json({ error: "SMTP not configured" }, { status: 500 })
+      const response = NextResponse.json(
+        { error: "SMTP not configured" },
+        { status: 500 }
+      )
+      response.headers.set("x-audience", audienceContext.audience)
+      response.headers.set("x-audience-source", audienceContext.source)
+      return response
     }
 
     const transport = nodemailer.createTransport({
@@ -74,18 +99,25 @@ export async function POST(request: Request) {
     })
 
     const { name, email, message } = parsed.data
+    const audienceLabel = audienceContext.audience.toUpperCase()
     await transport.sendMail({
       from: smtpFrom,
       to: smtpTo,
       replyTo: email,
-      subject: "Nová správa z kontaktného formulára",
-      text: `Meno: ${name}\nE-mail: ${email}\n\nSpráva:\n${message}`,
-      html: `<p><strong>Meno:</strong> ${name}</p><p><strong>E-mail:</strong> ${email}</p><p><strong>Správa:</strong></p><p>${message.replace(/\n/g, "<br />")}</p>`,
+      subject: `Nová správa z kontaktného formulára (${audienceLabel})`,
+      text: `Meno: ${name}\nE-mail: ${email}\nRežim: ${audienceLabel} (zdroj: ${audienceContext.source})\n\nSpráva:\n${message}`,
+      html: `<p><strong>Meno:</strong> ${name}</p><p><strong>E-mail:</strong> ${email}</p><p><strong>Režim:</strong> ${audienceLabel} (zdroj: ${audienceContext.source})</p><p><strong>Správa:</strong></p><p>${message.replace(/\n/g, "<br />")}</p>`,
     })
 
-    return NextResponse.json({ ok: true })
+    const response = NextResponse.json({ ok: true })
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
   } catch (error) {
     console.error(error)
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    const response = NextResponse.json({ error: "Server error" }, { status: 500 })
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
   }
 }
