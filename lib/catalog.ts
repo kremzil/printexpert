@@ -41,9 +41,11 @@ export async function getCategoryBySlug(slug: string) {
 export async function getProducts({
   categorySlug,
   categorySlugs,
+  audience,
 }: {
   categorySlug?: string;
   categorySlugs?: string[];
+  audience?: string | null;
 }) {
   "use cache";
   const tags = new Set<string>(["products"]);
@@ -53,6 +55,9 @@ export async function getProducts({
   if (categorySlugs) {
     categorySlugs.forEach((slug) => tags.add(`category:${slug}`));
   }
+  // include audience in cache tags so personalised views are cached separately
+  if (audience) tags.add(`audience:${audience}`)
+  else tags.add(`audience:all`)
   cacheTag(...Array.from(tags));
   cacheLife("hours");
   const prisma = getPrisma();
@@ -62,9 +67,17 @@ export async function getProducts({
       : categorySlug
         ? categorySlug
         : undefined;
+  const audienceFilter = audience
+    ? audience === "b2b"
+      ? { showInB2b: true }
+      : audience === "b2c"
+        ? { showInB2c: true }
+        : {}
+    : {}
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
+      ...audienceFilter,
       category: {
         isActive: true,
         ...(slugFilter ? { slug: slugFilter } : {}),
@@ -87,6 +100,8 @@ export async function getProducts({
 
 export async function getProductBySlug(slug: string) {
   "use cache";
+  // audience must be passed from caller (do not access cookies inside use cache)
+  // caller should call getProductBySlug(slug, audience)
   cacheTag("products", `product:${slug}`);
   cacheLife("hours");
   const prisma = getPrisma();

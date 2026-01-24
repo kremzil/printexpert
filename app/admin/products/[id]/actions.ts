@@ -471,6 +471,8 @@ export async function updateProductDetails(
   const descriptionInput = String(formData.get("description") ?? "")
   const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
   const vatRateRaw = String(formData.get("vatRate") ?? "").trim()
+  const showInB2bRaw = String(formData.get("showInB2b") ?? "").trim()
+  const showInB2cRaw = String(formData.get("showInB2c") ?? "").trim()
 
   if (!name || !slug || !vatRateRaw) {
     return
@@ -513,6 +515,8 @@ export async function updateProductDetails(
       description: description || null,
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
       vatRate: normalizedVatRate,
+      showInB2b: showInB2bRaw === "1",
+      showInB2c: showInB2cRaw === "1",
     },
     select: { slug: true },
   })
@@ -523,6 +527,8 @@ export async function updateProductDetails(
     `product:${existing.slug}`,
     `product:${updated.slug}`
   )
+  // invalidate audience-specific caches as visibility may have changed
+  updateTag("products", `audience:b2b`, `audience:b2c`)
   revalidatePath("/admin")
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${existing.slug}`)

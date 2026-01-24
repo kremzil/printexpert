@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCategories, getProducts } from "@/lib/catalog"
+import { resolveAudienceContext } from "@/lib/audience-context"
 
 type CatalogPageProps = {
   searchParams?: Promise<{
@@ -90,8 +91,12 @@ async function CatalogContent({
       : selectedCategory
         ? [selectedCategory.slug]
         : undefined
+  const audienceContext = await resolveAudienceContext({
+    searchParams: resolvedSearchParams,
+  })
   const filteredProducts = await getProducts({
     categorySlugs: selectedSlugs,
+    audience: audienceContext?.audience,
   })
   const activeCategory = categories.find(
     (category) => category.slug === selectedCategorySlug

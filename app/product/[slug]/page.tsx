@@ -53,10 +53,18 @@ async function ProductDetails({
   const resolvedSearchParams = searchParamsPromise
     ? await searchParamsPromise
     : {}
-  const [audienceContext, product] = await Promise.all([
-    resolveAudienceContext({ searchParams: resolvedSearchParams }),
-    getProductBySlug(slug),
-  ])
+  const audienceContext = await resolveAudienceContext({
+    searchParams: resolvedSearchParams,
+  })
+  const product = await getProductBySlug(slug)
+
+  // enforce product visibility per audience preference
+  if (audienceContext?.audience === "b2b" && product && product.showInB2b === false) {
+    notFound()
+  }
+  if (audienceContext?.audience === "b2c" && product && product.showInB2c === false) {
+    notFound()
+  }
 
   if (!product) {
     notFound()

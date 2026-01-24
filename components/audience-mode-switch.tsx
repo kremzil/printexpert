@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
 import { Switch } from "@/components/ui/switch"
@@ -9,44 +9,53 @@ type AudienceModeSwitchProps = {
   initialAudience: "b2b" | "b2c"
 }
 
-export function AudienceModeSwitch({
-  initialAudience,
-}: AudienceModeSwitchProps) {
+export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps) {
   const router = useRouter()
-  const initialChecked = initialAudience === "b2b"
-  const [checked, setChecked] = useState(initialChecked)
   const [isPending, startTransition] = useTransition()
 
-  const handleToggle = (nextChecked: boolean) => {
+  // checked: true = b2b, false = b2c (как у тебя)
+  const [checked, setChecked] = useState(initialAudience === "b2b")
+
+  // ✅ ВАЖНО: если аудитория сменилась извне (карточки/другая страница),
+  // сервер пришлет новый initialAudience после router.refresh().
+  // Синхронизируем UI свитчера.
+  useEffect(() => {
+    setChecked(initialAudience === "b2b")
+  }, [initialAudience])
+
+  const onCheckedChange = (nextChecked: boolean) => {
+    // оптимистично обновляем UI
     setChecked(nextChecked)
+
     startTransition(async () => {
-      const response = await fetch("/api/audience", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: nextChecked ? "b2b" : "b2c" }),
-      })
-      if (!response.ok) {
+      try {
+        const response = await fetch("/api/audience", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: nextChecked ? "b2b" : "b2c" }),
+        })
+
+        if (!response.ok) {
+          // откатываем UI, если API не принял
+          setChecked(!nextChecked)
+          return
+        }
+
+        // ✅ заставляем серверные компоненты перечитаться с новой cookie
+        router.refresh()
+      } catch (e) {
+        console.error(e)
         setChecked(!nextChecked)
-        return
       }
-      router.refresh()
     })
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] font-medium text-muted-foreground sm:text-xs">
-        B2C
-      </span>
-      <Switch
-        checked={checked}
-        onCheckedChange={handleToggle}
-        disabled={isPending}
-        aria-label="Prepnutie režimu B2B a B2C"
-      />
-      <span className="text-[10px] font-medium text-muted-foreground sm:text-xs">
-        B2B
-      </span>
-    </div>
+    <Switch
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      disabled={isPending}
+      aria-label="Audience mode"
+    />
   )
 }

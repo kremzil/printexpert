@@ -3,6 +3,7 @@ import { Suspense } from "react"
 
 import { Button } from "@/components/ui/button"
 import { resolveAudienceContext } from "@/lib/audience-context"
+import { AudienceModeCards } from "@/components/audience-mode-cards"
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -24,38 +25,24 @@ async function HomeContent({
   const isFirstVisit = audienceContext.source === "default"
   const isB2B = audienceContext.audience === "b2b"
 
-  if (isFirstVisit) {
-    return (
-      <section className="space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Vitajte v PrintExpert</h1>
-          <p className="text-muted-foreground">
-            Najprv si zvoľte režim, aby sme vám ukázali správny obsah.
-          </p>
+if (isFirstVisit) {
+  return (
+    <section className="relative">
+      <div className="h-[60vh] sm:h-[70vh] flex items-center justify-center bg-linear-to-r from-indigo-600 via-violet-600 to-pink-600 text-white">
+        <div className="max-w-4xl text-center px-6">
+          <h1 className="text-3xl sm:text-5xl font-extrabold leading-tight">
+            Online tlačiareň pre celé Slovensko – rýchla a kvalitná tlač pre firmy, živnostníkov aj domácnosti
+          </h1>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border bg-card p-6">
-            <h2 className="text-lg font-semibold">Som súkromná osoba</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Jednoduchá objednávka, rýchla kalkulácia a hotové produkty.
-            </p>
-            <Button asChild className="mt-4 w-full">
-              <Link href="/?mode=b2c">Pokračovať ako súkromná osoba</Link>
-            </Button>
-          </div>
-          <div className="rounded-2xl border bg-card p-6">
-            <h2 className="text-lg font-semibold">Som z firmy</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Individuálny prístup, cenové ponuky a podpora pre firmy.
-            </p>
-            <Button asChild variant="outline" className="mt-4 w-full">
-              <Link href="/?mode=b2b">Pokračovať ako firma</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-    )
-  }
+      </div>
+
+      <div className="mt-8 px-4">
+        <AudienceModeCards />
+      </div>
+    </section>
+  )
+}
+
 
   return (
     <section className="space-y-6">

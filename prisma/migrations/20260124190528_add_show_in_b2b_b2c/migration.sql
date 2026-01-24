@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Product" ADD COLUMN     "showInB2b" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "showInB2c" BOOLEAN NOT NULL DEFAULT true;

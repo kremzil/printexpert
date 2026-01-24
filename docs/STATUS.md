@@ -10,6 +10,7 @@
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
+ - Добавлены флаги видимости в `Product`: `showInB2b` и `showInB2c` (boolean, default true). Миграция добавлена и применена (`20260124190528_add_show_in_b2b_b2c`).
 
 ## Каталог (DB-backed)
 - Страницы `/kategorie`, `/catalog`, `/product/[slug]` читают данные из Postgres через `lib/catalog.ts`.
@@ -66,6 +67,8 @@
 ## Кэш и revalidate
 - Включены Cache Components (`cacheComponents: true`).
 - `updateTag()` в админских действиях для актуализации витрины (каталог, атрибуты, матрицы).
+ - Важно: нельзя вызывать `cookies()` или другие динамические источники данных внутри функций, помеченных `"use cache"`. Паттерн: резолвить `AudienceContext` вне кэшируемых функций (в page/route), и передавать `audience` как аргумент в `getProducts` или использовать проверку видимости на уровне страницы.
+ - `getProducts` теперь принимает опциональный `audience` и учитывает `showInB2b`/`showInB2c` при выборке; страница товара выполняет дополнительную проверку и возвращает 404 для товара, скрытого для текущей аудитории.
 
 ## AudienceContext (B2B/B2C)
 - Добавлен единый серверный резолвер с приоритетами `query → account (stub) → cookie → default`.

@@ -40,6 +40,7 @@ If a command fails, report the error clearly and propose the minimal fix.
 - `lib/` — helpers/utilities (includes `lib/utils.ts`)
 - `public/` — static assets
 - `llms/` — local documentation/knowledge base (LLM-friendly)
+- `docs/` — actual project state documentation
 
 ## Knowledge base (local docs)
 This repo includes a local knowledge base under `/llms`.
