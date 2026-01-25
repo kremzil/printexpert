@@ -1,9 +1,7 @@
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 import { Suspense } from "react"
 
-import { Badge } from "@/components/ui/badge"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import ProductCard from "@/components/product/product-card"
 import { getCategories, getProducts } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
@@ -65,9 +63,6 @@ async function CatalogContent({
     : {}
   const selectedCategorySlug = resolvedSearchParams.cat
   const categories = await getCategories()
-  const categoryById = new Map(
-    categories.map((category) => [category.id, category])
-  )
   const categoryBySlug = new Map(
     categories.map((category) => [category.slug, category])
   )
@@ -192,10 +187,8 @@ async function CatalogContent({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProducts.map((product) => {
-            const category = categoryById.get(product.categoryId)
-
             return (
-              <ProductCard key={product.slug} product={product} category={category} />
+              <ProductCard key={product.slug} product={product} />
             )
           })}
         </div>

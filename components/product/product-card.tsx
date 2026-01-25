@@ -1,11 +1,20 @@
 import Image from "next/image"
 import Link from "next/link"
-import * as React from "react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type Props = {
-  product: any
+  product: {
+    slug: string
+    name: string
+    excerpt?: string | null
+    description?: string | null
+    priceFrom?: string | null
+    images?: Array<{
+      url: string
+      alt?: string | null
+    }>
+  }
 }
 
 export function ProductCard({ product }: Props) {

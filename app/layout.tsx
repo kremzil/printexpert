@@ -23,21 +23,6 @@ export const metadata: Metadata = {
   description: "Tlačové služby a produkty",
 }
 
-async function AudienceBadge() {
-  const audienceContext = await resolveAudienceContext()
-  const label =
-    audienceContext.source === "default"
-      ? "Vyberte režim"
-      : audienceContext.audience === "b2b"
-        ? "Pre firmy"
-        : "Pre jednotlivcov"
-  return (
-    <span className="inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-semibold text-muted-foreground sm:text-xs">
-      {label}
-    </span>
-  )
-}
-
 async function AudienceFooterNote() {
   const audienceContext = await resolveAudienceContext()
   const footerLabel =
