@@ -188,7 +188,7 @@ export default function ContactPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Rozvojová 2, 040 11 Košice (osobný odber)
           </p>
-          <div className="mt-6 flex min-h-[280px] items-center justify-center rounded-lg border border-dashed bg-background text-sm text-muted-foreground">
+          <div className="mt-6 flex min-h-70 items-center justify-center rounded-lg border border-dashed bg-background text-sm text-muted-foreground">
             Mapový náhľad
           </div>
         </div>

@@ -1,18 +1,8 @@
 import type { Metadata } from "next"
-import Image from "next/image"
-import Link from "next/link"
 import { Geist, Geist_Mono, Inter } from "next/font/google"
 import { Suspense } from "react"
 
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu"
-import { Button } from "@/components/ui/button"
-import { AudienceModeSwitch } from "@/components/audience-mode-switch"
+import { SiteHeader } from "@/components/site-header"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import "./globals.css"
 
@@ -59,11 +49,6 @@ async function AudienceFooterNote() {
   return <span>{footerLabel}</span>
 }
 
-async function AudienceHeaderSwitch() {
-  const audienceContext = await resolveAudienceContext()
-  return <AudienceModeSwitch initialAudience={audienceContext.audience} />
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -79,80 +64,15 @@ export default function RootLayout({
           >
             Preskočiť na hlavný obsah
           </a>
-          <header className="border-b">
-            <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-              <Link href="/" className="flex items-center gap-2">
-                <Image
-                  src="/printexpert-logo.svg"
-                  alt="PrintExpert"
-                  width={140}
-                  height={32}
-                  priority
-                />
-                <span className="sr-only">PrintExpert</span>
-              </Link>
-              <NavigationMenu>
-                <NavigationMenuList>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      asChild
-                      className={navigationMenuTriggerStyle()}
-                    >
-                      <Link href="/">Domov</Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      asChild
-                      className={navigationMenuTriggerStyle()}
-                    >
-                      <Link href="/kategorie">Kategórie</Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      asChild
-                      className={navigationMenuTriggerStyle()}
-                    >
-                      <Link href="/catalog">Katalóg</Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                  <NavigationMenuItem>
-                    <NavigationMenuLink
-                      asChild
-                      className={navigationMenuTriggerStyle()}
-                    >
-                      <Link href="/kontaktujte-nas">Kontaktujte nás</Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href="/auth">Registrácia</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/account">Môj účet</Link>
-                  </Button>
-                </div>
-                <Suspense fallback={null}>
-                  <AudienceHeaderSwitch />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <AudienceBadge />
-                </Suspense>
-              </div>
-            </div>
-          </header>
+          <SiteHeader />
           <main
             id="main-content"
-            className="mx-auto w-full max-w-6xl flex-1 px-4 py-8"
+            className="mx-auto w-full max-w-7xl flex-1 px-4 py-8"
           >
             {children}
           </main>
           <footer className="border-t">
-            <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 text-sm text-muted-foreground">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 text-sm text-muted-foreground">
               <span>© PrintExpert</span>
               <Suspense fallback={null}>
                 <AudienceFooterNote />

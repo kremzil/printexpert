@@ -23,10 +23,9 @@ export default async function CategoriesPage() {
   )
   const childrenByParentId = categories.reduce((map, category) => {
     const key = category.parentId ?? "root"
-    if (!map.has(key)) {
-      map.set(key, [])
-    }
-    map.get(key).push(category)
+    const list = map.get(key) ?? []
+    list.push(category)
+    map.set(key, list)
     return map
   }, new Map<string, typeof categories>())
   const rootCategories = childrenByParentId.get("root") ?? []
@@ -86,8 +85,8 @@ export default async function CategoriesPage() {
                     className="group"
                   >
                     <Card className="h-full overflow-hidden py-0 transition-colors group-hover:border-primary/30">
-                      <CardHeader className="p-0">
-                        <div className="relative aspect-[4/3] w-full">
+                      <CardHeader className="p-4">
+                        <div className="relative aspect-square w-full">
                           <Image
                             src={item.image}
                             alt={item.name}

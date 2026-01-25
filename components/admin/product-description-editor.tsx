@@ -30,6 +30,7 @@ export function ProductDescriptionEditor({
           <span>HTML</span>
           <Switch
             checked={mode === "wysiwyg"}
+            className="data-[state=checked]:bg-gray-300 data-[state=unchecked]:bg-gray-200"
             onCheckedChange={(checked) =>
               setMode(checked ? "wysiwyg" : "html")
             }

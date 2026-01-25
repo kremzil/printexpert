@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import ProductCard from "@/components/product/product-card"
 import { getCategories, getProducts } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
 
@@ -192,47 +193,9 @@ async function CatalogContent({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProducts.map((product) => {
             const category = categoryById.get(product.categoryId)
-            const primaryImage = product.images[0]
 
             return (
-              <Link
-                key={product.slug}
-                href={`/product/${product.slug}`}
-                className="group"
-              >
-                <Card className="h-full overflow-hidden py-0 transition-colors group-hover:border-primary/30">
-                  <CardHeader className="p-0">
-                    <div className="relative aspect-[4/3] w-full">
-                      <Image
-                        src={primaryImage.url}
-                        alt={primaryImage.alt ?? product.name}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 100vw"
-                      />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2 px-4 pb-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="text-base">{product.name}</CardTitle>
-                      {product.priceFrom ? (
-                        <span className="text-sm text-muted-foreground">
-                          {product.priceFrom} €
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Na vyžiadanie
-                        </span>
-                      )}
-                    </div>
-                    {category ? (
-                      <Badge variant="secondary" className="w-fit">
-                        {category.name}
-                      </Badge>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              </Link>
+              <ProductCard key={product.slug} product={product} category={category} />
             )
           })}
         </div>

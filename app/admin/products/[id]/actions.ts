@@ -38,12 +38,17 @@ type UpdateProductDetailsInput = {
   productId: string
 }
 
+// ...existing code...
 type PhpSerializable =
   | string
   | number
   | null
-  | PhpSerializable[]
-  | Record<string, PhpSerializable>
+  | PhpSerializableArray
+  | PhpSerializableRecord
+
+type PhpSerializableArray = PhpSerializable[]
+interface PhpSerializableRecord { [key: string]: PhpSerializable }
+// ...existing code...
 
 const getByteLength = (value: string) => Buffer.byteLength(value, "utf8")
 

@@ -207,13 +207,15 @@ export function RichTextEditor({
     immediatelyRender: false,
   })
 
-  useEffect(() => {
-    if (!editor) return
-    const current = editor.getHTML()
-    if (current !== value) {
-      editor.commands.setContent(value || "", false)
-    }
-  }, [editor, value])
+  // ...existing code...
+    useEffect(() => {
+      if (!editor) return
+      const current = editor.getHTML()
+      if (current !== value) {
+      editor.commands.setContent(value || "", { emitUpdate: false })
+      }
+    }, [editor, value])
+  // ...existing code...
 
   const isEmpty = !value || value === "<p></p>"
 

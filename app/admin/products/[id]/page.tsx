@@ -145,21 +145,46 @@ async function AdminProductDetails({
 
       <Card>
         <CardContent className="space-y-6 py-6">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <Badge variant={product.isActive ? "secondary" : "outline"}>
-              {product.isActive ? "Aktívny" : "Neaktívny"}
-            </Badge>
-            <span className="text-muted-foreground">
-              Kategória: {product.category?.name ?? "Bez kategórie"}
-            </span>
-          </div>
-
-          <Separator />
-
           <form
             action={updateProductDetails.bind(null, { productId: product.id })}
             className="space-y-5"
           >
+            <div className="flex items-start justify-between">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant={product.isActive ? "secondary" : "outline"}>
+                  {product.isActive ? "Aktívny" : "Neaktívny"}
+                </Badge>
+                <span className="text-muted-foreground">
+                  Kategória: {product.category?.name ?? "Bez kategórie"}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="showInB2b"
+                    value="1"
+                    defaultChecked={product.showInB2b ?? true}
+                    className="h-4 w-4 rounded border-input accent-primary"
+                  />
+                  <span>B2B</span>
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="showInB2c"
+                    value="1"
+                    defaultChecked={product.showInB2c ?? true}
+                    className="h-4 w-4 rounded border-input accent-primary"
+                  />
+                  <span>B2C</span>
+                </label>
+              </div>
+            </div>
+
+            <Separator />
+
             <ProductTitleEditor
               initialName={product.name}
               initialSlug={product.slug}
@@ -178,32 +203,6 @@ async function AdminProductDetails({
               initialValue={product.description ?? ""}
               placeholder="Začnite písať popis..."
             />
-
-            <div className="space-y-2">
-              <Label>Zobraziť v režimoch</Label>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="showInB2b"
-                    value="1"
-                    defaultChecked={product.showInB2b ?? true}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span>B2B</span>
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="showInB2c"
-                    value="1"
-                    defaultChecked={product.showInB2c ?? true}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span>B2C</span>
-                </label>
-              </div>
-            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
