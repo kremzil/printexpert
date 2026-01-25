@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
+import { getAdminCategories } from "@/lib/catalog"
+import { createCategory, updateCategory, deleteCategory } from "./actions"
+
 export default function AdminCategoriesPage() {
   return (
     <Suspense
@@ -302,40 +305,6 @@ async function AdminCategoriesContent() {
                             : "Kategóriu odstránite natrvalo."
                         }
                       />
-                    </div>
-                  </form>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </section>
-  )
-}
-                          className="h-4 w-4 rounded border-input accent-primary"
-                        />
-                        <span>B2C</span>
-                      </label>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Button type="submit" size="sm" variant="secondary">
-                        Uložiť
-                      </Button>
-                      {hasRelations ? (
-                        <span className="text-xs text-muted-foreground">
-                          Najprv odstráňte väzby.
-                        </span>
-                      ) : (
-                        <ConfirmDeleteForm
-                          action={deleteCategory.bind(null, {
-                            categoryId: category.id,
-                          })}
-                          triggerText="Odstrániť"
-                          title="Odstrániť kategóriu?"
-                          description="Kategóriu odstránite natrvalo." 
-                        />
-                      )}
                     </div>
                   </form>
                 )

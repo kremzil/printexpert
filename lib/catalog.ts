@@ -122,6 +122,24 @@ export async function getProductBySlug(slug: string) {
   return product ? serializeProduct(product) : null;
 }
 
+export async function getAdminCategories() {
+  "use cache";
+  cacheTag("categories");
+  cacheLife("hours");
+  const prisma = getPrisma();
+  return prisma.category.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: {
+      _count: {
+        select: {
+          products: true,
+          children: true,
+        },
+      },
+    },
+  });
+}
+
 export async function getAdminProducts() {
   "use cache";
   cacheTag("products");
