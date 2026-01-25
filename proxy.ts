@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/auth"
 
 import {
   AUDIENCE_COOKIE_MAX_AGE_SECONDS,
@@ -7,7 +8,37 @@ import {
   parseAudience,
 } from "@/lib/audience-shared"
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  // NextAuth authorization check
+  const session = await auth()
+  const { nextUrl } = request
+  
+  const isLoggedIn = !!session?.user
+  const isOnAdmin = nextUrl.pathname.startsWith('/admin')
+  const isOnAccount = nextUrl.pathname.startsWith('/account')
+  const isOnAuth = nextUrl.pathname.startsWith('/auth')
+  
+  // Защита админки
+  if (isOnAdmin) {
+    if (!isLoggedIn) {
+      return NextResponse.redirect(new URL('/auth', nextUrl))
+    }
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/', nextUrl))
+    }
+  }
+  
+  // Защита личного кабинета
+  if (isOnAccount && !isLoggedIn) {
+    return NextResponse.redirect(new URL('/auth', nextUrl))
+  }
+  
+  // Редирект залогиненных с /auth
+  if (isOnAuth && isLoggedIn) {
+    return NextResponse.redirect(new URL('/account', nextUrl))
+  }
+
+  // Audience mode handling
   const mode = request.nextUrl.searchParams.get(AUDIENCE_QUERY_PARAM)
   const audience = parseAudience(mode)
 
@@ -32,5 +63,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
 }

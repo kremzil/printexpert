@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { sanitizeHtml } from "@/lib/sanitize-html"
+import { requireAdmin } from "@/lib/auth-helpers"
 
 type UpdateMatrixPricesInput = {
   productId: string
@@ -216,6 +217,8 @@ export async function createMatrix(
   input: CreateMatrixInput,
   formData: FormData
 ) {
+  await requireAdmin()
+  
   if (!input.wpProductId) {
     return
   }
@@ -424,6 +427,8 @@ export async function updateMatrixVisibility(
 }
 
 export async function deleteMatrix(input: DeleteMatrixInput) {
+  await requireAdmin()
+  
   const prisma = getPrisma()
 
   await prisma.$transaction([
@@ -470,6 +475,8 @@ export async function updateProductDetails(
   input: UpdateProductDetailsInput,
   formData: FormData
 ) {
+  await requireAdmin()
+  
   const name = String(formData.get("name") ?? "").trim()
   const slug = String(formData.get("slug") ?? "").trim()
   const excerptInput = String(formData.get("excerpt") ?? "")

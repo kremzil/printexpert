@@ -4,8 +4,11 @@ import { Suspense } from "react"
 import { AdminProductsList } from "@/components/admin/admin-products-list"
 import { Button } from "@/components/ui/button"
 import { getAdminProducts } from "@/lib/catalog"
+import { requireAdmin } from "@/lib/auth-helpers"
 
 export default async function AdminPage() {
+  await requireAdmin()
+  
   const products = await getAdminProducts()
 
   return (

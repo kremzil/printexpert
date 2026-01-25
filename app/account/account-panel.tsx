@@ -1,5 +1,6 @@
 "use client"
 
+import { signOut } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -62,11 +63,10 @@ export function AccountPanel({ name, email, hasPassword }: AccountPanelProps) {
   const handleLogout = async () => {
     setLogoutPending(true)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
+      await signOut({ callbackUrl: "/auth" })
     } catch (error) {
       console.error(error)
-    } finally {
-      router.push("/auth")
+      setLogoutPending(false)
     }
   }
 
@@ -74,7 +74,7 @@ export function AccountPanel({ name, email, hasPassword }: AccountPanelProps) {
     setPasswordStatus("loading")
     setPasswordError(null)
     try {
-      const response = await fetch("/api/auth/password", {
+      const response = await fetch("/api/auth/set-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

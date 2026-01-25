@@ -2,11 +2,11 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 
 import { AccountPanel } from "@/app/account/account-panel"
-import { getSessionFromCookies } from "@/lib/auth"
+import { auth } from "@/auth"
 
 async function AccountContent() {
-  const session = await getSessionFromCookies()
-  if (!session) {
+  const session = await auth()
+  if (!session?.user) {
     redirect("/auth")
   }
 

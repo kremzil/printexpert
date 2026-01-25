@@ -25,6 +25,8 @@ const parseSortOrder = (value: string | null, fallback: number) => {
 }
 
 export async function createCategory(formData: FormData) {
+  await requireAdmin()
+  
   const prisma = getPrisma()
   const name = String(formData.get("name") ?? "").trim()
   const slugRaw = String(formData.get("slug") ?? "").trim()

@@ -1,5 +1,6 @@
 "use client"
 
+import { signIn } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -50,21 +51,18 @@ function MagicLinkForm() {
     setStatus("loading")
     setErrorMessage(null)
     try {
-      const response = await fetch("/api/auth/magic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+      const result = await signIn("nodemailer", {
+        email: values.email,
+        redirect: false,
+        callbackUrl: "/account",
       })
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null
-        setErrorMessage(
-          payload?.error ?? "Odoslanie odkazu zlyhalo. Skúste to neskôr."
-        )
+
+      if (result?.error) {
+        setErrorMessage(result.error ?? "Odoslanie odkazu zlyhalo. Skúste to neskôr.")
         setStatus("error")
         return
       }
+
       setStatus("success")
     } catch (error) {
       console.error(error)
@@ -139,22 +137,20 @@ function PasswordLoginForm() {
     setStatus("loading")
     setErrorMessage(null)
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+      const result = await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: false,
       })
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null
-        setErrorMessage(
-          payload?.error ?? "Prihlásenie zlyhalo. Skúste to neskôr."
-        )
+
+      if (result?.error) {
+        setErrorMessage("Nesprávny e-mail alebo heslo.")
         setStatus("error")
         return
       }
+
       router.push("/account")
+      router.refresh()
     } catch (error) {
       console.error(error)
       setErrorMessage("Prihlásenie zlyhalo. Skúste to neskôr.")

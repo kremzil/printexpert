@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
+import { auth } from "@/auth"
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 const allowedImageTypes = new Set([
@@ -27,6 +28,11 @@ const resolveUploadPath = (hash: string, ext: string) => {
 }
 
 export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const audienceContext = await resolveAudienceContext({ request })
   const formData = await request.formData()
   const file = formData.get("file")

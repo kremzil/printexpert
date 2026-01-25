@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth-helpers"
 import { createAttribute, deleteAttribute } from "./actions"
 
 async function getAdminAttributes() {
@@ -21,6 +22,8 @@ async function getAdminAttributes() {
 }
 
 export default async function AdminPropertiesPage() {
+  await requireAdmin()
+  
   const attributes = await getAdminAttributes()
 
   return (

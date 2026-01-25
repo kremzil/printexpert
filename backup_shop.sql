@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict KHhWyZ239VzbMVguabcDi8JPZhWi0iqkSIL3y2HgmtOevgAxfWknz77XevqUhGi
+\restrict DGQxKAsOjan0q6khDGLfpOCIcOmTqVVzKu3feAzygJLRFuxbiNOxNBVh9LrBz9w
 
 -- Dumped from database version 16.11 (Debian 16.11-1.pgdg13+1)
 -- Dumped by pg_dump version 16.11 (Debian 16.11-1.pgdg13+1)
@@ -76,7 +76,9 @@ CREATE TABLE public."Category" (
     description text,
     "sortOrder" integer DEFAULT 0 NOT NULL,
     "isActive" boolean DEFAULT true NOT NULL,
-    "parentId" uuid
+    "parentId" uuid,
+    "showInB2b" boolean DEFAULT true NOT NULL,
+    "showInB2c" boolean DEFAULT true NOT NULL
 );
 
 
@@ -398,20 +400,20 @@ cmksp7h7y0001d4ijo9dob6or	cmksp7h7l0000d4ijg9k5987h	90cb7e00f1d443877db450dfc23c
 -- Data for Name: Category; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public."Category" (id, slug, name, image, description, "sortOrder", "isActive", "parentId") FROM stdin;
-2d20d83c-a077-429d-bba9-5ad9061c61e6	male-formaty	Malé formáty	/products/maleFormaty/vizitky.webp	Vizitky, letáky, svadobné tlačoviny a darčekové poukazy.	0	t	\N
-10888817-5f2b-4ef3-8527-58423f9f8bef	velke-formaty	Veľké formáty	/products/velkeFormaty/banner.webp	Bannery, billboardy, citylight a ďalšie exteriérové riešenia.	0	t	\N
-cd383ccf-0776-4d30-9d31-4e75d212c899	pos	Prezentačné systémy	/products/pos/rollUp.webp	Roll-upy, promo stolíky, visačky a magnetické fólie.	0	t	\N
-d3117c13-eada-494d-8af6-ce961fb2d9f2	peciatky	Pečiatky	/products/maleFormaty/vizitky.webp	Štandardné, podlhovasté, štvorcové, okrúhle a oválne pečiatky.	0	t	\N
-10871cf1-a8d1-48af-abbf-b4770a5d7c52	rohoze	Rohože	/products/maleFormaty/vizitky.webp	\N	0	t	\N
-39c7545a-bb88-4e95-bdaf-ab4cc7cfa1d6	foto-a-obrazy	Foto a obrazy	/products/maleFormaty/plagaty.webp	\N	0	t	\N
-fae80f26-f0cd-47dd-a0fe-8115dfc5ad8d	vlajky	Vlajky	/products/velkeFormaty/banner.webp	\N	0	t	\N
-351732f2-4a46-45bd-a992-3b420911ec0d	nalepky-a-etikety	Nálepky a etikety	/products/maleFormaty/vizitky.webp	\N	0	t	\N
-a3515c61-f7fe-484d-9338-9ad686ae17b0	peciatky-standardne	Pečiatky Štandardné	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2
-e6ec31eb-a38e-4581-955b-e989f560735e	peciatky-podlhovaste	Pečiatky Podlhovasté	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2
-d866ba19-891b-4ec2-a364-07571b3e441f	peciatky-stvorcove	Pečiatky Štvorcové	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2
-67e177e5-e5da-49f3-ab39-14a3b8199566	peciatky-okruhle	Pečiatky Okrúhle	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2
-c27a9cee-beb8-4a6f-8979-6bdfc55b2cac	peciatky-ovalne	Pečiatky Oválne	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2
+COPY public."Category" (id, slug, name, image, description, "sortOrder", "isActive", "parentId", "showInB2b", "showInB2c") FROM stdin;
+2d20d83c-a077-429d-bba9-5ad9061c61e6	male-formaty	Malé formáty	/products/maleFormaty/vizitky.webp	Vizitky, letáky, svadobné tlačoviny a darčekové poukazy.	0	t	\N	t	t
+d3117c13-eada-494d-8af6-ce961fb2d9f2	peciatky	Pečiatky	/products/maleFormaty/vizitky.webp	Štandardné, podlhovasté, štvorcové, okrúhle a oválne pečiatky.	0	t	\N	t	t
+fae80f26-f0cd-47dd-a0fe-8115dfc5ad8d	vlajky	Vlajky	/products/velkeFormaty/banner.webp	\N	0	t	\N	t	t
+351732f2-4a46-45bd-a992-3b420911ec0d	nalepky-a-etikety	Nálepky a etikety	/products/maleFormaty/vizitky.webp	\N	0	t	\N	t	t
+a3515c61-f7fe-484d-9338-9ad686ae17b0	peciatky-standardne	Pečiatky Štandardné	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2	t	t
+e6ec31eb-a38e-4581-955b-e989f560735e	peciatky-podlhovaste	Pečiatky Podlhovasté	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2	t	t
+d866ba19-891b-4ec2-a364-07571b3e441f	peciatky-stvorcove	Pečiatky Štvorcové	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2	t	t
+67e177e5-e5da-49f3-ab39-14a3b8199566	peciatky-okruhle	Pečiatky Okrúhle	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2	t	t
+c27a9cee-beb8-4a6f-8979-6bdfc55b2cac	peciatky-ovalne	Pečiatky Oválne	/products/maleFormaty/vizitky.webp	\N	0	t	d3117c13-eada-494d-8af6-ce961fb2d9f2	t	t
+39c7545a-bb88-4e95-bdaf-ab4cc7cfa1d6	foto-a-obrazy	Foto a obrazy	/products/maleFormaty/plagaty.webp	\N	0	t	\N	f	t
+cd383ccf-0776-4d30-9d31-4e75d212c899	pos	Prezentačné systémy	/products/pos/rollUp.webp	Roll-upy, promo stolíky, visačky a magnetické fólie.	0	t	\N	t	f
+10871cf1-a8d1-48af-abbf-b4770a5d7c52	rohoze	Rohože	/products/maleFormaty/vizitky.webp	\N	0	t	\N	f	t
+10888817-5f2b-4ef3-8527-58423f9f8bef	velke-formaty	Veľké formáty	/products/velkeFormaty/banner.webp	Bannery, billboardy, citylight a ďalšie exteriérové riešenia.	0	t	\N	t	f
 \.
 
 
@@ -30163,6 +30165,7 @@ e263de50-7869-4a53-80bf-e37f41a2d02d	df28d77ae98e4aade969df8590da8b216a4fa007dd4
 570dd4d8-ba3f-4a36-8b72-c69aecf3a4cc	8b38daf1a7c440ba13cab18392458f5497e3b66b4ad65b40220f82e4077aa2ff	2026-01-16 13:40:24.723581+00	20260116134024_init	\N	\N	2026-01-16 13:40:24.702999+00	1
 5865f950-c16e-4b14-a19c-25b7006fb7d1	cf345f2fdd7fb9c567d70664f450ffc3751e915871dda41bacfb062da4a6f7ce	2026-01-17 19:56:53.349929+00	20260117195653_add_category_product_productimage	\N	\N	2026-01-17 19:56:53.284457+00	1
 2e91114f-ffb0-40d3-a996-9998524b4ab9	13e600a1e4defdb3156da91091ef3326a3b6775bd5db41ad99749e2c8814e40c	2026-01-18 10:42:40.57327+00	20260118114221_productimage_unique_productid_url	\N	\N	2026-01-18 10:42:40.547046+00	1
+e53b913a-6492-4e74-bf51-82383a6c9d3b	ff2dbb7958e0d7e4d11f97d29cde20fbff209943bfb5a02799d340ea945fcf1b	2026-01-25 10:48:14.797106+00	20260125104814_add_show_in_category_b2b_b2c	\N	\N	2026-01-25 10:48:14.781535+00	1
 43e68720-5e22-4480-8b25-26a3976a7e18	a788c5506593ec02e954118744c33a90e0047b86be1f4680fd2e4fd824a51b2e	2026-01-18 15:57:24.633267+00	20260118155724_add_pricing_models	\N	\N	2026-01-18 15:57:24.579436+00	1
 1d41f66f-96db-407a-beea-9748de16fbcd	b7b5b6b6ca8997c46407a6b5d1b3d557add2d1068f8ec799295f51c29881c7d1	2026-01-19 11:41:47.798207+00	20260119114147_add_wp_calculator_tables	\N	\N	2026-01-19 11:41:47.692673+00	1
 70982026-dca2-486b-884d-ac4f3d8a8f61	c6fd3231d0527b97318d002dc4f9b79739d24036d94b8788b36eaa834f45b03f	2026-01-19 11:45:52.184127+00	20260119114552_wp_matrix_price_bigint	\N	\N	2026-01-19 11:45:52.089142+00	1
@@ -30544,5 +30547,5 @@ ALTER TABLE ONLY public."Session"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict KHhWyZ239VzbMVguabcDi8JPZhWi0iqkSIL3y2HgmtOevgAxfWknz77XevqUhGi
+\unrestrict DGQxKAsOjan0q6khDGLfpOCIcOmTqVVzKu3feAzygJLRFuxbiNOxNBVh9LrBz9w
 

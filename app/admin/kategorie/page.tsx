@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth-helpers"
 import { createCategory, deleteCategory, updateCategory } from "./actions"
 
 type AdminCategory = {
@@ -40,6 +41,8 @@ async function getAdminCategories(): Promise<AdminCategory[]> {
 }
 
 export default async function AdminCategoriesPage() {
+  await requireAdmin()
+  
   const categories = await getAdminCategories()
 
   return (

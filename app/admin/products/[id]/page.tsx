@@ -18,6 +18,7 @@ import { ProductTitleEditor } from "@/components/admin/product-title-editor"
 import { getAdminProductById } from "@/lib/catalog"
 import { getPrisma } from "@/lib/prisma"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
+import { requireAdmin } from "@/lib/auth-helpers"
 import {
   createMatrix,
   createMatrixPriceRows,
@@ -91,6 +92,8 @@ async function AdminProductDetails({
 }: {
   paramsPromise: AdminProductPageProps["params"]
 }) {
+  await requireAdmin()
+  
   const { id } = await paramsPromise
   const [product, attributeData] = await Promise.all([
     getAdminProductById(id),
