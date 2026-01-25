@@ -94,6 +94,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role
       }
       
+      // Обновляем роль из БД при каждом запросе (для актуальности прав)
+      if (token.id && !user) {
+        const prisma = getPrisma()
+        const currentUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true },
+        })
+        if (currentUser) {
+          token.role = currentUser.role
+        }
+      }
+      
       if (trigger === "update" && session) {
         token = { ...token, ...session }
       }

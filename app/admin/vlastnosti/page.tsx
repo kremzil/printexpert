@@ -1,5 +1,6 @@
 
 import Link from "next/link"
+import { Suspense } from "react"
 import { cacheLife, cacheTag } from "next/cache"
 
 import { Button } from "@/components/ui/button"
@@ -21,9 +22,29 @@ async function getAdminAttributes() {
   })
 }
 
-export default async function AdminPropertiesPage() {
+export default function AdminPropertiesPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="space-y-6">
+          <header className="space-y-2">
+            <div className="h-6 w-40 rounded bg-muted" />
+            <div className="h-4 w-72 rounded bg-muted" />
+          </header>
+          <div className="rounded-lg border px-4 py-6 text-sm text-muted-foreground">
+            Načítavame vlastnosti…
+          </div>
+        </section>
+      }
+    >
+      <AdminPropertiesContent />
+    </Suspense>
+  )
+}
+
+async function AdminPropertiesContent() {
   await requireAdmin()
-  
+
   const attributes = await getAdminAttributes()
 
   return (

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Suspense } from "react"
 import { cacheLife, cacheTag } from "next/cache"
 
 import { Button } from "@/components/ui/button"
@@ -9,40 +10,29 @@ import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
-import { createCategory, deleteCategory, updateCategory } from "./actions"
-
-type AdminCategory = {
-  id: string
-  name: string
-  slug: string
-  image: string
-  description: string | null
-  sortOrder: number
-  isActive: boolean
-  showInB2b: boolean
-  showInB2c: boolean
-  parentId: string | null
-  parent: { id: string; name: string } | null
-  _count: { products: number; children: number }
+export default function AdminCategoriesPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="space-y-6">
+          <header className="space-y-2">
+            <div className="h-6 w-40 rounded bg-muted" />
+            <div className="h-4 w-72 rounded bg-muted" />
+          </header>
+          <div className="rounded-lg border px-4 py-6 text-sm text-muted-foreground">
+            Načítavame kategórie…
+          </div>
+        </section>
+      }
+    >
+      <AdminCategoriesContent />
+    </Suspense>
+  )
 }
 
-async function getAdminCategories(): Promise<AdminCategory[]> {
-  "use cache"
-  cacheTag("categories")
-  cacheLife("minutes")
-  const prisma = getPrisma()
-  return prisma.category.findMany({
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    include: {
-      parent: { select: { id: true, name: true } },
-      _count: { select: { products: true, children: true } },
-    },
-  })
-}
-
-export default async function AdminCategoriesPage() {
+async function AdminCategoriesContent() {
   await requireAdmin()
-  
+
   const categories = await getAdminCategories()
 
   return (
@@ -241,11 +231,6 @@ export default async function AdminCategoriesPage() {
                             </option>
                           ))}
                       </select>
-                      {category.parent ? (
-                        <div className="text-xs text-muted-foreground">
-                          Aktuálne: {category.parent.name}
-                        </div>
-                      ) : null}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">
@@ -257,8 +242,11 @@ export default async function AdminCategoriesPage() {
                         defaultValue={category.sortOrder}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="inline-flex items-center gap-2 text-sm">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Stav
+                      </Label>
+                      <label className="inline-flex items-center gap-2 text-xs">
                         <input
                           type="checkbox"
                           name="isActive"
@@ -266,32 +254,65 @@ export default async function AdminCategoriesPage() {
                           defaultChecked={category.isActive}
                           className="h-4 w-4 rounded border-input accent-primary"
                         />
-                        <span>Aktívna</span>
+                        <span>{category.isActive ? "Aktívna" : "Neaktívna"}</span>
                       </label>
-                      <div className="text-xs text-muted-foreground">
-                        Produkty: {category._count.products}
-                        {category._count.children > 0
-                          ? ` · Podkategórie: ${category._count.children}`
-                          : ""}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Režim
+                      </Label>
+                      <div className="flex flex-col gap-2 text-xs">
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="showInB2b"
+                            value="1"
+                            defaultChecked={category.showInB2b}
+                            className="h-4 w-4 rounded border-input accent-primary"
+                          />
+                          <span>B2B</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="showInB2c"
+                            value="1"
+                            defaultChecked={category.showInB2c}
+                            className="h-4 w-4 rounded border-input accent-primary"
+                          />
+                          <span>B2C</span>
+                        </label>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          name="showInB2b"
-                          value="1"
-                          defaultChecked={category.showInB2b}
-                          className="h-4 w-4 rounded border-input accent-primary"
-                        />
-                        <span>B2B</span>
-                      </label>
-                      <label className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          name="showInB2c"
-                          value="1"
-                          defaultChecked={category.showInB2c}
+                    <div className="flex items-center justify-end gap-2">
+                      <Button type="submit" size="xs">
+                        Uložiť
+                      </Button>
+                      <ConfirmDeleteForm
+                        action={deleteCategory.bind(null, {
+                          categoryId: category.id,
+                          categoryName: category.name,
+                          hasRelations,
+                        })}
+                        triggerText="Odstrániť"
+                        title="Odstrániť kategóriu?"
+                        description={
+                          hasRelations
+                            ? "Kategória obsahuje produkty alebo podkategórie. Odstráňte najprv väzby."
+                            : "Kategóriu odstránite natrvalo."
+                        }
+                      />
+                    </div>
+                  </form>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
                           className="h-4 w-4 rounded border-input accent-primary"
                         />
                         <span>B2C</span>

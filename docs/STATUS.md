@@ -5,13 +5,15 @@
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
-- Prisma schema: `User` + каталог `Category` (иерархия через `parentId`), `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц (включая флаг видимости `WpMatrixType.isActive`).
-- Миграция: `20260117195653_add_category_product_productimage`.
+- Prisma schema: `User` (с UserRole), `Account`, `Session`, `VerificationToken` (NextAuth) + каталог `Category` (иерархия через `parentId`), `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц (включая флаг видимости `WpMatrixType.isActive`).
+- Миграции:
+  - `20260117195653_add_category_product_productimage`
+  - `20260124190528_add_show_in_b2b_b2c`
+  - `20260125181055_add_nextauth_support` — NextAuth v5
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
- - Добавлены флаги видимости в `Product`: `showInB2b` и `showInB2c` (boolean, default true). Миграция добавлена и применена (`20260124190528_add_show_in_b2b_b2c`).
-- Добавлены флаги видимости в `Category`: `showInB2b` и `showInB2c` (boolean, default true). Требуется миграция.
+- Флаги видимости: `showInB2b` и `showInB2c` в Product и Category
 
 ## Каталог (DB-backed)
 - Страницы `/kategorie`, `/catalog`, `/product/[slug]` читают данные из Postgres через `lib/catalog.ts`.
@@ -58,7 +60,22 @@
 ## Ограничения:
 - Новые строки `WpMatrixPrice` создаются только через кнопку генерации цен.
 - Докончавающая матрица может иметь только одно свойство.
-- Нет ролей/прав доступа (только базовая аутентификация пользователя).
+
+## Безопасность и авторизация (обновлено 25.01.2026)
+- Миграция на **NextAuth v5** (beta) для production-ready аутентификации
+- Роли: `UserRole` enum (USER, ADMIN)
+- Провайдеры:
+  - Nodemailer (magic links через SMTP)
+  - Credentials (пароли с bcrypt)
+- JWT сессии (30 дней)
+- Middleware защита:
+  - `/admin/*` → только ADMIN
+  - `/account/*` → требуется авторизация
+- Server actions защищены через `requireAdmin()`:
+  - `updateProductDetails`, `deleteMatrix`, `createMatrix`, `createCategory`
+  - `deleteCategory`, `updateCategory`, `createAttribute`, `deleteAttribute`
+- Upload API требует активную сессию
+- Первый администратор назначается вручную через Prisma Studio
 
 ## WP-матрицы и калькулятор
 - Таблицы: `WpMatrixType`, `WpMatrixPrice`, `WpTerm`, `WpTermTaxonomy`, `WpTermRelationship`, `WpTermMeta`, `WpAttributeTaxonomy`.
@@ -116,14 +133,16 @@
 ## Следующие шаги
 - Роли/права доступа. пока **отложен**.
 
-## Пользователи и аутентификация
-- Модели Prisma: `User`, `AuthToken` (magic link), `Session`.
-- Magic link: `POST /api/auth/magic`, подтверждение `GET /auth/magic` с установкой cookie `session`.
-- Логин по паролю: `POST /api/auth/login` (только если задан `passwordHash`).
-- Установка пароля: `POST /api/auth/password` (требуется активная сессия).
-- Выход: `POST /api/auth/logout`.
-- Кабинет: `/account` (без сессии редирект на `/auth`).
-- В хедере добавлены ссылки “Registrácia” и “Môj účet”.
+## Пользователи и аутентификация (NextAuth v5)
+- Модели Prisma: `User` (с role), `Account`, `Session`, `VerificationToken`
+- Провайдеры: Nodemailer (magic links), Credentials (пароли)
+- Magic links: NextAuth `signIn("nodemailer")` с SMTP
+- Пароли: bcrypt hash, установка через `/api/auth/set-password`
+- JWT сессии с поддержкой `role` в токене
+- Middleware: `proxy.ts` с проверкой `authorized` callback
+- Защита: `requireAuth()` и `requireAdmin()` helpers
+- UI: `/auth` (формы), `/account` (кабинет с выходом)
+- В хедере: динамические ссылки в зависимости от сессии
 
 ## WP posts для SEO/описаний
 - Источник: `wp_posts` (файл `kpkp_wp2print_table_wp_posts.json`).

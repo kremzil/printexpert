@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Inter } from "next/font/google"
 import { Suspense } from "react"
 
+import { AudienceFooterNote } from "@/components/audience-footer-note"
 import { SiteHeader } from "@/components/site-header"
-import { resolveAudienceContext } from "@/lib/audience-context"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -23,17 +23,6 @@ export const metadata: Metadata = {
   description: "Tlačové služby a produkty",
 }
 
-async function AudienceFooterNote() {
-  const audienceContext = await resolveAudienceContext()
-  const footerLabel =
-    audienceContext.source === "default"
-      ? "Režim: nevybraný"
-      : audienceContext.audience === "b2b"
-        ? "Režim: B2B"
-        : "Režim: B2C"
-  return <span>{footerLabel}</span>
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,7 +38,9 @@ export default function RootLayout({
           >
             Preskočiť na hlavný obsah
           </a>
-          <SiteHeader />
+          <Suspense fallback={<div className="h-32 border-b" />}>
+            <SiteHeader />
+          </Suspense>
           <main
             id="main-content"
             className="mx-auto w-full max-w-7xl flex-1 px-4 py-8"
