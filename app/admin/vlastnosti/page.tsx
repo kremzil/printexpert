@@ -36,6 +36,9 @@ export default async function AdminPropertiesPage() {
         <Button asChild variant="outline" size="sm">
           <Link href="/admin">Produkty</Link>
         </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/admin/kategorie">Kategórie</Link>
+        </Button>
         <Button variant="secondary" size="sm">
           Vlastnosti
         </Button>

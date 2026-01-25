@@ -22,6 +22,9 @@ export default async function AdminPage() {
           Produkty
         </Button>
         <Button asChild variant="outline" size="sm">
+          <Link href="/admin/kategorie">Kategórie</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
           <Link href="/admin/vlastnosti">Vlastnosti</Link>
         </Button>
       </div>

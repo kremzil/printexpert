@@ -1,9 +1,9 @@
-import Link from "next/link"
 import { Suspense } from "react"
 
-import { Button } from "@/components/ui/button"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { AudienceModeCards } from "@/components/audience-mode-cards"
+import { HomeB2B } from "@/components/home/home-b2b"
+import { HomeB2C } from "@/components/home/home-b2c"
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -44,30 +44,7 @@ if (isFirstVisit) {
 }
 
 
-  return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold">
-          {isB2B ? "Tlačové riešenia pre firmy" : "Tlač pre každý deň"}
-        </h1>
-        <p className="text-muted-foreground">
-          {isB2B
-            ? "Pomôžeme vám s veľkoobjemovou tlačou, brandingom aj výrobou na mieru."
-            : "Vyberte si z rýchlych tlačových služieb pre domácnosť aj školu."}
-        </p>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button asChild className="sm:w-auto">
-          <Link href="/catalog">Prejsť do katalógu</Link>
-        </Button>
-        <Button asChild variant="outline" className="sm:w-auto">
-          <Link href="/kontaktujte-nas">
-            {isB2B ? "Požiadať o ponuku" : "Kontaktujte nás"}
-          </Link>
-        </Button>
-      </div>
-    </section>
-  )
+  return isB2B ? <HomeB2B /> : <HomeB2C />
 }
 
 export default function Page({ searchParams }: HomePageProps) {
