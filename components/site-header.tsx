@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/navigation-menu"
 import { Button } from "@/components/ui/button"
 import { AudienceModeSwitch } from "@/components/audience-mode-switch"
+import { CartButton } from "@/components/cart/cart-button"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
 
@@ -165,6 +166,7 @@ export function SiteHeader() {
             <span className="sr-only">PrintExpert</span>
           </Link>
           <div className="flex items-center gap-3">
+            <CartButton />
             <div className="flex items-center gap-2">
               <Button asChild variant="ghost" size="sm">
                 <Link href="/auth">Registrácia</Link>

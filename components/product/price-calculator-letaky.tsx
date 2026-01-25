@@ -1,6 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { ShoppingCart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
@@ -249,6 +251,8 @@ export function PriceCalculatorLetaky({
   const [serverPrice, setServerPrice] = useState<PriceResult | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const router = useRouter()
 
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
   const aUnit = parseNumber(data.globals.a_unit) ?? FALLBACK_A_UNIT
@@ -486,6 +490,75 @@ export function PriceCalculatorLetaky({
     }
   }
 
+  const addToCart = async (uploadNow: boolean = false) => {
+    setIsAddingToCart(true)
+    setServerError(null)
+
+    try {
+      // Сначала получаем актуальную цену с сервера
+      const priceResponse = await fetch("/api/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          params: {
+            quantity,
+            width,
+            height,
+            selections,
+            productionSpeedPercent,
+            userDiscountPercent,
+          },
+        }),
+      })
+
+      if (!priceResponse.ok) {
+        throw new Error("Не удалось рассчитать цену")
+      }
+
+      const priceResult = await priceResponse.json() as PriceResult
+
+      // Добавляем в корзину
+      const cartResponse = await fetch("/api/cart/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          quantity,
+          width,
+          height,
+          selectedOptions: selections,
+          priceSnapshot: {
+            ...priceResult,
+            calculatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+
+      if (!cartResponse.ok) {
+        throw new Error("Не удалось добавить в корзину")
+      }
+
+      // Обновляем badge корзины
+      window.dispatchEvent(new Event("cart-updated"))
+
+      if (uploadNow) {
+        // TODO: Реализовать загрузку файлов
+        alert("Загрузка файлов будет доступна позже")
+      } else {
+        // Переход в корзину
+        router.push("/cart")
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error)
+      setServerError(
+        error instanceof Error ? error.message : "Chyba pri pridávaní do košíka"
+      )
+    } finally {
+      setIsAddingToCart(false)
+    }
+  }
+
   return (
     <section className="space-y-5 rounded-xl border bg-card p-5">
       <div className="grid gap-4">
@@ -623,13 +696,21 @@ export function PriceCalculatorLetaky({
           <Button
             type="button"
             className="sm:flex-1"
-            onClick={requestServerPrice}
-            disabled={isSubmitting || total === null || hasUnavailable}
+            onClick={() => addToCart(true)}
+            disabled={isSubmitting || isAddingToCart || total === null || hasUnavailable}
           >
+            <ShoppingCart className="mr-2 h-4 w-4" />
             Nahrať grafiku a objednať
           </Button>
-          <Button type="button" variant="outline" className="sm:flex-1">
-            Nahrať neskôr
+          <Button
+            type="button"
+            variant="outline"
+            className="sm:flex-1"
+            onClick={() => addToCart(false)}
+            disabled={isSubmitting || isAddingToCart || total === null || hasUnavailable}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Pridať do košíka
           </Button>
         </div>
       </div>

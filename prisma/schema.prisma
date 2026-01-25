@@ -31,6 +31,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   authTokens    AuthToken[]
+  carts         Cart[]
+  orders        Order[]
 }
 
 model Account {
@@ -130,6 +132,8 @@ model Product {
   updatedAt   DateTime       @updatedAt
   images      ProductImage[]
   pricingModels PricingModel[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
 
   @@index([categoryId])
 }
@@ -260,4 +264,89 @@ model WpAttributeTaxonomy {
   attributeType   String?
   attributeOrder  Int?
   attributePublic Int?
+}
+
+// ===== Cart & Checkout Models =====
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String?    @unique
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?    @unique
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([sessionId])
+}
+
+model CartItem {
+  id              String   @id @default(cuid())
+  cartId          String
+  cart            Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId       String   @db.Uuid
+  product         Product  @relation(fields: [productId], references: [id])
+  quantity        Int
+  width           Decimal? @db.Decimal(10, 2)
+  height          Decimal? @db.Decimal(10, 2)
+  selectedOptions Json?
+  priceSnapshot   Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([cartId])
+  @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+  audience        String      @default("b2c")
+  status          OrderStatus @default(PENDING)
+  items           OrderItem[]
+  subtotal        Decimal     @db.Decimal(12, 2)
+  vatAmount       Decimal     @db.Decimal(12, 2)
+  total           Decimal     @db.Decimal(12, 2)
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  shippingAddress Json?
+  billingAddress  Json?
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id              String  @id @default(cuid())
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String  @db.Uuid
+  product         Product @relation(fields: [productId], references: [id])
+  productName     String
+  quantity        Int
+  width           Decimal? @db.Decimal(10, 2)
+  height          Decimal? @db.Decimal(10, 2)
+  selectedOptions Json?
+  priceNet        Decimal  @db.Decimal(12, 2)
+  priceVat        Decimal  @db.Decimal(12, 2)
+  priceGross      Decimal  @db.Decimal(12, 2)
+  priceSnapshot   Json?
+
+  @@index([orderId])
+  @@index([productId])
 }

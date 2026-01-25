@@ -1,15 +1,17 @@
 # Статус проекта
 
-Дата: 2026-01-25  
-Версия: 0.1.7
+Дата: 2026-01-26  
+Версия: 0.2.0
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
-- Prisma schema: `User` (с UserRole), `Account`, `Session`, `VerificationToken` (NextAuth) + каталог `Category` (иерархия через `parentId`), `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц (включая флаг видимости `WpMatrixType.isActive`).
+- Prisma schema: `User` (с UserRole), `Account`, `Session`, `VerificationToken` (NextAuth) + каталог `Category`, `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц (включая флаг видимости `WpMatrixType.isActive`).
+- E-commerce модели: `Cart`, `CartItem`, `Order`, `OrderItem` с enum `OrderStatus`.
 - Миграции:
   - `20260117195653_add_category_product_productimage`
   - `20260124190528_add_show_in_b2b_b2c`
   - `20260125181055_add_nextauth_support` — NextAuth v5
+  - `20260125222322_add_cart_and_orders` — корзина и заказы
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
@@ -25,20 +27,24 @@
 
 ## Админка
 Маршруты:
-- `/admin` — список товаров.
+- `/admin` — дашборд со статистикой (продукты, заказы, категории, пользователи).
+- `/admin/products` — список всех товаров с фильтрами и поиском.
 - `/admin/products/[id]` — карточка товара + матрицы цен.
+- `/admin/orders` — список всех заказов.
+- `/admin/orders/[orderId]` — детали заказа с изменением статуса.
 - `/admin/kategorie` — настройки категорий.
 - `/admin/vlastnosti` — свойства (атрибуты).
 - `/admin/vlastnosti/[attributeId]` — значения свойства.
 
 Что реализовано:
-- Список товаров с переходом в карточку.
+- Дашборд с карточками статистики: количество товаров, заказов (с подсчетом pending), категорий, пользователей.
+- Список товаров на отдельной странице `/admin/products` с переходом в карточку.
 - Поиск и фильтры в списке товаров (`q`, `status`, `category`) с синхронизацией в URL.
 - Сохранение карточки товара (название, slug, описания, цена от, DPH).
 - WYSIWYG редактор (Tiptap) для детального описания с сохранением HTML и серверной очисткой.
- - Встроенный редактор заголовка/slug в карточке товара без постоянных инпутов.
- - WYSIWYG редактор для краткого описания.
- - Вставка медиа (URL + загрузка файлов) в редактор, сохранение в `/public/uploads`.
+- Встроенный редактор заголовка/slug в карточке товара без постоянных инпутов.
+- WYSIWYG редактор для краткого описания.
+- Вставка медиа (URL + загрузка файлов) в редактор, сохранение в `/public/uploads`.
 - Матрицы цен из WP-таблиц:
   - Создание матрицы на основе выбранных свойств и значений.
   - Добавление новых матриц через Dialog: вкладки для нескольких свойств, выбор значений, тип и breakpoints.
@@ -49,6 +55,11 @@
   - Генерация строк цен по комбинациям выбранных значений × breakpoints.
   - Редактирование цен и сохранение одной кнопкой на матрицу.
   - Удаление матрицы с подтверждением.
+- Управление заказами:
+  - Список всех заказов с фильтрацией и статусами.
+  - Детальный просмотр заказа (товары, контакты, сумма).
+  - Изменение статуса заказа (PENDING → CONFIRMED → PROCESSING → COMPLETED / CANCELLED).
+  - Отображение связанного пользовательского аккаунта.
 - Свойства (атрибуты):
   - Создание/удаление свойства с подтверждением.
   - Значения свойства: создание/удаление.
@@ -141,8 +152,74 @@
 - JWT сессии с поддержкой `role` в токене
 - Middleware: `proxy.ts` с проверкой `authorized` callback
 - Защита: `requireAuth()` и `requireAdmin()` helpers
-- UI: `/auth` (формы), `/account` (кабинет с выходом)
-- В хедере: динамические ссылки в зависимости от сессии
+- UI: `/auth` (формы), `/account` (кабинет с боковым меню)
+- Личный кабинет:
+  - Стандартное боковое меню (без collapsible sidebar)
+  - Навигация: Домов, Мой účet, Objednávky, Nastavenia
+  - Кнопка выхода в футере меню
+- В хедере: динамические ссылки в зависимости от сессии + badge корзины
+
+## Корзина и заказы
+### Модели данных:
+- `Cart` — корзина (привязка через `userId` или `sessionId` для гостей)
+- `CartItem` — позиция в корзине (товар + размеры + опции + цена)
+- `Order` — заказ со статусом (PENDING, CONFIRMED, PROCESSING, COMPLETED, CANCELLED)
+- `OrderItem` — позиция заказа (сохраненная копия товара и цен)
+
+### Server Actions (lib/cart.ts):
+- `getOrCreateCart()` — получение/создание корзины для пользователя или гостя
+- `addToCart()` — добавление товара (с проверкой дубликатов по параметрам)
+- `updateCartItem()` — изменение количества
+- `removeFromCart()` — удаление позиции
+- `clearCart()` — очистка корзины
+- `getCart()` — получение корзины с подсчетом итогов
+- `mergeGuestCart()` — перенос гостевой корзины при входе
+
+### Server Actions (lib/orders.ts):
+- `createOrder()` — создание заказа с **обязательным серверным пересчетом** всех цен
+- `getUserOrders()` — список заказов пользователя
+- `getOrderById()` — детали заказа
+- `getOrderByNumber()` — поиск по номеру заказа
+- Все Decimal поля сериализуются в number для Client Components
+
+### API Routes:
+- `GET /api/cart` — получение корзины
+- `POST /api/cart/add` — добавление товара
+- `PATCH /api/cart/[itemId]` — обновление количества
+- `DELETE /api/cart/[itemId]` — удаление товара
+- `POST /api/cart/clear` — очистка корзины
+- `POST /api/checkout` — создание заказа
+- `GET /api/orders` — список заказов пользователя
+- `GET /api/orders/[orderId]` — детали заказа
+- `PATCH /api/admin/orders/[orderId]/status` — изменение статуса (только ADMIN)
+
+### UI Страницы:
+- `/cart` — корзина с управлением количеством и удалением
+- `/checkout` — форма оформления заказа
+- `/account/orders` — список заказов пользователя
+- `/account/orders/[orderId]` — детали заказа с success alert
+
+### Компоненты:
+- `cart-button.tsx` — badge в хедере с количеством товаров
+- `cart-content.tsx` — отображение корзины
+- `checkout-form.tsx` — форма чекаута с валидацией
+- `orders-list.tsx` — список заказов
+- `order-detail.tsx` — детали заказа
+- `admin-orders-list.tsx` — список заказов в админке
+- `admin-order-detail.tsx` — детали заказа с изменением статуса
+
+### Интеграция с товарами:
+- Страница товара `/product/[slug]`: обе кнопки калькулятора добавляют товар в корзину
+- После добавления — автоматический переход на `/cart`
+- Badge корзины обновляется через `window.dispatchEvent("cart-updated")`
+
+### Ключевые особенности:
+- **Серверный пересчет цен**: при создании заказа все цены пересчитываются заново через `lib/pricing.ts`
+- **PriceSnapshot**: цены сохраняются в корзине для UI, но при checkout пересчитываются
+- **Audience сохраняется**: режим B2B/B2C фиксируется в заказе
+- **Гостевые корзины**: поддержка через sessionId cookie
+- **Decimal → number**: все Prisma Decimal поля конвертируются перед передачей в клиент
+- **Type safety**: замена `any` на `unknown`/`JsonValue` для Prisma JSON полей
 
 ## WP posts для SEO/описаний
 - Источник: `wp_posts` (файл `kpkp_wp2print_table_wp_posts.json`).
@@ -153,3 +230,10 @@
   - `post_excerpt` → `excerpt`
   - `post_content` → `description`
 - В админке `/admin/products/[id]` есть форма для сохранения `WP ID` (обновляет витрину через revalidate).
+
+## Следующие шаги
+- Загрузка файлов для заказов ("Nahrať grafiku")
+- Email уведомления о заказах
+- Интеграция платежных систем
+- История изменений статуса заказа
+- Фильтры и поиск в списке заказов админки

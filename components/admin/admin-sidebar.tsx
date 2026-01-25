@@ -12,6 +12,7 @@ import {
   Home,
   Settings,
   LogOut,
+  ShoppingCart,
 } from "lucide-react"
 
 import {
@@ -47,6 +48,11 @@ const menuItems = [
     title: "Kategórie",
     url: "/admin/kategorie",
     icon: FolderTree,
+  },
+  {
+    title: "Objednávky",
+    url: "/admin/orders",
+    icon: ShoppingCart,
   },
   {
     title: "Vlastnosti",
