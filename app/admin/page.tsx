@@ -34,26 +34,11 @@ async function AdminPageContent() {
   return (
     <section className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Administrácia</h1>
+        <h2 className="text-2xl font-semibold">Prehľad produktov</h2>
         <p className="text-sm text-muted-foreground">
-          Prehľad a základná správa obsahu.
+          Správa a úprava produktov v systéme.
         </p>
       </header>
-
-      <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm">
-          Produkty
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/kategorie">Kategórie</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/vlastnosti">Vlastnosti</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/users">Používatelia</Link>
-        </Button>
-      </div>
 
       <Suspense
         fallback={

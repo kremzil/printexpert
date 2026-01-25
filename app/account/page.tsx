@@ -23,9 +23,9 @@ export default function AccountPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold">Môj účet</h1>
+        <h2 className="text-2xl font-semibold">Prehľad účtu</h2>
         <p className="text-sm text-muted-foreground">
-          Prehľad základných údajov a nastavení.
+          Základné údaje a nastavenia vášho účtu.
         </p>
       </div>
       <Suspense
