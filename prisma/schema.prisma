@@ -350,3 +350,19 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
 }
+
+enum TopProductsMode {
+  RANDOM_ALL
+  RANDOM_CATEGORIES
+  MANUAL
+}
+
+model TopProducts {
+  id           String          @id @default(cuid())
+  audience     String          @unique // "b2b" or "b2c"
+  mode         TopProductsMode @default(RANDOM_ALL)
+  categoryIds  String[]        // for RANDOM_CATEGORIES mode
+  productIds   String[]        // for MANUAL mode
+  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime        @default(now())
+}

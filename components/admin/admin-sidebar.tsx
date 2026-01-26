@@ -13,6 +13,8 @@ import {
   Settings,
   LogOut,
   ShoppingCart,
+  Star,
+  ChevronRight,
 } from "lucide-react"
 
 import {
@@ -26,7 +28,15 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 const menuItems = [
   {
@@ -41,8 +51,17 @@ const menuItems = [
   },
   {
     title: "Produkty",
-    url: "/admin/products",
     icon: Package,
+    items: [
+      {
+        title: "Všetky produkty",
+        url: "/admin/products",
+      },
+      {
+        title: "Top produkty",
+        url: "/admin/top-products",
+      },
+    ],
   },
   {
     title: "Kategórie",
@@ -100,11 +119,52 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                if (item.items) {
+                  // Collapsible menu item with sub-items
+                  const hasActiveChild = item.items.some(
+                    (subItem) => pathname === subItem.url
+                  )
+                  return (
+                    <Collapsible
+                      key={item.title}
+                      defaultOpen={hasActiveChild}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton>
+                            <item.icon />
+                            <span>{item.title}</span>
+                            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.items.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={pathname === subItem.url}
+                                >
+                                  <Link href={subItem.url}>
+                                    <span>{subItem.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  )
+                }
+
+                // Regular menu item
                 const isActive = pathname === item.url
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.url}>
+                      <Link href={item.url!}>
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>
