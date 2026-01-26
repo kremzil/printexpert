@@ -15,6 +15,16 @@ interface CheckoutFormProps {
   cart: CartData;
 }
 
+type PendingOrderUpload = {
+  file: File;
+};
+
+declare global {
+  interface Window {
+    __pendingOrderUpload?: PendingOrderUpload;
+  }
+}
+
 const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
   if (!selectedOptions || typeof selectedOptions !== "object") {
     return null;
@@ -71,11 +81,63 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
       }
 
       const order = await response.json();
+      let uploadFailed = false;
+
+      const pendingUpload = window.__pendingOrderUpload;
+      if (pendingUpload?.file) {
+        try {
+          const file = pendingUpload.file;
+          const presignResponse = await fetch("/api/uploads/presign", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: order.id,
+              kind: "ARTWORK",
+              fileName: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            }),
+          });
+
+          if (!presignResponse.ok) {
+            throw new Error("Nepodarilo sa pripraviť nahrávanie.");
+          }
+
+          const presignData = await presignResponse.json();
+          const uploadResponse = await fetch(presignData.uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": file.type || "application/octet-stream",
+            },
+            body: file,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error("Nahrávanie zlyhalo.");
+          }
+
+          const confirmResponse = await fetch("/api/uploads/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ assetId: presignData.assetId }),
+          });
+
+          if (!confirmResponse.ok) {
+            throw new Error("Potvrdenie nahratia zlyhalo.");
+          }
+        } catch (uploadError) {
+          console.error("Checkout upload error:", uploadError);
+          uploadFailed = true;
+        } finally {
+          delete window.__pendingOrderUpload;
+        }
+      }
       
       // Обновляем badge корзины в хедере
       window.dispatchEvent(new Event("cart-updated"));
       
-      router.push(`/account/orders/${order.id}?success=true`);
+      const uploadParam = uploadFailed ? "&upload=failed" : "";
+      router.push(`/account/orders/${order.id}?success=true${uploadParam}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Neznáma chyba");
       setIsSubmitting(false);

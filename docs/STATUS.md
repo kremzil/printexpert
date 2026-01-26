@@ -1,18 +1,22 @@
 # Статус проекта
 
 Дата: 2026-01-26  
-Версия: 0.2.0
+Версия: 0.2.2
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
 - Prisma schema: `User` (с UserRole), `Account`, `Session`, `VerificationToken` (NextAuth) + каталог `Category`, `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц (включая флаг видимости `WpMatrixType.isActive`).
 - E-commerce модели: `Cart`, `CartItem`, `Order`, `OrderItem` с enum `OrderStatus`.
+- Новые модели:
+  - `OrderAsset` (файлы к заказу) + enums `OrderAssetKind`, `OrderAssetStatus`, `OrderAssetStorageProvider`.
+  - `NotificationLog` + enums `NotificationType`, `NotificationStatus`.
 - Миграции:
   - `20260117195653_add_category_product_productimage`
   - `20260124190528_add_show_in_b2b_b2c`
   - `20260125181055_add_nextauth_support` — NextAuth v5
-  - `20260125222322_add_cart_and_orders` — корзина и заказы
-  - `20260126_add_top_products` — Top produkty для главной страницы
+- `20260125222322_add_cart_and_orders` — корзина и заказы
+- `20260126_add_top_products` — Top produkty для главной страницы
+- `20260126_add_order_assets_notifications` — ассеты заказов и лог уведомлений
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
@@ -33,6 +37,7 @@
 - `/admin/products/[id]` — карточка товара + матрицы цен.
 - `/admin/orders` — список всех заказов.
 - `/admin/orders/[orderId]` — детали заказа с изменением статуса.
+  - Список файлов заказа + скачивание
 - `/admin/kategorie` — настройки категорий.
 - `/admin/vlastnosti` — свойства (атрибуты).
 - `/admin/vlastnosti/[attributeId]` — значения свойства.
@@ -62,6 +67,7 @@
   - Детальный просмотр заказа (товары, контакты, сумма).
   - Изменение статуса заказа (PENDING → CONFIRMED → PROCESSING → COMPLETED / CANCELLED).
   - Отображение связанного пользовательского аккаунта.
+  - Список файлов заказа + скачивание (presigned GET).
 - Свойства (атрибуты):
   - Создание/удаление свойства с подтверждением.
   - Значения свойства: создание/удаление.
@@ -193,6 +199,10 @@
 - `getOrderByNumber()` — поиск по номеру заказа
 - Все Decimal поля сериализуются в number для Client Components
 
+### Уведомления
+- `NotificationService` отправляет письма: order created, status changed, artwork uploaded.
+- Идемпотентность обеспечена таблицей `NotificationLog` (уникальный ключ по событию/заказу/получателю).
+
 ### API Routes:
 - `GET /api/cart` — получение корзины
 - `POST /api/cart/add` — добавление товара
@@ -203,12 +213,17 @@
 - `GET /api/orders` — список заказов пользователя
 - `GET /api/orders/[orderId]` — детали заказа
 - `PATCH /api/admin/orders/[orderId]/status` — изменение статуса (только ADMIN)
+- `POST /api/uploads/presign` — presigned PUT для загрузки файла
+- `POST /api/uploads/confirm` — подтверждение загрузки (HEAD)
+- `GET /api/orders/[orderId]/assets` — список файлов заказа
+- `GET /api/assets/[assetId]/download` — 302 redirect на presigned GET
 
 ### UI Страницы:
 - `/cart` — корзина с управлением количеством и удалением
 - `/checkout` — форма оформления заказа
 - `/account/orders` — список заказов пользователя
 - `/account/orders/[orderId]` — детали заказа с success alert
+  - Блок “Nahrať grafiku” + список файлов + скачивание
 
 ### Компоненты:
 - `cart-button.tsx` — badge в хедере с количеством товаров
@@ -223,6 +238,7 @@
 - Страница товара `/product/[slug]`: обе кнопки калькулятора добавляют товар в корзину
 - После добавления — автоматический переход на `/cart`
 - Badge корзины обновляется через `window.dispatchEvent("cart-updated")`
+- Кнопка “Nahrať grafiku a objednať” позволяет выбрать файл, который отображается в корзине и загружается после оформления заказа
 
 ### Ключевые особенности:
 - **Серверный пересчет цен**: при создании заказа все цены пересчитываются заново через `lib/pricing.ts`
@@ -243,8 +259,6 @@
 - В админке `/admin/products/[id]` есть форма для сохранения `WP ID` (обновляет витрину через revalidate).
 
 ## Следующие шаги
-- Загрузка файлов для заказов ("Nahrať grafiku")
-- Email уведомления о заказах
 - Интеграция платежных систем
 - История изменений статуса заказа
 - Фильтры и поиск в списке заказов админки

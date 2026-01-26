@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { OrderStatus } from "@/lib/generated/prisma";
+import { NotificationService } from "@/lib/notifications";
 
 export async function PATCH(
   req: NextRequest,
@@ -27,10 +29,32 @@ export async function PATCH(
       );
     }
 
+    const currentOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true },
+    });
+
+    if (!currentOrder) {
+      return NextResponse.json(
+        { error: "Order not found" },
+        { status: 404 }
+      );
+    }
+
     const order = await prisma.order.update({
       where: { id: orderId },
       data: { status },
     });
+
+    if (currentOrder.status !== status) {
+      NotificationService.sendOrderStatusChanged(
+        orderId,
+        currentOrder.status,
+        status as OrderStatus
+      ).catch((error) => {
+        console.error("Failed to send status change notification:", error);
+      });
+    }
 
     return NextResponse.json(order);
   } catch (error) {

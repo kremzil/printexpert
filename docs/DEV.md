@@ -57,6 +57,20 @@ npm run health
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/shop?schema=public"
 ```
 
+S3 для загрузок:
+```env
+S3_BUCKET="printexpertskuploads"
+S3_REGION="eu-central-1"
+S3_ACCESS_KEY_ID="..."
+S3_SECRET_ACCESS_KEY="..."
+S3_ENDPOINT=""
+UPLOAD_MAX_BYTES="100000000"
+NEXT_PUBLIC_UPLOAD_MAX_BYTES="100000000"
+```
+
+> Для AWS `S3_ENDPOINT` оставлять пустым.  
+> В S3 бакете нужен CORS для методов `GET`, `PUT`, `HEAD`.
+
 ### 2.2 Пример `.env.example`
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/shop?schema=public"

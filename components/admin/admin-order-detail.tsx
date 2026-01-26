@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +53,15 @@ interface AdminOrderDetailProps {
   order: Order;
 }
 
+interface OrderAsset {
+  id: string;
+  kind: "ARTWORK" | "PREVIEW" | "INVOICE" | "OTHER";
+  status: "PENDING" | "UPLOADED" | "APPROVED" | "REJECTED";
+  fileNameOriginal: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
   if (!selectedOptions || typeof selectedOptions !== "object") {
     return null;
@@ -79,10 +88,26 @@ const statusMap: Record<OrderStatus, { label: string; variant: "secondary" | "de
   CANCELLED: { label: "Zrušená", variant: "destructive" },
 };
 
+const assetStatusMap = {
+  PENDING: { label: "Čaká sa", variant: "secondary" as const },
+  UPLOADED: { label: "Nahrané", variant: "default" as const },
+  APPROVED: { label: "Schválené", variant: "default" as const },
+  REJECTED: { label: "Odmietnuté", variant: "destructive" as const },
+};
+
+const assetKindLabels = {
+  ARTWORK: "Grafika",
+  PREVIEW: "Náhľad",
+  INVOICE: "Faktúra",
+  OTHER: "Iné",
+};
+
 export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const router = useRouter();
   const [status, setStatus] = useState<OrderStatus>(order.status);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [assets, setAssets] = useState<OrderAsset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(true);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -97,6 +122,38 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       timeStyle: "short",
     }).format(new Date(date));
   };
+
+  const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+    const units = ["B", "KB", "MB", "GB"];
+    let value = bytes;
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) {
+      value /= 1024;
+      index += 1;
+    }
+    return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+  };
+
+  const fetchAssets = async () => {
+    try {
+      setIsLoadingAssets(true);
+      const response = await fetch(`/api/orders/${order.id}/assets`);
+      if (!response.ok) {
+        throw new Error("Nepodarilo sa načítať súbory.");
+      }
+      const data = await response.json();
+      setAssets(data.assets ?? []);
+    } catch (error) {
+      console.error("Failed to load assets:", error);
+    } finally {
+      setIsLoadingAssets(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssets();
+  }, [order.id]);
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     setIsUpdating(true);
@@ -220,6 +277,44 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                 <div className="pt-2 border-t">
                   <span className="text-muted-foreground">Poznámka: </span>
                   <p className="mt-1">{order.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Súbory k objednávke</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoadingAssets && (
+                <p className="text-xs text-muted-foreground">Načítavam zoznam...</p>
+              )}
+              {!isLoadingAssets && assets.length === 0 && (
+                <p className="text-xs text-muted-foreground">K objednávke nie sú priložené žiadne súbory.</p>
+              )}
+              {!isLoadingAssets && assets.length > 0 && (
+                <div className="space-y-3">
+                  {assets.map((asset) => (
+                    <div key={asset.id} className="flex items-center justify-between gap-4 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{asset.fileNameOriginal}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {assetKindLabels[asset.kind]} · {formatBytes(asset.sizeBytes)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={assetStatusMap[asset.status].variant}>
+                          {assetStatusMap[asset.status].label}
+                        </Badge>
+                        <Button asChild size="sm" variant="outline">
+                          <a href={`/api/assets/${asset.id}/download`}>
+                            Stiahnuť
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

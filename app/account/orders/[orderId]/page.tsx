@@ -8,7 +8,8 @@ interface OrderPageProps {
   params: Promise<{ orderId: string }>;
 }
 
-async function OrderContent({ orderId }: { orderId: string }) {
+async function OrderContent({ params }: { params: Promise<{ orderId: string }> }) {
+  const { orderId } = await params;
   const order = await getOrderById(orderId);
 
   if (!order) {
@@ -19,8 +20,6 @@ async function OrderContent({ orderId }: { orderId: string }) {
 }
 
 export default async function OrderPage({ params }: OrderPageProps) {
-  const { orderId } = await params;
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <Suspense
@@ -31,7 +30,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
           </div>
         }
       >
-        <OrderContent orderId={orderId} />
+        <OrderContent params={params} />
       </Suspense>
     </div>
   );

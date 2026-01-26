@@ -33,6 +33,7 @@ model User {
   authTokens    AuthToken[]
   carts         Cart[]
   orders        Order[]
+  orderAssets   OrderAsset[]
 }
 
 model Account {
@@ -306,6 +307,24 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum OrderAssetKind {
+  ARTWORK
+  PREVIEW
+  INVOICE
+  OTHER
+}
+
+enum OrderAssetStatus {
+  PENDING
+  UPLOADED
+  APPROVED
+  REJECTED
+}
+
+enum OrderAssetStorageProvider {
+  S3
+}
+
 model Order {
   id              String      @id @default(cuid())
   orderNumber     String      @unique
@@ -314,6 +333,8 @@ model Order {
   audience        String      @default("b2c")
   status          OrderStatus @default(PENDING)
   items           OrderItem[]
+  assets          OrderAsset[]
+  notificationLogs NotificationLog[]
   subtotal        Decimal     @db.Decimal(12, 2)
   vatAmount       Decimal     @db.Decimal(12, 2)
   total           Decimal     @db.Decimal(12, 2)
@@ -346,9 +367,63 @@ model OrderItem {
   priceVat        Decimal  @db.Decimal(12, 2)
   priceGross      Decimal  @db.Decimal(12, 2)
   priceSnapshot   Json?
+  assets          OrderAsset[]
 
   @@index([orderId])
   @@index([productId])
+}
+
+model OrderAsset {
+  id               String                   @id @default(cuid())
+  orderId          String
+  order            Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId      String?
+  orderItem        OrderItem?               @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  kind             OrderAssetKind
+  status           OrderAssetStatus         @default(PENDING)
+  fileNameOriginal String
+  mimeType         String
+  sizeBytes        Int
+  checksum         String?
+  storageProvider  OrderAssetStorageProvider @default(S3)
+  bucket           String
+  objectKey        String
+  region           String?
+  uploadedByUserId String?
+  uploadedByUser   User?                    @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([orderItemId])
+  @@index([status])
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  ORDER_STATUS_CHANGED
+  ARTWORK_UPLOADED
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+}
+
+model NotificationLog {
+  id                String             @id @default(cuid())
+  type              NotificationType
+  orderId           String?
+  order             Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  toEmail           String
+  status            NotificationStatus
+  error             String?
+  providerMessageId String?
+  createdAt         DateTime           @default(now())
+
+  @@unique([type, orderId, toEmail])
+  @@index([orderId])
+  @@index([status])
 }
 
 enum TopProductsMode {

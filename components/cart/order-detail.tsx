@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { OrderData } from "@/types/order";
 
 interface OrderDetailProps {
   order: OrderData;
 }
+
+interface OrderAsset {
+  id: string;
+  kind: "ARTWORK" | "PREVIEW" | "INVOICE" | "OTHER";
+  status: "PENDING" | "UPLOADED" | "APPROVED" | "REJECTED";
+  fileNameOriginal: string;
+  sizeBytes: number;
+  mimeType: string;
+  createdAt: string;
+}
+
+const allowedFormatsLabel = "PDF, AI, EPS, TIFF, PNG, JPG";
+const uploadMaxBytes = Number(process.env.NEXT_PUBLIC_UPLOAD_MAX_BYTES ?? "") || 100_000_000;
 
 const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
   if (!selectedOptions || typeof selectedOptions !== "object") {
@@ -39,10 +54,30 @@ const statusMap = {
   CANCELLED: { label: "Zrušená", variant: "destructive" as const },
 };
 
+const assetStatusMap = {
+  PENDING: { label: "Čaká sa", variant: "secondary" as const },
+  UPLOADED: { label: "Nahrané", variant: "default" as const },
+  APPROVED: { label: "Schválené", variant: "default" as const },
+  REJECTED: { label: "Odmietnuté", variant: "destructive" as const },
+};
+
+const assetKindLabels = {
+  ARTWORK: "Grafika",
+  PREVIEW: "Náhľad",
+  INVOICE: "Faktúra",
+  OTHER: "Iné",
+};
+
 export function OrderDetail({ order }: OrderDetailProps) {
   const searchParams = useSearchParams();
   const isSuccess = searchParams.get("success") === "true";
+  const isUploadFailed = searchParams.get("upload") === "failed";
   const status = statusMap[order.status];
+  const [assets, setAssets] = useState<OrderAsset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -56,6 +91,99 @@ export function OrderDetail({ order }: OrderDetailProps) {
       dateStyle: "long",
       timeStyle: "short",
     }).format(new Date(date));
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+    const units = ["B", "KB", "MB", "GB"];
+    let value = bytes;
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) {
+      value /= 1024;
+      index += 1;
+    }
+    return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+  };
+
+  const fetchAssets = async () => {
+    try {
+      setIsLoadingAssets(true);
+      const response = await fetch(`/api/orders/${order.id}/assets`);
+      if (!response.ok) {
+        throw new Error("Nepodarilo sa načítať súbory.");
+      }
+      const data = await response.json();
+      setAssets(data.assets ?? []);
+    } catch (error) {
+      console.error("Failed to load assets:", error);
+    } finally {
+      setIsLoadingAssets(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssets();
+  }, [order.id]);
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+    setUploadSuccess(null);
+    setIsUploading(true);
+
+    try {
+      const presignResponse = await fetch("/api/uploads/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          kind: "ARTWORK",
+          fileName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        }),
+      });
+
+      if (!presignResponse.ok) {
+        const payload = await presignResponse.json().catch(() => ({}));
+        throw new Error(payload.error ?? "Nepodarilo sa pripraviť upload.");
+      }
+
+      const presignData = await presignResponse.json();
+      const uploadResponse = await fetch(presignData.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Nahrávanie zlyhalo.");
+      }
+
+      const confirmResponse = await fetch("/api/uploads/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId: presignData.assetId }),
+      });
+
+      if (!confirmResponse.ok) {
+        const payload = await confirmResponse.json().catch(() => ({}));
+        throw new Error(payload.error ?? "Potvrdenie nahratia zlyhalo.");
+      }
+
+      setUploadSuccess("Súbor bol úspešne nahraný.");
+      await fetchAssets();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nahrávanie zlyhalo.";
+      setUploadError(message);
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
   };
 
   return (
@@ -75,6 +203,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800 dark:text-green-200">
             Vaša objednávka bola úspešne vytvorená. Na váš email sme odoslali potvrdenie.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isUploadFailed && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Nahrávanie grafiky zlyhalo. Skúste prosím nahrať súbor ešte raz.
           </AlertDescription>
         </Alert>
       )}
@@ -156,6 +292,72 @@ export function OrderDetail({ order }: OrderDetailProps) {
                   <p className="mt-1">{order.notes}</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Nahrať grafiku</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>Povolené formáty: {allowedFormatsLabel}</p>
+                <p>Maximálna veľkosť: {formatBytes(uploadMaxBytes)}</p>
+              </div>
+              <Input
+                type="file"
+                onChange={handleFileChange}
+                disabled={isUploading}
+              />
+              {isUploading && (
+                <p className="text-xs text-muted-foreground">Nahrávam súbor...</p>
+              )}
+              {uploadError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{uploadError}</AlertDescription>
+                </Alert>
+              )}
+              {uploadSuccess && (
+                <Alert className="border-green-200 bg-green-50 dark:bg-green-950">
+                  <AlertDescription className="text-green-800 dark:text-green-200">
+                    {uploadSuccess}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="border-t pt-4 space-y-3">
+                <p className="text-sm font-medium">Nahrané súbory</p>
+                {isLoadingAssets && (
+                  <p className="text-xs text-muted-foreground">Načítavam zoznam...</p>
+                )}
+                {!isLoadingAssets && assets.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Zatiaľ nemáte nahrané žiadne súbory.</p>
+                )}
+                {!isLoadingAssets && assets.length > 0 && (
+                  <div className="space-y-3">
+                    {assets.map((asset) => (
+                      <div key={asset.id} className="flex items-center justify-between gap-4 text-sm">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{asset.fileNameOriginal}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {assetKindLabels[asset.kind]} · {formatBytes(asset.sizeBytes)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={assetStatusMap[asset.status].variant}>
+                            {assetStatusMap[asset.status].label}
+                          </Badge>
+                          <Button asChild size="sm" variant="outline">
+                            <a href={`/api/assets/${asset.id}/download`}>
+                              Stiahnuť
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

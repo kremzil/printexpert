@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createOrder } from "@/lib/orders";
 import { cookies } from "next/headers";
+import { NotificationService } from "@/lib/notifications";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,6 +35,10 @@ export async function POST(req: NextRequest) {
     if (sessionId) {
       cookieStore.delete("cart_session_id");
     }
+
+    NotificationService.sendOrderCreated(order.id).catch((error) => {
+      console.error("Failed to send order created notification:", error);
+    });
 
     return NextResponse.json(order);
   } catch (error) {

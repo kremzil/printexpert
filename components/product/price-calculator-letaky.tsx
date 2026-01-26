@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ShoppingCart } from "lucide-react"
 
@@ -65,6 +65,16 @@ type MatrixSelectionMap = Record<string, Record<string, string>>
 
 const FALLBACK_DIM_UNIT = "cm"
 const FALLBACK_A_UNIT = 1
+
+type PendingOrderUpload = {
+  file: File
+}
+
+declare global {
+  interface Window {
+    __pendingOrderUpload?: PendingOrderUpload
+  }
+}
 
 function parseNumber(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") {
@@ -259,6 +269,9 @@ export function PriceCalculatorLetaky({
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [pendingUploadName, setPendingUploadName] = useState<string | null>(null)
+  const [pendingUploadError, setPendingUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const router = useRouter()
 
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
@@ -500,6 +513,9 @@ export function PriceCalculatorLetaky({
   const addToCart = async (uploadNow: boolean = false) => {
     setIsAddingToCart(true)
     setServerError(null)
+    if (uploadNow) {
+      setPendingUploadError(null)
+    }
 
     try {
       // Формируем читаемый список выбранных свойств (только видимые матрицы)
@@ -569,13 +585,7 @@ export function PriceCalculatorLetaky({
       // Обновляем badge корзины
       window.dispatchEvent(new Event("cart-updated"))
 
-      if (uploadNow) {
-        // TODO: Реализовать загрузку файлов
-        alert("Загрузка файлов будет доступна позже")
-      } else {
-        // Переход в корзину
-        router.push("/cart")
-      }
+      router.push("/cart")
     } catch (error) {
       console.error("Add to cart error:", error)
       setServerError(
@@ -584,6 +594,28 @@ export function PriceCalculatorLetaky({
     } finally {
       setIsAddingToCart(false)
     }
+  }
+
+  const handlePickUpload = () => {
+    if (isSubmitting || isAddingToCart || total === null || hasUnavailable) {
+      return
+    }
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    window.__pendingOrderUpload = { file }
+    setPendingUploadName(file.name)
+    setPendingUploadError(null)
+    addToCart(true).catch(() => {
+      setPendingUploadError("Nepodarilo sa pokračovať k objednávke.")
+    })
+    event.target.value = ""
   }
 
   return (
@@ -727,7 +759,7 @@ export function PriceCalculatorLetaky({
           <Button
             type="button"
             className="sm:flex-1"
-            onClick={() => addToCart(true)}
+            onClick={handlePickUpload}
             disabled={isSubmitting || isAddingToCart || total === null || hasUnavailable}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
@@ -744,6 +776,21 @@ export function PriceCalculatorLetaky({
             Pridať do košíka
           </Button>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.ai,.eps,.tiff,.tif,.png,.jpg,.jpeg,.svg"
+          onChange={handleFileSelected}
+        />
+        {pendingUploadName && (
+          <p className="text-xs text-muted-foreground">
+            Vybraný súbor: {pendingUploadName}
+          </p>
+        )}
+        {pendingUploadError && (
+          <p className="text-xs text-destructive">{pendingUploadError}</p>
+        )}
       </div>
     </section>
   )

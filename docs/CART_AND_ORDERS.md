@@ -118,6 +118,16 @@ model OrderItem {
 - Отдельные поля `priceNet`, `priceVat`, `priceGross` — зафиксированные цены
 - `priceSnapshot` — полный расчет цены для аудита
 
+#### OrderAsset
+Файлы, прикрепленные к заказу (графика, превью, инвойсы).
+
+**Ключевые поля:**
+- `orderId`, `orderItemId` (опционально)
+- `kind`: ARTWORK | PREVIEW | INVOICE | OTHER
+- `status`: PENDING | UPLOADED | APPROVED | REJECTED
+- `fileNameOriginal`, `mimeType`, `sizeBytes`
+- `bucket`, `objectKey`, `region`
+
 ## Server Actions
 
 ### lib/cart.ts
@@ -276,6 +286,10 @@ return orders.map(order => ({
 - `POST /api/checkout` — создание заказа
 - `GET /api/orders` — список заказов пользователя
 - `GET /api/orders/[orderId]` — детали заказа
+- `POST /api/uploads/presign` — presigned PUT для загрузки файла
+- `POST /api/uploads/confirm` — подтверждение загрузки (HEAD)
+- `GET /api/orders/[orderId]/assets` — список файлов заказа
+- `GET /api/assets/[assetId]/download` — 302 redirect на presigned GET
 
 **Тело POST /api/checkout:**
 ```json
@@ -338,6 +352,7 @@ return orders.map(order => ({
 - Список товаров с ценами
 - Контактные данные
 - Статус заказа
+- Блок загрузки “Nahrať grafiku” + список файлов + скачивание
 
 #### /admin/orders (app/admin/orders/page.tsx)
 - Список всех заказов системы
@@ -366,6 +381,7 @@ Mini-cart в хедере:
 - Кнопка удаления товара
 - Расчет итогов
 - Кнопка "Pokračovať k pokladni"
+- Отображение выбранного файла (миниатюра/заглушка) в карточке товара
 
 #### components/cart/checkout-form.tsx
 Форма оформления заказа:
@@ -374,6 +390,7 @@ Mini-cart в хедере:
 - Submit через fetch к /api/checkout
 - Dispatch "cart-updated" после успеха
 - Redirect на /account/orders/[id]?success=true
+- Если выбран файл в корзине, выполняется upload (presign → PUT → confirm) после создания заказа
 
 #### components/cart/orders-list.tsx
 Список заказов пользователя:
@@ -519,6 +536,7 @@ export interface OrderData {
 ### Страница товара (components/product/price-calculator-letaky.tsx)
 
 **Обе кнопки добавляют в корзину:**
+- Кнопка “Nahrať grafiku a objednať” позволяет выбрать файл, который отображается в корзине и загружается после оформления заказа.
 ```typescript
 const addToCart = async (uploadNow: boolean) => {
   // 1. Получаем серверную цену
@@ -721,8 +739,6 @@ if (!session?.user || session.user.role !== "ADMIN") {
 **Решение:** Используйте локальный тип или unknown вместо Prisma JsonValue
 
 ## Будущие улучшения
-- [ ] Загрузка файлов для заказов
-- [ ] Email уведомления (Nodemailer)
 - [ ] История изменений статуса
 - [ ] Фильтры в списке заказов админки
 - [ ] Export заказов в CSV/Excel

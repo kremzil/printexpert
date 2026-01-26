@@ -17,7 +17,9 @@
 - `/admin/vlastnosti/[attributeId]` — значения конкретного свойства.
 - `/admin/top-products` — управление блоком «Top produkty» на главной странице.
 
-> Внимание: аутентификация/авторизация не добавлены.
+В деталях заказа (`/admin/orders/[orderId]`) отображаются файлы заказа и доступно скачивание через presigned GET.
+
+> Доступ к админке защищен ролью ADMIN (NextAuth v5).
 
 ## Источники данных
 
@@ -29,6 +31,19 @@
 
 Плюс базовые таблицы каталога:
 - `Product`, `Category`, `ProductImage`, `PricingModel`, `PricingEntry`.
+
+## S3 загрузки (Order assets)
+
+Загрузка файлов к заказам выполняется через presigned S3 URL:
+- `POST /api/uploads/presign` → выдаёт `uploadUrl`.
+- Клиент загружает файл в S3 (PUT).
+- `POST /api/uploads/confirm` → подтверждает загрузку через `HEAD`.
+- Скачивание: `GET /api/assets/[assetId]/download` (302 redirect на presigned GET).
+
+### Важное
+- В бакете должен быть настроен CORS для методов `GET`, `PUT`, `HEAD`.
+- Для локальной разработки добавьте origin `http://localhost:3000`.
+- Для продакшна добавьте домен сайта (например `https://printexpert.sk`).
 
 ## Страница /admin — список товаров
 

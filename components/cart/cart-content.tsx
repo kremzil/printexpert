@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,16 @@ import type { CartData } from "@/types/cart";
 
 interface CartContentProps {
   cart: CartData;
+}
+
+type PendingOrderUpload = {
+  file: File;
+};
+
+declare global {
+  interface Window {
+    __pendingOrderUpload?: PendingOrderUpload;
+  }
 }
 
 const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
@@ -36,6 +46,39 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [pendingUpload, setPendingUpload] = useState<PendingOrderUpload | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const [pendingPreviewName, setPendingPreviewName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPendingUpload(window.__pendingOrderUpload ?? null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingUpload?.file) {
+      setPendingPreviewUrl(null);
+      setPendingPreviewName(null);
+      return;
+    }
+
+    const file = pendingUpload.file;
+    const isImage = file.type.startsWith("image/");
+    if (!isImage) {
+      setPendingPreviewUrl(null);
+      setPendingPreviewName(file.name);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPendingPreviewUrl(objectUrl);
+    setPendingPreviewName(file.name);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [pendingUpload]);
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     setUpdatingItems((prev) => new Set(prev).add(itemId));
@@ -94,10 +137,31 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
     }).format(price);
   };
 
+  const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+    const units = ["B", "KB", "MB", "GB"];
+    let value = bytes;
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) {
+      value /= 1024;
+      index += 1;
+    }
+    return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+  };
+
+  const handleRemovePendingUpload = () => {
+    if (typeof window !== "undefined") {
+      delete window.__pendingOrderUpload;
+    }
+    setPendingUpload(null);
+    setPendingPreviewUrl(null);
+    setPendingPreviewName(null);
+  };
+
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-4">
-        {initialCart.items.map((item) => {
+        {initialCart.items.map((item, index) => {
           const isUpdating = updatingItems.has(item.id);
           const itemPrice = item.priceSnapshot?.gross || 0;
           const itemTotal = itemPrice * item.quantity;
@@ -135,12 +199,12 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
                             Rozmery: {item.width} × {item.height} cm
                           </p>
                         )}
-                        {(() => {
-                          const attributes = getSelectedOptionAttributes(item.selectedOptions);
+                      {(() => {
+                        const attributes = getSelectedOptionAttributes(item.selectedOptions);
 
-                          if (!attributes || Object.keys(attributes).length === 0) {
-                            return null;
-                          }
+                        if (!attributes || Object.keys(attributes).length === 0) {
+                          return null;
+                        }
 
                           return (
                             <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
@@ -152,6 +216,38 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
                             </div>
                           );
                         })()}
+                        {pendingUpload?.file && index === 0 && (
+                          <div className="mt-2 rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between gap-2">
+                              <span>Priložený súbor</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemovePendingUpload}
+                                className="h-6 px-2 text-destructive hover:text-destructive"
+                              >
+                                Odstrániť
+                              </Button>
+                            </div>
+                            <div className="mt-1 flex items-center gap-3">
+                              {pendingPreviewUrl ? (
+                                <img
+                                  src={pendingPreviewUrl}
+                                  alt={pendingPreviewName ?? "Náhľad"}
+                                  className="h-12 w-12 rounded-md border object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-background text-[10px] uppercase">
+                                  Súbor
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground">
+                                {pendingUpload.file.name} · {formatBytes(pendingUpload.file.size)}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">{formatPrice(itemTotal)}</p>
