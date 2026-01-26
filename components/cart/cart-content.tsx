@@ -117,6 +117,20 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
                             Rozmery: {item.width} × {item.height} cm
                           </p>
                         )}
+                        {item.selectedOptions && 
+                         typeof item.selectedOptions === 'object' && 
+                         '_attributes' in item.selectedOptions && 
+                         item.selectedOptions._attributes &&
+                         typeof item.selectedOptions._attributes === 'object' &&
+                         Object.keys(item.selectedOptions._attributes).length > 0 && (
+                          <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                            {Object.entries(item.selectedOptions._attributes as Record<string, string>).map(([key, value]) => (
+                              <div key={key}>
+                                <span className="font-medium">{key}:</span> {value}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">{formatPrice(itemTotal)}</p>

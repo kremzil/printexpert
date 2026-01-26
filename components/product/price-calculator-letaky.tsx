@@ -495,6 +495,23 @@ export function PriceCalculatorLetaky({
     setServerError(null)
 
     try {
+      // Формируем читаемый список выбранных свойств (только видимые матрицы)
+      const selectedAttributes: Record<string, string> = {}
+      
+      for (const matrix of visibleMatrices) {
+        const matrixSelections = selections[matrix.mtid] || {}
+        
+        for (const select of matrix.selects) {
+          const selectedValue = matrixSelections[select.aid]
+          if (selectedValue) {
+            const option = select.options.find(opt => opt.value === selectedValue)
+            if (option) {
+              selectedAttributes[select.label] = option.label
+            }
+          }
+        }
+      }
+
       // Сначала получаем актуальную цену с сервера
       const priceResponse = await fetch("/api/price", {
         method: "POST",
@@ -527,7 +544,10 @@ export function PriceCalculatorLetaky({
           quantity,
           width,
           height,
-          selectedOptions: selections,
+          selectedOptions: {
+            ...selections,
+            _attributes: selectedAttributes, // Добавляем читаемые названия
+          },
           priceSnapshot: {
             ...priceResult,
             calculatedAt: new Date().toISOString(),

@@ -19,7 +19,17 @@ async function CheckoutContent() {
     redirect("/cart");
   }
 
-  return <CheckoutForm cart={cart} />;
+  // Serialize Decimal values for client component
+  const serializedCart = {
+    ...cart,
+    items: cart.items.map((item) => ({
+      ...item,
+      width: item.width ? Number(item.width) : null,
+      height: item.height ? Number(item.height) : null,
+    })),
+  };
+
+  return <CheckoutForm cart={serializedCart} />;
 }
 
 export default function CheckoutPage() {

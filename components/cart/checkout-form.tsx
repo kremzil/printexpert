@@ -145,11 +145,25 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
                 const itemPrice = item.priceSnapshot?.gross || 0;
                 const itemTotal = itemPrice * item.quantity;
                 return (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {item.product.name} × {item.quantity}
-                    </span>
-                    <span>{formatPrice(itemTotal)}</span>
+                  <div key={item.id} className="space-y-1 pb-2 border-b last:border-0 last:pb-0">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {item.product.name} × {item.quantity}
+                      </span>
+                      <span>{formatPrice(itemTotal)}</span>
+                    </div>
+                    {item.selectedOptions && 
+                     typeof item.selectedOptions === 'object' && 
+                     '_attributes' in item.selectedOptions && 
+                     item.selectedOptions._attributes &&
+                     typeof item.selectedOptions._attributes === 'object' &&
+                     Object.keys(item.selectedOptions._attributes).length > 0 && (
+                      <div className="text-xs text-muted-foreground pl-2">
+                        {Object.entries(item.selectedOptions._attributes as Record<string, string>).map(([key, value]) => (
+                          <div key={key}>{key}: {value}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

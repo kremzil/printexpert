@@ -34,7 +34,17 @@ async function CartItems() {
     );
   }
 
-  return <CartContent cart={cart} />;
+  // Serialize Decimal values for client component
+  const serializedCart = {
+    ...cart,
+    items: cart.items.map((item) => ({
+      ...item,
+      width: item.width ? Number(item.width) : null,
+      height: item.height ? Number(item.height) : null,
+    })),
+  };
+
+  return <CartContent cart={serializedCart} />;
 }
 
 export default function CartPage() {
