@@ -3,7 +3,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { Prisma } from "@/lib/generated/prisma";
-import type { JsonValue } from "@/lib/generated/prisma/runtime/library";
 import type { CartItemData, CartItemWithProduct, PriceSnapshot } from "@/types/cart";
 
 /**
@@ -147,7 +146,9 @@ export async function addToCart(
       where: { id: existingItem.id },
       data: {
         quantity: existingItem.quantity + data.quantity,
-        priceSnapshot: data.priceSnapshot ? (data.priceSnapshot as JsonValue) : undefined,
+        priceSnapshot: data.priceSnapshot
+          ? (data.priceSnapshot as unknown as Prisma.InputJsonValue)
+          : undefined,
         updatedAt: new Date(),
       },
     });
@@ -160,8 +161,12 @@ export async function addToCart(
         quantity: data.quantity,
         width: data.width ? new Prisma.Decimal(data.width) : null,
         height: data.height ? new Prisma.Decimal(data.height) : null,
-        selectedOptions: data.selectedOptions ? (data.selectedOptions as JsonValue) : undefined,
-        priceSnapshot: data.priceSnapshot ? (data.priceSnapshot as JsonValue) : undefined,
+        selectedOptions: data.selectedOptions
+          ? (data.selectedOptions as unknown as Prisma.InputJsonValue)
+          : undefined,
+        priceSnapshot: data.priceSnapshot
+          ? (data.priceSnapshot as unknown as Prisma.InputJsonValue)
+          : undefined,
       },
     });
   }
@@ -181,7 +186,9 @@ export async function updateCartItem(itemId: string, quantity: number, priceSnap
     where: { id: itemId },
     data: {
       quantity,
-      priceSnapshot: priceSnapshot ? (priceSnapshot as JsonValue) : undefined,
+      priceSnapshot: priceSnapshot
+        ? (priceSnapshot as unknown as Prisma.InputJsonValue)
+        : undefined,
       updatedAt: new Date(),
     },
   });
@@ -286,8 +293,12 @@ export async function mergeGuestCart(guestSessionId: string, userId: string) {
           quantity: item.quantity,
           width: item.width,
           height: item.height,
-          selectedOptions: item.selectedOptions ? (item.selectedOptions as JsonValue) : undefined,
-          priceSnapshot: item.priceSnapshot ? (item.priceSnapshot as JsonValue) : undefined,
+          selectedOptions: item.selectedOptions
+            ? (item.selectedOptions as unknown as Prisma.InputJsonValue)
+            : undefined,
+          priceSnapshot: item.priceSnapshot
+            ? (item.priceSnapshot as unknown as Prisma.InputJsonValue)
+            : undefined,
         },
       });
     }

@@ -15,6 +15,24 @@ interface CheckoutFormProps {
   cart: CartData;
 }
 
+const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
+  if (!selectedOptions || typeof selectedOptions !== "object") {
+    return null;
+  }
+
+  if (!("_attributes" in selectedOptions)) {
+    return null;
+  }
+
+  const attributes = (selectedOptions as { _attributes?: unknown })._attributes;
+
+  if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
+    return null;
+  }
+
+  return attributes as Record<string, string>;
+};
+
 export function CheckoutForm({ cart }: CheckoutFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,18 +170,21 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
                       </span>
                       <span>{formatPrice(itemTotal)}</span>
                     </div>
-                    {item.selectedOptions && 
-                     typeof item.selectedOptions === 'object' && 
-                     '_attributes' in item.selectedOptions && 
-                     item.selectedOptions._attributes &&
-                     typeof item.selectedOptions._attributes === 'object' &&
-                     Object.keys(item.selectedOptions._attributes).length > 0 && (
-                      <div className="text-xs text-muted-foreground pl-2">
-                        {Object.entries(item.selectedOptions._attributes as Record<string, string>).map(([key, value]) => (
-                          <div key={key}>{key}: {value}</div>
-                        ))}
-                      </div>
-                    )}
+                    {(() => {
+                      const attributes = getSelectedOptionAttributes(item.selectedOptions);
+
+                      if (!attributes || Object.keys(attributes).length === 0) {
+                        return null;
+                      }
+
+                      return (
+                        <div className="text-xs text-muted-foreground pl-2">
+                          {Object.entries(attributes).map(([key, value]) => (
+                            <div key={key}>{key}: {value}</div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

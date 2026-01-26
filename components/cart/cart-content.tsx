@@ -14,6 +14,24 @@ interface CartContentProps {
   cart: CartData;
 }
 
+const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
+  if (!selectedOptions || typeof selectedOptions !== "object") {
+    return null;
+  }
+
+  if (!("_attributes" in selectedOptions)) {
+    return null;
+  }
+
+  const attributes = (selectedOptions as { _attributes?: unknown })._attributes;
+
+  if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
+    return null;
+  }
+
+  return attributes as Record<string, string>;
+};
+
 export function CartContent({ cart: initialCart }: CartContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -88,7 +106,7 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
             <Card key={item.id}>
               <CardContent className="p-4">
                 <div className="flex gap-4">
-                  <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border">
+                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md border">
                     {item.product.images[0] ? (
                       <Image
                         src={item.product.images[0].url}
@@ -117,20 +135,23 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
                             Rozmery: {item.width} × {item.height} cm
                           </p>
                         )}
-                        {item.selectedOptions && 
-                         typeof item.selectedOptions === 'object' && 
-                         '_attributes' in item.selectedOptions && 
-                         item.selectedOptions._attributes &&
-                         typeof item.selectedOptions._attributes === 'object' &&
-                         Object.keys(item.selectedOptions._attributes).length > 0 && (
-                          <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                            {Object.entries(item.selectedOptions._attributes as Record<string, string>).map(([key, value]) => (
-                              <div key={key}>
-                                <span className="font-medium">{key}:</span> {value}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {(() => {
+                          const attributes = getSelectedOptionAttributes(item.selectedOptions);
+
+                          if (!attributes || Object.keys(attributes).length === 0) {
+                            return null;
+                          }
+
+                          return (
+                            <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                              {Object.entries(attributes).map(([key, value]) => (
+                                <div key={key}>
+                                  <span className="font-medium">{key}:</span> {value}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">{formatPrice(itemTotal)}</p>

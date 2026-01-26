@@ -13,6 +13,24 @@ interface OrderDetailProps {
   order: OrderData;
 }
 
+const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
+  if (!selectedOptions || typeof selectedOptions !== "object") {
+    return null;
+  }
+
+  if (!("_attributes" in selectedOptions)) {
+    return null;
+  }
+
+  const attributes = (selectedOptions as { _attributes?: unknown })._attributes;
+
+  if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
+    return null;
+  }
+
+  return attributes as Record<string, string>;
+};
+
 const statusMap = {
   PENDING: { label: "Čaká sa", variant: "secondary" as const },
   CONFIRMED: { label: "Potvrdená", variant: "default" as const },
@@ -78,20 +96,23 @@ export function OrderDetail({ order }: OrderDetailProps) {
                           Rozmery: {item.width} × {item.height} cm
                         </p>
                       )}
-                      {item.selectedOptions && 
-                       typeof item.selectedOptions === 'object' && 
-                       '_attributes' in item.selectedOptions && 
-                       item.selectedOptions._attributes &&
-                       typeof item.selectedOptions._attributes === 'object' &&
-                       Object.keys(item.selectedOptions._attributes).length > 0 && (
-                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                          {Object.entries(item.selectedOptions._attributes as Record<string, string>).map(([key, value]) => (
-                            <div key={key}>
-                              <span className="font-medium">{key}:</span> {value}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const attributes = getSelectedOptionAttributes(item.selectedOptions);
+
+                        if (!attributes || Object.keys(attributes).length === 0) {
+                          return null;
+                        }
+
+                        return (
+                          <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                            {Object.entries(attributes).map(([key, value]) => (
+                              <div key={key}>
+                                <span className="font-medium">{key}:</span> {value}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                       <p className="text-sm text-muted-foreground">
                         Množstvo: {item.quantity}
                       </p>

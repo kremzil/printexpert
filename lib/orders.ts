@@ -5,7 +5,8 @@ import { auth } from "@/auth";
 import { calculate } from "@/lib/pricing";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { getCart, clearCart } from "@/lib/cart";
-import { Prisma } from "@/lib/generated/prisma";import type { JsonValue } from "@/lib/generated/prisma/runtime/library";import type { CheckoutData, OrderData } from "@/types/order";
+import { Prisma } from "@/lib/generated/prisma";
+import type { CheckoutData, OrderData } from "@/types/order";
 
 /**
  * Генерация номера заказа
@@ -34,20 +35,25 @@ export async function createOrder(
   }
 
   // Пересчитываем все цены на сервере для финальной точности
-  const orderItems = [];
+  const orderItems: Prisma.OrderItemUncheckedCreateWithoutOrderInput[] = [];
   let subtotal = new Prisma.Decimal(0);
   let vatAmount = new Prisma.Decimal(0);
   let total = new Prisma.Decimal(0);
 
   for (const item of cart.items) {
     // Серверный пересчёт цены
+    const selections =
+      item.selectedOptions && typeof item.selectedOptions === "object" && !Array.isArray(item.selectedOptions)
+        ? (item.selectedOptions as Record<string, Record<string, string>>)
+        : undefined;
+
     const freshPrice = await calculate(
       item.productId,
       {
         quantity: item.quantity,
         width: item.width ? parseFloat(item.width.toString()) : null,
         height: item.height ? parseFloat(item.height.toString()) : null,
-        selections: item.selectedOptions || {},
+        selections,
       },
       audienceContext
     );
@@ -66,11 +72,13 @@ export async function createOrder(
       quantity: item.quantity,
       width: item.width,
       height: item.height,
-      selectedOptions: item.selectedOptions ? (item.selectedOptions as JsonValue) : undefined,
+      selectedOptions: item.selectedOptions
+        ? (item.selectedOptions as unknown as Prisma.InputJsonValue)
+        : undefined,
       priceNet: itemNet,
       priceVat: itemVat,
       priceGross: itemGross,
-      priceSnapshot: freshPrice as JsonValue,
+      priceSnapshot: freshPrice as unknown as Prisma.InputJsonValue,
     });
   }
 
@@ -87,8 +95,12 @@ export async function createOrder(
       customerName: checkoutData.customerName,
       customerEmail: checkoutData.customerEmail,
       customerPhone: checkoutData.customerPhone || null,
-      shippingAddress: checkoutData.shippingAddress ? (checkoutData.shippingAddress as JsonValue) : undefined,
-      billingAddress: checkoutData.billingAddress ? (checkoutData.billingAddress as JsonValue) : undefined,
+      shippingAddress: checkoutData.shippingAddress
+        ? (checkoutData.shippingAddress as unknown as Prisma.InputJsonValue)
+        : undefined,
+      billingAddress: checkoutData.billingAddress
+        ? (checkoutData.billingAddress as unknown as Prisma.InputJsonValue)
+        : undefined,
       notes: checkoutData.notes || null,
       items: {
         create: orderItems,
