@@ -61,7 +61,7 @@ export function AudienceModeCards({ redirectTo }: Props) {
           </p>
           <Button
             size="lg"
-            className="group/btn mt-6 w-full ink-spread"
+            className="group/btn mt-6 w-full ink-spread shadow-md transition-all hover:shadow-xl hover:bg-primary/90"
             disabled={isPending}
             onClick={() => pick("b2c")}
           >
@@ -83,9 +83,9 @@ export function AudienceModeCards({ redirectTo }: Props) {
             Individuálny prístup, cenové ponuky a podpora pre firmy.
           </p>
           <Button
-            variant="outline"
+            variant="default"
             size="lg"
-            className="mt-6 w-full print-frame"
+            className="mt-6 w-full print-frame bg-foreground text-background hover:bg-foreground/90 shadow-md transition-all hover:shadow-xl"
             disabled={isPending}
             onClick={() => pick("b2b")}
           >

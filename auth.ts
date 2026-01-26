@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import type { Adapter } from "next-auth/adapters"
 import Credentials from "next-auth/providers/credentials"
 import Nodemailer from "next-auth/providers/nodemailer"
+import Google from "next-auth/providers/google"
 import { z } from "zod"
 
 import { authConfig } from "./auth.config"
@@ -41,6 +42,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 дней
   },
   providers: [
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      allowDangerousEmailAccountLinking: true,
+    }),
     // Magic Links через Nodemailer (SMTP)
     Nodemailer({
       from: process.env.SMTP_FROM ?? "Print Expert <info@printexpert.sk>",

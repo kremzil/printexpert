@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState, useRef, type ReactNode } from "react"
+import { usePathname } from "next/navigation"
 
 type SiteHeaderClientProps = {
   topBar: ReactNode
@@ -8,46 +9,52 @@ type SiteHeaderClientProps = {
 }
 
 export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
+  const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isScrollingDown, setIsScrollingDown] = useState(false)
-  const [lastScrollY, setLastScrollY] = useState(0)
+  
+  // Use ref instead of state for scroll position to avoid re-triggering effect loop
+  const lastScrollYRef = useRef(0)
+
+  // Don't render header on admin pages
+  if (pathname?.startsWith("/admin")) {
+    return null
+  }
 
   useEffect(() => {
-    let ticking = false
-
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentScrollY = window.scrollY
-          
-          // Добавляем порог в 10px чтобы избежать дрожания
-          const threshold = 10
-          
-          // Логотип уменьшается при скролле > 50px
-          setIsScrolled(currentScrollY > 50)
-          
-          if (currentScrollY < 80) {
-            // В самом верху всегда показываем навбар
-            setIsScrollingDown(false)
-          } else if (currentScrollY > lastScrollY + threshold) {
-            // Скроллим вниз на значительное расстояние
-            setIsScrollingDown(true)
-          } else if (currentScrollY < lastScrollY - threshold) {
-            // Скроллим вверх на значительное расстояние
-            setIsScrollingDown(false)
-          }
-          
-          setLastScrollY(currentScrollY)
-          ticking = false
-        })
-
-        ticking = true
+      const currentScrollY = Math.max(0, window.scrollY)
+      const lastScrollY = lastScrollYRef.current
+      const threshold = 10
+      
+      // Логотип уменьшается при скролле > 50px
+      const shouldBeScrolled = currentScrollY > 50
+      
+      // Обновляем стейт только если изменился, чтобы не ререндерить лишний раз
+      setIsScrolled((prev) => {
+        if (prev !== shouldBeScrolled) return shouldBeScrolled
+        return prev
+      })
+      
+      if (currentScrollY < 80) {
+        setIsScrollingDown(false)
+        // ВАЖНО: Обновляем ref, чтобы при выходе из этой зоны мы сравнивали с актуальной позицией,
+        // а не с той, которая была до входа в зону < 80.
+        lastScrollYRef.current = currentScrollY
+      } else if (Math.abs(currentScrollY - lastScrollY) > threshold) {
+        // Меняем состояние только при преодолении порога
+        setIsScrollingDown(currentScrollY > lastScrollY)
+        // Обновляем реф только когда значительно сдвинулись, чтобы гистерезис работал
+        lastScrollYRef.current = currentScrollY 
       }
     }
 
+    // Дебаунс/троттлинг через requestAnimationFrame не обязателен для modern browsers с passive: true,
+    // но если оставить, то аккуратно. В данном случае упростим до прямого вызова 
+    // с проверкой внутри, так надежнее для React state updates.
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [lastScrollY])
+  }, []) // Empty dependency array = stable listener
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur shadow-md supports-[backdrop-filter]:bg-background/60">

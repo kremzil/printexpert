@@ -129,32 +129,117 @@ async function AudienceNavigation() {
         ) : (
           rootCategories.map((category) => {
             const children = childrenByParentId.get(category.id) ?? []
-            const items = children.length > 0 ? children : [category]
-            const productItems = items.flatMap((item) =>
-              productsByCategoryId.get(item.id) ?? []
-            )
+            const hasSubcategories = children.length > 0
+            
+            // If we have subcategories, we group products by them.
+            // If not, we just show the products of the root category.
+            const sections = hasSubcategories 
+              ? children.map(child => ({
+                  id: child.id,
+                  name: child.name,
+                  slug: child.slug,
+                  products: productsByCategoryId.get(child.id) ?? []
+                })).filter(section => section.products.length > 0)
+              : [{
+                  id: category.id,
+                  name: category.name,
+                  slug: category.slug,
+                  products: productsByCategoryId.get(category.id) ?? []
+                }]
+
+            // If no products at all in this branch, maybe skip rendering or show "No products"
+            const totalProducts = sections.reduce((acc, s) => acc + s.products.length, 0)
 
             return (
               <NavigationMenuItem key={category.id}>
-                <NavigationMenuTrigger>{category.name}</NavigationMenuTrigger>
+                <NavigationMenuTrigger className="bg-transparent hover:bg-secondary/50 data-[state=open]:bg-secondary/50 font-medium">
+                  {category.name}
+                </NavigationMenuTrigger>
                 <NavigationMenuContent>
-                  {productItems.length === 0 ? (
-                    <div className="min-w-55 px-3 py-2 text-sm text-muted-foreground">
-                      Žiadne produkty v tejto kategórii.
+                  <div className="w-[800px] p-4 md:w-[900px] lg:w-[1000px]">
+                    <div className="flex items-center justify-between border-b pb-4 mb-4">
+                      <div className="space-y-1">
+                        <h4 className="text-lg font-medium leading-none">{category.name}</h4>
+                        <p className="text-sm text-muted-foreground leading-snug">
+                          Vyberte si z našej ponuky {category.name.toLowerCase()}
+                        </p>
+                      </div>
+                      <Link 
+                        href={`/kategorie?cat=${category.slug}`}
+                        className="text-sm font-medium text-primary hover:underline hover:underline-offset-4 flex items-center gap-1"
+                      >
+                        Všetky {category.name.toLowerCase()}
+                        <span aria-hidden="true">→</span>
+                      </Link>
                     </div>
-                  ) : (
-                    <ul className="grid w-5xl grid-cols-3 gap-1">
-                      {productItems.map((product) => (
-                        <li key={product.id}>
-                          <NavigationMenuLink asChild>
-                            <Link href={`/product/${product.slug}`}>
-                              {product.name}
-                            </Link>
-                          </NavigationMenuLink>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+
+                    {totalProducts === 0 ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Momentálne nedostupné žiadne produkty.
+                      </div>
+                    ) : (
+                      <div className={hasSubcategories ? "columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 block" : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"}>
+                        {sections.map((section) => (
+                          <div 
+                            key={section.id} 
+                            className={hasSubcategories ? "break-inside-avoid mb-6 space-y-3" : "contents"}
+                          >
+                            {hasSubcategories && (
+                              <Link 
+                                href={`/kategorie?cat=${section.slug}`}
+                                className="block font-semibold text-foreground/90 hover:text-primary transition-colors mb-2"
+                              >
+                                {section.name}
+                              </Link>
+                            )}
+                            
+                            {hasSubcategories ? (
+                              <ul className="space-y-2">
+                                {section.products.slice(0, 6).map((product) => (
+                                  <li key={product.id}>
+                                    <NavigationMenuLink asChild>
+                                      <Link
+                                        href={`/product/${product.slug}`}
+                                        className="block rounded-md p-2 text-sm leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                                      >
+                                        <div className="font-medium leading-none mb-1">{product.name}</div>
+                                      </Link>
+                                    </NavigationMenuLink>
+                                  </li>
+                                ))}
+                                {section.products.length > 6 && (
+                                  <li>
+                                    <NavigationMenuLink asChild>
+                                      <Link
+                                        href={`/kategorie?cat=${section.slug}`}
+                                        className="block rounded-md p-2 text-sm font-medium text-primary/80 hover:text-primary hover:bg-primary/5 transition-colors"
+                                      >
+                                        Zobraziť viac...
+                                      </Link>
+                                    </NavigationMenuLink>
+                                  </li>
+                                )}
+                              </ul>
+                            ) : (
+                              <>
+                                {section.products.slice(0, 12).map((product) => (
+                                  <NavigationMenuLink key={product.id} asChild>
+                                    <Link
+                                      href={`/product/${product.slug}`}
+                                      className="group flex flex-col items-center justify-center text-center gap-1.5 rounded-lg border p-3 hover:bg-accent hover:text-accent-foreground transition-colors h-full"
+                                    >
+                                        <span className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">{product.name}</span>
+                                        <span className="text-xs text-muted-foreground">Od {product.priceFrom ? `${product.priceFrom} €` : 'Vyžiadanie'}</span>
+                                    </Link>
+                                  </NavigationMenuLink>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </NavigationMenuContent>
               </NavigationMenuItem>
             )
@@ -297,49 +382,57 @@ async function MobileMenu() {
   )
 }
 
+import { HeaderSearch } from "@/components/header-search"
+
 export function SiteHeader() {
   return (
     <SiteHeaderClient
       topBar={
         <>
-          <div className="flex items-center gap-4">
-            <Suspense fallback={null}>
-              <MobileMenu />
-            </Suspense>
-            <Link 
-              href="/" 
-              className="group flex items-center gap-2 transition-transform duration-300 hover:scale-105"
-            >
-              <div className="relative site-header-logo">
-                <Image
-                  src="/printexpert-logo.svg"
-                  alt="PrintExpert"
-                  width={160}
-                  height={36}
-                  priority
-                  className="transition-transform duration-300 ease-in-out group-hover:opacity-90"
-                />
-                <div className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-              </div>
-              <span className="sr-only">PrintExpert</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <CartButton />
-            <div className="hidden items-center gap-2 md:flex">
-              <Button asChild variant="ghost" size="sm" className="ink-spread">
-                <Link href="/auth">Registrácia</Link>
-              </Button>
-              <Button asChild variant="outline" size="sm" className="print-frame">
-                <Link href="/account">Môj účet</Link>
-              </Button>
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-4">
+              <Suspense fallback={null}>
+                <MobileMenu />
+              </Suspense>
+              <Link 
+                href="/" 
+                className="group flex items-center gap-2 transition-transform duration-300 hover:scale-105"
+              >
+                <div className="relative site-header-logo">
+                  <Image
+                    src="/printexpert-logo.svg"
+                    alt="PrintExpert"
+                    width={160}
+                    height={36}
+                    priority
+                    className="transition-transform duration-300 ease-in-out group-hover:opacity-90"
+                  />
+                  <div className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+                </div>
+                <span className="sr-only">PrintExpert</span>
+              </Link>
             </div>
+            
+            <HeaderSearch />
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4">
             <Suspense fallback={null}>
               <AudienceHeaderSwitch />
             </Suspense>
-            <Suspense fallback={null}>
-              <AudienceBadge />
-            </Suspense>
+            
+            <div className="h-6 w-px bg-border/50 hidden sm:block" />
+
+            <div className="hidden items-center gap-2 md:flex">
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                <Link href="/auth">Registrácia</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
+                <Link href="/account">Môj účet</Link>
+              </Button>
+            </div>
+
+            <CartButton />
           </div>
         </>
       }

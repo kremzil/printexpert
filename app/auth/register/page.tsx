@@ -1,7 +1,8 @@
+import Link from "next/link"
 import Image from "next/image"
-import { AuthForms } from "@/app/auth/auth-forms"
+import { RegisterForm } from "../register-form"
 
-export default function AuthPage() {
+export default function RegisterPage() {
   return (
     <div className="flex min-h-[calc(100vh-140px)] w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-[400px] flex flex-col gap-6">
@@ -15,16 +16,21 @@ export default function AuthPage() {
                     className="h-6 w-auto"
                 />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Vitajte späť</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Vytvoriť nový účet</h1>
             <p className="text-sm text-muted-foreground">
-                Prihláste sa do svojho účtu pre správu objednávok
+                Zadajte svoje údaje pre registráciu
             </p>
         </div>
         
-        <AuthForms />
+        <div className="flex justify-center">
+            <RegisterForm />
+        </div>
         
         <p className="px-8 text-center text-xs text-muted-foreground">
-            Ak ste ešte nenastavili heslo, použite <span className="font-medium text-foreground">Magic Link</span> a nastavte si ho v profile.
+            Už máte účet?{" "}
+            <Link href="/auth" className="underline hover:text-primary">
+                Prihlásiť sa
+            </Link>
         </p>
       </div>
     </div>
