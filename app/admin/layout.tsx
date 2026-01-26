@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, Suspense } from "react"
 
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -28,7 +28,9 @@ export default function AdminLayout({
         } as React.CSSProperties
       }
     >
-      <AdminSidebar variant="floating" />
+      <Suspense fallback={null}>
+        <AdminSidebar variant="floating" />
+      </Suspense>
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />

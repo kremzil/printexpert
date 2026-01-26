@@ -479,12 +479,15 @@ export async function updateProductDetails(
   
   const name = String(formData.get("name") ?? "").trim()
   const slug = String(formData.get("slug") ?? "").trim()
+  const categoryId = String(formData.get("categoryId") ?? "").trim()
+  const imageUrl = String(formData.get("imageUrl") ?? "").trim()
   const excerptInput = String(formData.get("excerpt") ?? "")
   const descriptionInput = String(formData.get("description") ?? "")
   const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
   const vatRateRaw = String(formData.get("vatRate") ?? "").trim()
   const showInB2bRaw = String(formData.get("showInB2b") ?? "").trim()
   const showInB2cRaw = String(formData.get("showInB2c") ?? "").trim()
+  const isActiveRaw = String(formData.get("isActive") ?? "").trim()
 
   if (!name || !slug || !vatRateRaw) {
     return
@@ -518,15 +521,51 @@ export async function updateProductDetails(
     return
   }
 
+  if (imageUrl) {
+    // Determine if we should update an existing primary image or create a new one
+    // Strategy: Unset primary for this product, then upsert the new URL as primary
+    await prisma.productImage.updateMany({
+        where: { productId: input.productId },
+        data: { isPrimary: false }
+    })
+    
+    await prisma.productImage.upsert({
+        where: {
+            productId_url: {
+                productId: input.productId,
+                url: imageUrl
+            }
+        },
+        create: {
+            productId: input.productId,
+            url: imageUrl,
+            isPrimary: true,
+            sortOrder: 0
+        },
+        update: {
+            isPrimary: true,
+            sortOrder: 0
+        }
+    })
+  } else if (formData.has("imageUrl") && imageUrl === "") {
+    // If the field was present but empty, user might mean "clear image"
+    // But usually we don't want to delete unless explicit. 
+    // Let's assume emptiness means "no change" or "remove" depends on UI. 
+    // To be safe, if we want to remove, we'd probably have a separate action.
+    // For now, let's just NOT update if empty string, to avoid accidental deletion.
+  }
+
   const updated = await prisma.product.update({
     where: { id: input.productId },
     data: {
       name,
       slug,
+      categoryId: categoryId || undefined,
       excerpt: excerpt || null,
       description: description || null,
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
       vatRate: normalizedVatRate,
+      isActive: isActiveRaw === "1",
       showInB2b: showInB2bRaw === "1",
       showInB2c: showInB2cRaw === "1",
     },

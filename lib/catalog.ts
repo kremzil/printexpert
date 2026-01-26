@@ -173,6 +173,12 @@ export async function getAdminProductById(id: string) {
     where: { id },
     include: {
       category: true,
+      images: {
+        orderBy: [
+          { isPrimary: "desc" },
+          { sortOrder: "asc" },
+        ],
+      },
     },
   });
 

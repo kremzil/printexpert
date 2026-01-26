@@ -65,6 +65,17 @@ async function getAttributesWithTerms() {
   return { attributes, termTaxonomies, terms }
 }
 
+async function getCategories() {
+  "use cache"
+  cacheTag("categories")
+  cacheLife("hours")
+  const prisma = getPrisma()
+  return prisma.category.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, slug: true },
+  })
+}
+
 export default async function AdminProductPage({
   params,
 }: AdminProductPageProps) {
@@ -95,14 +106,18 @@ async function AdminProductDetails({
   await requireAdmin()
   
   const { id } = await paramsPromise
-  const [product, attributeData] = await Promise.all([
+  const [product, attributeData, categories] = await Promise.all([
     getAdminProductById(id),
     getAttributesWithTerms(),
+    getCategories(),
   ])
 
   if (!product) {
     notFound()
   }
+
+  const primaryImage = product.images.find(img => img.isPrimary) || product.images[0]
+  const primaryImageUrl = primaryImage?.url || ""
 
   const calculatorData = product.wpProductId
     ? await getWpCalculatorData(product.wpProductId, true)
@@ -152,38 +167,62 @@ async function AdminProductDetails({
             action={updateProductDetails.bind(null, { productId: product.id })}
             className="space-y-5"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant={product.isActive ? "secondary" : "outline"}>
-                  {product.isActive ? "Aktívny" : "Neaktívny"}
-                </Badge>
-                <span className="text-muted-foreground">
-                  Kategória: {product.category?.name ?? "Bez kategórie"}
-                </span>
-              </div>
+            <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                     <div className="flex flex-col gap-2">
+                        <Label>Stav a Viditeľnosť</Label>
+                        <div className="flex flex-wrap gap-4 rounded-md border p-3">
+                             <label className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="isActive" value="1" defaultChecked={product.isActive} className="h-4 w-4 rounded border-input accent-primary" />
+                                <span className="font-medium">Aktívny produkt</span>
+                             </label>
+                             <div className="h-4 w-px bg-border" />
+                             <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <input type="checkbox" name="showInB2b" value="1" defaultChecked={product.showInB2b} className="h-4 w-4 rounded border-input accent-primary" />
+                                <span>Zobraziť v B2B</span>
+                             </label>
+                              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <input type="checkbox" name="showInB2c" value="1" defaultChecked={product.showInB2c} className="h-4 w-4 rounded border-input accent-primary" />
+                                <span>Zobraziť v B2C</span>
+                             </label>
+                        </div>
+                     </div>
+                     
+                     <div className="space-y-2">
+                        <Label htmlFor="category">Kategória</Label>
+                        <select 
+                            id="category" 
+                            name="categoryId" 
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            defaultValue={product.categoryId}
+                        >
+                            <option value="">-- Bez kategórie --</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
+                     </div>
+                </div>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="showInB2b"
-                    value="1"
-                    defaultChecked={product.showInB2b ?? true}
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span>B2B</span>
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="showInB2c"
-                    value="1"
-                    defaultChecked={product.showInB2c ?? true}
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span>B2C</span>
-                </label>
-              </div>
+                <div className="space-y-4">
+                     <div className="space-y-2">
+                        <Label htmlFor="imageUrl">Hlavný obrázok (URL)</Label>
+                        <div className="flex flex-col gap-3">
+                             <Input 
+                                id="imageUrl" 
+                                name="imageUrl" 
+                                defaultValue={primaryImageUrl} 
+                                placeholder="https://example.com/image.jpg" 
+                             />
+                            {primaryImageUrl && (
+                                <div className="relative aspect-video w-32 overflow-hidden rounded-md border bg-muted">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={primaryImageUrl} alt="Preview" className="h-full w-full object-cover" />
+                                </div>
+                            )}
+                        </div>
+                     </div>
+                </div>
             </div>
 
             <Separator />
