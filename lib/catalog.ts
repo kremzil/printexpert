@@ -149,6 +149,15 @@ export async function getAdminProducts() {
     orderBy: [{ name: "asc" }],
     include: {
       category: true,
+      images: {
+        where: { isPrimary: true },
+        take: 1,
+      },
+      _count: {
+        select: {
+          orderItems: true
+        }
+      }
     },
   });
 

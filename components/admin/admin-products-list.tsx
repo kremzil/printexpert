@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 import {
@@ -15,7 +16,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, MoreHorizontal, Eye, Edit, Copy, Trash, ArrowUpDown, Filter } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,18 +33,33 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { formatPrice } from "@/lib/utils"
 
 type AdminProductItem = {
   id: string
   name: string
   slug: string
   isActive: boolean
+  showInB2b: boolean
+  showInB2c: boolean
+  priceFrom: string | null
+  vatRate: string
   category: {
     name: string
     slug: string
   } | null
+  images?: {
+    url: string
+    alt: string | null
+  }[]
+  _count?: {
+      orderItems: number
+  }
 }
 
 type AdminProductsListProps = {
@@ -52,11 +68,48 @@ type AdminProductsListProps = {
 
 const columns: ColumnDef<AdminProductItem>[] = [
   {
+    accessorKey: "images",
+    header: "Obrázok",
+    cell: ({ row }) => {
+      const image = row.original.images?.[0]
+      return (
+        <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
+          {image ? (
+            <Image
+              src={image.url}
+              alt={image.alt || row.original.name}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+              Bez foto
+            </div>
+          )}
+        </div>
+      )
+    },
+  },
+  {
     accessorKey: "name",
-    header: "Názov",
+    header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Názov
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+    },
     cell: ({ row }) => (
       <div>
-        <div className="font-medium">{row.getValue("name")}</div>
+        <div className="font-medium hover:underline">
+            <Link href={`/admin/products/${row.original.id}`}>
+                {row.getValue("name")}
+            </Link>
+        </div>
         <div className="text-xs text-muted-foreground">
           {row.original.slug}
         </div>
@@ -68,7 +121,11 @@ const columns: ColumnDef<AdminProductItem>[] = [
     header: "Kategória",
     cell: ({ row }) => {
       const category = row.original.category
-      return <div>{category?.name ?? "Bez kategórie"}</div>
+      return (
+        <Badge variant="outline" className="font-normal">
+            {category?.name ?? "Bez kategórie"}
+        </Badge>
+        )
     },
     filterFn: (row, id, value) => {
       if (value === "all") return true
@@ -77,38 +134,91 @@ const columns: ColumnDef<AdminProductItem>[] = [
     },
   },
   {
+      accessorKey: "priceFrom",
+      header: "Cena od",
+      cell: ({ row }) => {
+          const price = row.original.priceFrom
+          return price 
+            ? <div className="font-mono text-sm">{formatPrice(Number(price))}</div> 
+            : <span className="text-xs text-muted-foreground">Na vyžiadanie</span>
+      }
+  },
+  {
     accessorKey: "isActive",
-    header: "Stav",
+    header: "Viditeľnosť",
     cell: ({ row }) => {
-      const isActive = row.getValue("isActive") as boolean
+      const { isActive, showInB2b, showInB2c } = row.original
+      
+      if (!isActive) {
+          return <Badge variant="destructive">Neaktívny</Badge>
+      }
+
       return (
-        <Badge variant={isActive ? "secondary" : "outline"}>
-          {isActive ? "Aktívny" : "Neaktívny"}
-        </Badge>
+        <div className="flex gap-1 flex-wrap">
+            {showInB2b && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">B2B</Badge>}
+            {showInB2c && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">B2C</Badge>}
+            {!showInB2b && !showInB2c && <Badge variant="outline" className="text-[10px]">Skrytý</Badge>}
+        </div>
       )
     },
     filterFn: (row, id, value) => {
       if (value === "all") return true
-      if (value === "active") return row.getValue(id) === true
-      if (value === "inactive") return row.getValue(id) === false
+      if (value === "active") return row.original.isActive === true
+      if (value === "inactive") return row.original.isActive === false
       return true
     },
+  },
+  {
+    accessorKey: "_count.orderItems",
+    header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Objednané
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+    },
+    cell: ({ row }) => {
+        const count = row.original._count?.orderItems || 0
+        return <div className="text-center">{count}x</div>
+    }
   },
   {
     id: "actions",
     cell: ({ row }) => {
       const product = row.original
       return (
-        <div className="flex justify-end">
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Link href={`/admin/products/${product.id}`}>Upraviť</Link>
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Otvoriť menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Akcie</DropdownMenuLabel>
+            <DropdownMenuItem asChild>
+                <Link href={`/product/${product.slug}`} target="_blank">
+                    <Eye className="mr-2 h-4 w-4" />
+                    Zobraziť na webe
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href={`/admin/products/${product.id}`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Upraviť
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive">
+               <Trash className="mr-2 h-4 w-4" />
+               Zmazať
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     },
   },
@@ -159,78 +269,129 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-1 items-center gap-2">
+    <div className="w-full space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <Input
             placeholder="Hľadať produkty..."
-            value={globalFilter}
+            value={globalFilter ?? ""}
             onChange={(event) => setGlobalFilter(event.target.value)}
-            className="max-w-sm"
+            className="max-w-xs"
           />
-          <DropdownMenu>
+        </div>
+
+        <div className="flex items-center gap-2">
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                Stĺpce <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
+                <Button variant="outline" size="sm" className="ml-auto h-8 border-dashed">
+                <Filter className="mr-2 h-4 w-4" />
+                Kategórie
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Filtrovať podľa kategórie</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                    checked={!table.getColumn("category")?.getFilterValue()}
+                    onCheckedChange={() => table.getColumn("category")?.setFilterValue(undefined)}
+                >
+                    Všetky kategórie
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                    checked={table.getColumn("category")?.getFilterValue() === "none"}
+                    onCheckedChange={(checked) => 
+                        table.getColumn("category")?.setFilterValue(checked ? "none" : undefined)
+                    }
+                >
+                    Bez kategórie
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                {categoryOptions.map(([slug, name]) => (
+                <DropdownMenuCheckboxItem
+                    key={slug}
+                    checked={table.getColumn("category")?.getFilterValue() === slug}
+                    onCheckedChange={(checked) => 
+                        table.getColumn("category")?.setFilterValue(checked ? slug : undefined)
+                    }
+                >
+                    {name}
+                </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="ml-auto h-8 border-dashed">
+                <Filter className="mr-2 h-4 w-4" />
+                Stav
+                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
+                <DropdownMenuLabel>Filtrovať podľa stavu</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                checked={!table.getColumn("isActive")?.getFilterValue()}
+                onCheckedChange={() => table.getColumn("isActive")?.setFilterValue(undefined)}
+                >
+                Všetky stavy
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                checked={table.getColumn("isActive")?.getFilterValue() === "active"}
+                onCheckedChange={(checked) => 
+                    table.getColumn("isActive")?.setFilterValue(checked ? "active" : undefined)
+                }
+                >
+                Len aktívne
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                checked={table.getColumn("isActive")?.getFilterValue() === "inactive"}
+                onCheckedChange={(checked) => 
+                    table.getColumn("isActive")?.setFilterValue(checked ? "inactive" : undefined)
+                }
+                >
+                Len neaktívne
+                </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+            
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="ml-auto h-8">
+                  <Eye className="mr-2 h-4 w-4" />
+                  Stĺpce
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Zobraziť stĺpce</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
+                      >
+                        {column.id === "images" && "Obrázok"}
+                        {column.id === "name" && "Názov"}
+                        {column.id === "category" && "Kategória"}
+                        {column.id === "isActive" && "Stav"}
+                        {column.id === "priceFrom" && "Cena"}
+                        {column.id === "_count_orderItems" && "Predajnosť"}
+                        {column.id !== "images" && column.id !== "name" && column.id !== "category" && column.id !== "isActive" && column.id !== "priceFrom" && column.id !== "_count_orderItems" && column.id}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </div>
-
-      <div className="flex items-center gap-2">
-        <select
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={
-            (table.getColumn("isActive")?.getFilterValue() as string) ?? "all"
-          }
-          onChange={(event) =>
-            table.getColumn("isActive")?.setFilterValue(event.target.value)
-          }
-        >
-          <option value="all">Všetky stavy</option>
-          <option value="active">Aktívne</option>
-          <option value="inactive">Neaktívne</option>
-        </select>
-
-        <select
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={
-            (table.getColumn("category")?.getFilterValue() as string) ?? "all"
-          }
-          onChange={(event) =>
-            table.getColumn("category")?.setFilterValue(event.target.value)
-          }
-        >
-          <option value="all">Všetky kategórie</option>
-          <option value="none">Bez kategórie</option>
-          {categoryOptions.map(([slug, name]) => (
-            <option key={slug} value={slug}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -276,78 +437,34 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  Žiadne výsledky.
+                  Žiadne produkty.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} z {products.length}{" "}
-          produktov
+          {table.getFilteredRowModel().rows.length} produktov celkom.
         </div>
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Riadkov na stranu</p>
-            <select
-              className="h-8 w-[70px] rounded-md border border-input bg-transparent px-2 text-sm"
-              value={table.getState().pagination.pageSize}
-              onChange={(e) => {
-                table.setPageSize(Number(e.target.value))
-              }}
-            >
-              {[10, 20, 30, 40, 50].map((pageSize) => (
-                <option key={pageSize} value={pageSize}>
-                  {pageSize}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            Strana {table.getState().pagination.pageIndex + 1} z{" "}
-            {table.getPageCount()}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">Prvá strana</span>
-              <span>«</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">Predchádzajúca strana</span>
-              <span>‹</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Ďalšia strana</span>
-              <span>›</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Posledná strana</span>
-              <span>»</span>
-            </Button>
-          </div>
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Späť
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Ďalej
+          </Button>
         </div>
       </div>
     </div>
