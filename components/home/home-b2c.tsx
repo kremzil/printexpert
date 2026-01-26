@@ -18,9 +18,9 @@ const TopProductsClient = dynamic(
 
 export function HomeB2C() {
   return (
-    <>
-      <section className="space-y-6">
-
+    <div className="space-y-16">
+      <section className="space-y-8">
+        {/* Hero carousel с улучшенным дизайном */}
         <Carousel
           plugins={[
             Autoplay({
@@ -32,35 +32,49 @@ export function HomeB2C() {
         >
           <CarouselContent>
             {[
-              "Rýchla tlač do 24 hodín",
-              "Obľúbené produkty pre domácnosť",
-              "Jednoduchá objednávka online",
-            ].map((title) => (
-              <CarouselItem key={title} className="basis-full">
-                <div className="flex h-110 items-center justify-center rounded-lg border bg-card p-4 text-sm font-medium">
-                  {title}
+              { title: "Rýchla tlač do 24 hodín", subtitle: "Expresné dodanie po celom Slovensku" },
+              { title: "Obľúbené produkty pre domácnosť", subtitle: "Vizitky, letáky, kalendáre a viac" },
+              { title: "Jednoduchá objednávka online", subtitle: "Bez zbytočných formalít" },
+            ].map((item) => (
+              <CarouselItem key={item.title} className="basis-full">
+                <div className="group relative overflow-hidden rounded-lg border bg-card p-8 transition-all duration-300 hover:border-primary/50 hover:shadow-lg sm:p-12">
+                  <div className="absolute inset-0 paper-texture opacity-20" />
+                  <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl transition-transform duration-500 group-hover:scale-150" />
+                  <div className="relative space-y-2">
+                    <h2 className="font-display text-2xl font-bold sm:text-3xl">{item.title}</h2>
+                    <p className="text-muted-foreground">{item.subtitle}</p>
+                  </div>
                 </div>
               </CarouselItem>
             ))}
           </CarouselContent>
         </Carousel>
-              <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Tlač pre každý deň</h1>
-          <p className="text-muted-foreground">
+
+        {/* Heading section */}
+        <div className="space-y-4 border-l-4 border-primary pl-6">
+          <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+            Tlač pre každý deň
+          </h1>
+          <p className="text-lg text-muted-foreground">
             Vyberte si z rýchlych tlačových služieb pre domácnosť aj školu.
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button asChild className="sm:w-auto">
-            <Link href="/catalog">Prejsť do katalógu</Link>
+
+        {/* CTA buttons */}
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <Button asChild size="lg" className="group ink-spread">
+            <Link href="/catalog">
+              Prejsť do katalógu
+              <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
+            </Link>
           </Button>
-          <Button asChild variant="outline" className="sm:w-auto">
+          <Button asChild variant="outline" size="lg" className="print-frame">
             <Link href="/kontaktujte-nas">Kontaktujte nás</Link>
           </Button>
         </div>
       </section>
       
       <TopProductsClient audience="b2c" />
-    </>
+    </div>
   )
 }

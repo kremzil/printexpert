@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { XIcon } from "lucide-react"
 
@@ -283,37 +290,38 @@ export function ProductMatrixDialog({
                   <TabsContent key={slot.id} value={slot.id}>
                     <div className="space-y-3">
                       <div className="space-y-2">
-                        <select
-                          id={`matrix-attribute-${slot.id}`}
-                          className={selectClassName}
+                        <Select
                           value={
                             slot.attributeId ? String(slot.attributeId) : ""
                           }
-                          onChange={(event) => {
-                            const nextValue = event.target.value
+                          onValueChange={(value) => {
                             handleSelectAttribute(
                               slot.id,
-                              nextValue ? Number(nextValue) : null
+                              value ? Number(value) : null
                             )
                           }}
                         >
-                          <option value="">Vyberte vlastnosť…</option>
-                          {attributes.map(({ attribute }) => {
-                            const attributeLabel =
-                              attribute.attributeLabel || attribute.attributeName
-                            const isTaken =
-                              takenAttributeIds.has(attribute.attributeId)
-                            return (
-                              <option
-                                key={attribute.attributeId}
-                                value={attribute.attributeId}
-                                disabled={isTaken}
-                              >
-                                {attributeLabel}
-                              </option>
-                            )
-                          })}
-                        </select>
+                          <SelectTrigger id={`matrix-attribute-${slot.id}`}>
+                            <SelectValue placeholder="Vyberte vlastnosť…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {attributes.map(({ attribute }) => {
+                              const attributeLabel =
+                                attribute.attributeLabel || attribute.attributeName
+                              const isTaken =
+                                takenAttributeIds.has(attribute.attributeId)
+                              return (
+                                <SelectItem
+                                  key={attribute.attributeId}
+                                  value={String(attribute.attributeId)}
+                                  disabled={isTaken}
+                                >
+                                  {attributeLabel}
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="space-y-2">
@@ -380,15 +388,11 @@ export function ProductMatrixDialog({
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="matrix-kind">Typ matice</Label>
-              <select
-                id="matrix-kind"
-                name="kind"
-                className={selectClassName}
+              <Select
                 value={kind}
-                onChange={(event) => {
-                  const nextKind = event.target.value
-                  setKind(nextKind)
-                  if (nextKind === "finishing") {
+                onValueChange={(value) => {
+                  setKind(value)
+                  if (value === "finishing") {
                     setAttributeSlots((slots) => slots.slice(0, 1))
                     setActiveSlotId((current) =>
                       current === "slot-1" ? current : "slot-1"
@@ -397,24 +401,33 @@ export function ProductMatrixDialog({
                   }
                 }}
               >
-                <option value="simple">Základná</option>
-                <option value="finishing">Dokončovacia</option>
-              </select>
+                <SelectTrigger id="matrix-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="simple">Základná</SelectItem>
+                  <SelectItem value="finishing">Dokončovacia</SelectItem>
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="kind" value={kind} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="matrix-num-type">Typ množstva</Label>
-              <select
-                id="matrix-num-type"
-                name="numType"
-                className={selectClassName}
+              <Select
                 value={numType}
-                onChange={(event) => setNumType(event.target.value)}
+                onValueChange={setNumType}
               >
-                <option value="0">Fixná</option>
-                <option value="2">Plocha (šírka × výška)</option>
-                <option value="3">Obvod</option>
-                <option value="4">Šírka × 2</option>
-              </select>
+                <SelectTrigger id="matrix-num-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Fixná</SelectItem>
+                  <SelectItem value="2">Plocha (šírka × výška)</SelectItem>
+                  <SelectItem value="3">Obvod</SelectItem>
+                  <SelectItem value="4">Šírka × 2</SelectItem>
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="numType" value={numType} />
             </div>
           </div>
 

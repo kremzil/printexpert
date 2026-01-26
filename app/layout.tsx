@@ -1,16 +1,22 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Inter } from "next/font/google"
+import { Playfair_Display, Work_Sans, Geist_Mono } from "next/font/google"
 import { Suspense } from "react"
 
 import { AudienceFooterNote } from "@/components/audience-footer-note"
 import { SiteHeader } from "@/components/site-header"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
+const workSans = Work_Sans({ 
+  subsets: ["latin"], 
+  variable: "--font-sans",
+  display: "swap",
+})
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const playfairDisplay = Playfair_Display({
+  variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "700", "900"],
 })
 
 const geistMono = Geist_Mono({
@@ -29,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="sk" className={inter.variable}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         <div className="flex min-h-screen flex-col">
           <a
             href="#main-content"
@@ -47,9 +53,9 @@ export default function RootLayout({
           >
             {children}
           </main>
-          <footer className="border-t">
-            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 text-sm text-muted-foreground">
-              <span>© PrintExpert</span>
+          <footer className="border-t bg-muted/30">
+            <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 text-sm text-muted-foreground">
+              <span className="font-display text-base font-semibold text-foreground">© PrintExpert</span>
               <Suspense fallback={null}>
                 <AudienceFooterNote />
               </Suspense>

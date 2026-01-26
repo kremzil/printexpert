@@ -49,79 +49,213 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Paper White base */
+  --background: oklch(0.99 0.003 90);
+  --foreground: oklch(0.15 0.01 270);
+  
+  /* Card с текстурой бумаги */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.15 0.01 270);
+  
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.646 0.222 41.116);
-  --primary-foreground: oklch(0.98 0.016 73.684);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.837 0.128 66.29);
-  --chart-2: oklch(0.705 0.213 47.604);
-  --chart-3: oklch(0.646 0.222 41.116);
-  --chart-4: oklch(0.553 0.195 38.402);
-  --chart-5: oklch(0.47 0.157 37.304);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.646 0.222 41.116);
-  --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.15 0.01 270);
+  
+  /* Ink Blue - основной акцент (индиго чернила) */
+  --primary: oklch(0.45 0.18 265);
+  --primary-foreground: oklch(0.99 0.003 90);
+  
+  /* Subtle gray для вторичных элементов */
+  --secondary: oklch(0.96 0.005 270);
+  --secondary-foreground: oklch(0.25 0.01 270);
+  
+  /* Muted - тёплый серый */
+  --muted: oklch(0.95 0.008 85);
+  --muted-foreground: oklch(0.50 0.01 270);
+  
+  /* Accent - Cyan Ink (второй акцент) */
+  --accent: oklch(0.88 0.08 210);
+  --accent-foreground: oklch(0.15 0.01 270);
+  
+  --destructive: oklch(0.55 0.22 25);
+  
+  /* Тонкие границы */
+  --border: oklch(0.90 0.005 270);
+  --input: oklch(0.92 0.005 270);
+  --ring: oklch(0.45 0.18 265);
+  
+  /* Charts - монохромная гамма с акцентами */
+  --chart-1: oklch(0.45 0.18 265);
+  --chart-2: oklch(0.60 0.12 210);
+  --chart-3: oklch(0.35 0.15 270);
+  --chart-4: oklch(0.70 0.08 200);
+  --chart-5: oklch(0.55 0.10 250);
+  
+  /* Минимальный радиус для строгости */
+  --radius: 0.25rem;
+  
+  --sidebar: oklch(0.98 0.005 270);
+  --sidebar-foreground: oklch(0.15 0.01 270);
+  --sidebar-primary: oklch(0.45 0.18 265);
+  --sidebar-primary-foreground: oklch(0.99 0.003 90);
+  --sidebar-accent: oklch(0.95 0.008 85);
+  --sidebar-accent-foreground: oklch(0.25 0.01 270);
+  --sidebar-border: oklch(0.90 0.005 270);
+  --sidebar-ring: oklch(0.45 0.18 265);
+  
+  /* Editorial типография */
+  --font-sans: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.705 0.213 47.604);
-  --primary-foreground: oklch(0.98 0.016 73.684);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.837 0.128 66.29);
-  --chart-2: oklch(0.705 0.213 47.604);
-  --chart-3: oklch(0.646 0.222 41.116);
-  --chart-4: oklch(0.553 0.195 38.402);
-  --chart-5: oklch(0.47 0.157 37.304);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.705 0.213 47.604);
-  --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Ink Black base */
+  --background: oklch(0.12 0.01 270);
+  --foreground: oklch(0.96 0.005 90);
+  
+  --card: oklch(0.18 0.01 270);
+  --card-foreground: oklch(0.96 0.005 90);
+  
+  --popover: oklch(0.18 0.01 270);
+  --popover-foreground: oklch(0.96 0.005 90);
+  
+  /* Светлый индиго для тёмной темы */
+  --primary: oklch(0.65 0.15 250);
+  --primary-foreground: oklch(0.12 0.01 270);
+  
+  --secondary: oklch(0.22 0.01 270);
+  --secondary-foreground: oklch(0.96 0.005 90);
+  
+  --muted: oklch(0.25 0.01 270);
+  --muted-foreground: oklch(0.65 0.01 270);
+  
+  /* Cyan accent для dark mode */
+  --accent: oklch(0.45 0.12 210);
+  --accent-foreground: oklch(0.96 0.005 90);
+  
+  --destructive: oklch(0.65 0.20 25);
+  
+  --border: oklch(0.30 0.01 270);
+  --input: oklch(0.28 0.01 270);
+  --ring: oklch(0.65 0.15 250);
+  
+  --chart-1: oklch(0.65 0.15 250);
+  --chart-2: oklch(0.70 0.12 210);
+  --chart-3: oklch(0.55 0.15 270);
+  --chart-4: oklch(0.75 0.08 200);
+  --chart-5: oklch(0.60 0.10 230);
+  
+  --sidebar: oklch(0.18 0.01 270);
+  --sidebar-foreground: oklch(0.96 0.005 90);
+  --sidebar-primary: oklch(0.65 0.15 250) antialiased;
+  
+  
+  /* Editorial Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  
+  /* Плавные переходы для всех интерактивных элементов */
+  a, button, [role="button"] {
+    @apply transition-all duration-200 ease-out;
+  }
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+/* Текстура бумаги для карточек */
+@layer utilities {
+  .paper-texture {
+    background-image: 
+      linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px),
+      linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
-  body {
-    @apply bg-background text-foreground;
+  
+  .ink-gradient {
+    background: linear-gradient(135deg, 
+      oklch(0.45 0.18 265) 0%, 
+      oklch(0.60 0.12 210) 100%
+    );
+  }
+
+  
+  /* Эффект чернил при hover */
+  .ink-spread {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .ink-spread::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: oklch(0.45 0.18 265 / 0.1);
+    transform: scale(0);
+    transition: transform 0.4s ease-out;
+    border-radius: inherit;
+  }
+  
+  .ink-spread:hover::before {
+    transform: scale(1);
+  }
+  
+  /* Типографская рамка */
+  .print-frame {
+    position: relative;
+  }
+  
+  .print-frame::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border: 2px solid oklch(0.45 0.18 265);
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+    pointer-events: none;
+  }
+  
+  .print-frame:hover::before {
+    opacity: 1;
+  }
+  
+  /* Анимация появления элементов */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+  }
+  
+  /* Staggered animation для списков */
+  .stagger-item {
+    animation: fadeInUp 0.6s ease-out backwards;
+  }
+  
+  .stagger-item:nth-child(1) { animation-delay: 0.1s; }
+  .stagger-item:nth-child(2) { animation-delay: 0.2s; }
+  .stagger-item:nth-child(3) { animation-delay: 0.3s; }
+  .stagger-item:nth-child(4) { animation-delay: 0.4s; }
+  .stagger-item:nth-child(5) { animation-delay: 0.5s; }
+  .stagger-item:nth-child(6) { animation-delay: 0.6s; }
+  
+  /* Логотип меньше на мобилках */
+  @media (max-width: 768px) {
+    .site-header-logo img {
+      width: 130px !important;
+      height: 29px !important;
+    }
+  }
+  
+  /* Уменьшение логотипа при скролле */
+  [data-scrolled="true"] .site-header-logo img {
+    transform: scale(0.9);
   }
 }

@@ -27,16 +27,41 @@ async function HomeContent({
 
 if (isFirstVisit) {
   return (
-    <section className="relative">
-      <div className="h-[60vh] sm:h-[70vh] flex items-center justify-center bg-linear-to-r from-indigo-600 via-violet-600 to-pink-600 text-white">
-        <div className="max-w-4xl text-center px-6">
-          <h1 className="text-3xl sm:text-5xl font-extrabold leading-tight">
-            Online tlačiareň pre celé Slovensko – rýchla a kvalitná tlač pre firmy, živnostníkov aj domácnosti
-          </h1>
+    <section className="relative -mt-8">
+      {/* Hero Section с Editorial стилем */}
+      <div className="relative overflow-hidden border-b bg-gradient-to-br from-background via-accent/5 to-background">
+        <div className="absolute inset-0 paper-texture opacity-40" />
+        <div className="relative mx-auto max-w-5xl px-6 py-20 sm:py-32">
+          <div className="space-y-8 text-center">
+            <div className="inline-block">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary backdrop-blur-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+                </span>
+                Online tlačiareň pre celé Slovensko
+              </div>
+            </div>
+            <h1 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
+              Rýchla a kvalitná tlač
+              <br />
+              <span className="ink-gradient bg-clip-text text-transparent">
+                pre firmy aj domácnosti
+              </span>
+            </h1>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
+              Profesionálne tlačové služby s dodaním do 24 hodín. Moderná technológia, 
+              skvelé ceny a jednoduchá objednávka online.
+            </p>
+          </div>
         </div>
+        
+        {/* Geometrické dekorácie */}
+        <div className="absolute left-0 top-0 h-px w-32 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        <div className="absolute bottom-0 right-0 h-px w-32 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
       </div>
 
-      <div className="mt-8 px-4">
+      <div className="mx-auto max-w-5xl px-6 py-12">
         <AudienceModeCards />
       </div>
     </section>

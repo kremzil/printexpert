@@ -47,38 +47,55 @@ export function AudienceModeCards({ redirectTo }: Props) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="rounded-2xl border bg-card p-6">
-        <h2 className="text-lg font-semibold">Som súkromná osoba</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Jednoduchá objednávka, rýchla kalkulácia a hotové produkty.
-        </p>
-        <Button
-          className="mt-4 w-full"
-          disabled={isPending}
-          onClick={() => pick("b2c")}
-        >
-          Pokračovať ako súkromná osoba
-        </Button>
+    <div className="grid gap-6 sm:grid-cols-2">
+      {/* B2C Card */}
+      <div className="group relative overflow-hidden rounded-lg border border-primary/20 bg-card p-8 transition-all duration-300 hover:border-primary hover:shadow-xl">
+        <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-primary/10 blur-3xl transition-all duration-500 group-hover:scale-150" />
+        <div className="relative space-y-4">
+          <div className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            Pre jednotlivcov
+          </div>
+          <h2 className="font-display text-2xl font-bold">Som súkromná osoba</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Jednoduchá objednávka, rýchla kalkulácia a hotové produkty.
+          </p>
+          <Button
+            size="lg"
+            className="group/btn mt-6 w-full ink-spread"
+            disabled={isPending}
+            onClick={() => pick("b2c")}
+          >
+            Pokračovať ako súkromná osoba
+            <span className="ml-2 transition-transform duration-200 group-hover/btn:translate-x-1">→</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="rounded-2xl border bg-card p-6">
-        <h2 className="text-lg font-semibold">Som z firmy</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Individuálny prístup, cenové ponuky a podpora pre firmy.
-        </p>
-        <Button
-          variant="outline"
-          className="mt-4 w-full"
-          disabled={isPending}
-          onClick={() => pick("b2b")}
-        >
-          Pokračovať ako firma
-        </Button>
+      {/* B2B Card */}
+      <div className="group relative overflow-hidden rounded-lg border border-primary/20 bg-card p-8 transition-all duration-300 hover:border-primary hover:shadow-xl">
+        <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-accent/10 blur-3xl transition-all duration-500 group-hover:scale-150" />
+        <div className="relative space-y-4">
+          <div className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-foreground">
+            Pre firmy
+          </div>
+          <h2 className="font-display text-2xl font-bold">Som z firmy</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Individuálny prístup, cenové ponuky a podpora pre firmy.
+          </p>
+          <Button
+            variant="outline"
+            size="lg"
+            className="mt-6 w-full print-frame"
+            disabled={isPending}
+            onClick={() => pick("b2b")}
+          >
+            Pokračovať ako firma
+          </Button>
+        </div>
       </div>
 
       {error && (
-        <p className="text-sm text-destructive sm:col-span-2" aria-live="polite">
+        <p className="text-sm font-medium text-destructive sm:col-span-2" aria-live="polite">
           {error}
         </p>
       )}

@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation"
 import { ShoppingCart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type PriceResult = {
   net: number
@@ -659,28 +666,32 @@ export function PriceCalculatorLetaky({
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {matrix.selects.map((select) => (
-                  <label key={select.aid} className="space-y-2 text-sm font-medium">
-                    {select.label}
-                    <select
+                  <div key={select.aid} className="space-y-2">
+                    <label className="text-sm font-medium">{select.label}</label>
+                    <Select
                       value={selections[matrix.mtid]?.[select.aid] ?? ""}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         setSelections((current) => ({
                           ...current,
                           [matrix.mtid]: {
                             ...(current[matrix.mtid] ?? {}),
-                            [select.aid]: event.target.value,
+                            [select.aid]: value,
                           },
                         }))
                       }
-                      className="w-full rounded-md border px-3 py-2 text-sm"
                     >
-                      {select.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Vyberte…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {select.options.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 ))}
               </div>
             )}
