@@ -45,7 +45,7 @@ if (isFirstVisit) {
             <h1 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
               Rýchla a kvalitná tlač
               <br />
-              <span className="ink-gradient bg-clip-text text-transparent">
+              <span className="ink-gradient">
                 pre firmy aj domácnosti
               </span>
             </h1>

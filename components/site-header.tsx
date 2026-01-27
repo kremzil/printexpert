@@ -49,6 +49,9 @@ async function AudienceBadge() {
 
 async function AudienceHeaderSwitch() {
   const audienceContext = await resolveAudienceContext()
+  if (audienceContext.source === "default") {
+    return null
+  }
   return <AudienceModeSwitch initialAudience={audienceContext.audience} />
 }
 

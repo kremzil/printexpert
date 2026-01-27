@@ -48,7 +48,7 @@ export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps)
       <span 
         className={cn(
           "text-xs font-medium transition-colors flex items-center gap-1.5",
-          !checked ? "text-[#0a1833] font-bold" : "text-muted-foreground"
+          !checked ? "text-[#e43b11] font-bold" : "text-muted-foreground"
         )}
       >
         <User className="h-3.5 w-3.5" />
@@ -61,7 +61,7 @@ export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps)
         disabled={isPending}
         aria-label="Audience mode"
         className={cn(
-            "data-[state=checked]:bg-[#e43b11] data-[state=unchecked]:bg-[#0a1833]",
+            "data-[state=checked]:bg-[#0a1833] data-[state=unchecked]:bg-[#e43b11]",
             "border-2 border-transparent hover:border-border/20"
         )}
       />
@@ -69,7 +69,7 @@ export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps)
       <span 
         className={cn(
           "text-xs font-medium transition-colors flex items-center gap-1.5",
-          checked ? "text-[#e43b11] font-bold" : "text-muted-foreground"
+          checked ? "text-[#0a1833] font-bold" : "text-muted-foreground"
         )}
       >
         <Building2 className="h-3.5 w-3.5" />
