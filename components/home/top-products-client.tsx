@@ -55,11 +55,11 @@ export default function TopProductsClient({ audience }: TopProductsClientProps) 
   return (
     <section className="py-16 px-4">
       <div className="container mx-auto">
-        <div className="mb-8 space-y-4">
+        <div className="mb-12 space-y-4 text-center">
           <h2 className="text-3xl font-bold tracking-tight">
             Top produkty pre online tlač
           </h2>
-          <p className="text-muted-foreground max-w-3xl">
+          <p className="mx-auto text-muted-foreground max-w-3xl">
             Vitajte vo svete reklamy, kde sa inovácie stretávajú s dokonalosťou. 
             Naša spoločnosť je expertom na poskytovanie reklamných systémov a riešení, 
             ktoré premieňajú vašu víziu na skutočnosť. Naše rozsiahle portfólio zahŕňa 

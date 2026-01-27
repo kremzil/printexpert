@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { CatalogSidebar } from "@/components/catalog/catalog-sidebar"
 import ProductCard from "@/components/product/product-card"
 import { getCategories, getProducts } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
@@ -82,11 +83,9 @@ async function CatalogContent({
     ? childrenByParentId.get(selectedCategory.id) ?? []
     : []
   const selectedSlugs =
-    selectedCategory && selectedChildren.length > 0
+    selectedCategory
       ? [selectedCategory.slug, ...selectedChildren.map((child) => child.slug)]
-      : selectedCategory
-        ? [selectedCategory.slug]
-        : undefined
+      : undefined
   const audienceContext = await resolveAudienceContext({
     searchParams: resolvedSearchParams,
   })
@@ -104,7 +103,7 @@ async function CatalogContent({
       : "Všetky produkty"
 
   return (
-    <section className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-2">
         <Breadcrumb className="w-fit text-xs">
           <BreadcrumbList>
@@ -119,80 +118,50 @@ async function CatalogContent({
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <h1 className="text-2xl font-semibold">Katalóg</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Katalóg</h1>
         <p className="text-muted-foreground">
           Kompletný prehľad našich produktov podľa kategórie.
         </p>
       </div>
-      <div className="space-y-3">
-        <Button
-          asChild
-          size="sm"
-          variant={activeCategory ? "outline" : "default"}
-        >
-          <Link href="/catalog">Všetky</Link>
-        </Button>
-        {rootCategories.map((category) => {
-          const children = childrenByParentId.get(category.id) ?? []
-          const isActiveParent =
-            activeCategory?.slug === category.slug ||
-            children.some((child) => child.slug === activeCategory?.slug)
 
-          return (
-            <div key={category.slug} className="flex flex-wrap items-center gap-2">
-              <Button
-                asChild
-                size="sm"
-                variant={isActiveParent ? "default" : "outline"}
-              >
-                <Link href={`/catalog?cat=${category.slug}`}>
-                  {category.name}
-                </Link>
-              </Button>
-              {children.map((child) => {
-                const isActive = activeCategory?.slug === child.slug
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <aside className="w-full shrink-0 lg:w-64 lg:sticky lg:top-24">
+          <div className="rounded-xl border bg-card">
+            <CatalogSidebar categories={categories} />
+          </div>
+        </aside>
 
-                return (
-                  <Button
-                    key={child.slug}
-                    asChild
-                    size="sm"
-                    variant={isActive ? "default" : "outline"}
-                  >
-                    <Link href={`/catalog?cat=${child.slug}`}>
-                      {child.name}
-                    </Link>
-                  </Button>
-                )
+        <div className="flex-1 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Kategória:</span>
+              <span className="font-semibold text-foreground">
+                {activeCategoryLabel}
+              </span>
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {filteredProducts.length} produktov
+            </span>
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground">
+                <p>Nenašli sme produkty v tejto kategórii.</p>
+                <Button variant="link" asChild className="mt-2">
+                  <Link href="/catalog">Zobraziť všetky produkty</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {filteredProducts.map((product) => {
+                return <ProductCard key={product.slug} product={product} />
               })}
             </div>
-          )
-        })}
-      </div>
-      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-        <span>
-          Aktívna kategória:{" "}
-          <span className="font-medium text-foreground">
-            {activeCategoryLabel}
-          </span>
-        </span>
-        <span>{filteredProducts.length} produktov</span>
-      </div>
-      {filteredProducts.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="py-8 text-sm text-muted-foreground">
-            Nenašli sme produkty v tejto kategórii. Skúste filter &quot;Všetky&quot;.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredProducts.map((product) => {
-            return (
-              <ProductCard key={product.slug} product={product} />
-            )
-          })}
+          )}
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   )
 }

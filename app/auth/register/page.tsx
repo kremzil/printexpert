@@ -5,7 +5,7 @@ import { RegisterForm } from "../register-form"
 export default function RegisterPage() {
   return (
     <div className="flex min-h-[calc(100vh-140px)] w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-[400px] flex flex-col gap-6">
+      <div className="w-full max-w-100 flex flex-col gap-6">
         <div className="flex flex-col items-center text-center space-y-2">
             <div className="rounded-full bg-primary/10 p-3 mb-2">
                 <Image 

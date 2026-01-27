@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import { PriceCalculatorLetaky } from "@/components/product/price-calculator-letaky"
+import { ProductGallery } from "@/components/product/product-gallery"
 import { Badge } from "@/components/ui/badge"
 import {
   Breadcrumb,
@@ -102,36 +103,8 @@ async function ProductDetails({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="space-y-4">
-          <div className="relative aspect-4/5 w-full overflow-hidden rounded-xl border bg-muted/30">
-            <Image
-              src={primaryImage.url}
-              alt={primaryImage.alt ?? product.name}
-              fill
-              className="object-contain"
-              sizes="(min-width: 1024px) 560px, 100vw"
-            />
-          </div>
-          {product.images.length > 1 ? (
-            <div className="grid grid-cols-4 gap-3">
-              {product.images.slice(0, 4).map((image, index) => (
-                <div
-                  key={`${image.url}-${index}`}
-                  className="relative aspect-square overflow-hidden rounded-md border bg-muted/30"
-                >
-                  <Image
-                    src={image.url}
-                    alt={image.alt ?? product.name}
-                    fill
-                    className="object-cover"
-                    sizes="(min-width: 1024px) 120px, 25vw"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16">
+        <ProductGallery images={product.images} productName={product.name} />
 
         <div className="space-y-6">
           <div className="space-y-3">
@@ -169,10 +142,10 @@ async function ProductDetails({
       </div>
 
       {descriptionHtml ? (
-        <div className="space-y-3">
+        <div className="space-y-4 pt-8 border-t">
           <h2 className="text-2xl font-semibold">Popis</h2>
           <div
-            className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-md [&_iframe]:border-0 [&_video]:w-full [&_video]:rounded-md"
+            className="prose prose-neutral dark:prose-invert max-w-4xl [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-md [&_iframe]:border-0 [&_video]:w-full [&_video]:rounded-md"
             dangerouslySetInnerHTML={{ __html: descriptionHtml }}
           />
         </div>

@@ -77,7 +77,7 @@ export function RegisterForm() {
 
     if (status === "success") {
         return (
-            <Card className="border-border/60 shadow-xl w-full max-w-[400px]">
+            <Card className="border-border/60 shadow-xl w-full max-w-100">
                 <CardHeader>
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                         <CheckCircle2 className="h-6 w-6" />
@@ -102,7 +102,7 @@ export function RegisterForm() {
     }
 
     return (
-        <Card className="border-border/60 shadow-xl w-full max-w-[400px]">
+        <Card className="border-border/60 shadow-xl w-full max-w-100">
              <CardHeader className="pb-4">
                 <CardTitle>Rýchla registrácia</CardTitle>
                 <CardDescription>

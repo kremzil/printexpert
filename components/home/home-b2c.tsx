@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import Autoplay from "embla-carousel-autoplay"
 import dynamic from "next/dynamic"
@@ -10,6 +11,8 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel"
+import { WhyChooseUsB2C } from "@/components/home/why-choose-us-b2c"
+import { FaqB2C } from "@/components/home/faq-b2c"
 
 const TopProductsClient = dynamic(
   () => import("@/components/home/top-products-client"),
@@ -51,17 +54,17 @@ export function HomeB2C() {
         </Carousel>
 
         {/* Heading section */}
-        <div className="space-y-4 border-l-4 border-primary pl-6">
+        <div className="space-y-4 text-center pt-8">
           <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
             Tlač pre každý deň
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="mx-auto text-lg text-muted-foreground max-w-2xl">
             Vyberte si z rýchlych tlačových služieb pre domácnosť aj školu.
           </p>
         </div>
 
         {/* CTA buttons */}
-        <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button asChild size="lg" className="group ink-spread">
             <Link href="/catalog">
               Prejsť do katalógu
@@ -75,6 +78,10 @@ export function HomeB2C() {
       </section>
       
       <TopProductsClient audience="b2c" />
+
+      <WhyChooseUsB2C />
+
+      <FaqB2C />
     </div>
   )
 }

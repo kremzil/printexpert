@@ -58,7 +58,7 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur shadow-md supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex max-w-7xl flex-col">
+      <div className="mx-auto flex max-w-[1600px] flex-col">
         <div 
           className={`flex items-center justify-between gap-4 px-4 transition-all duration-300 ${
             isScrolled ? 'h-16' : 'h-20'
