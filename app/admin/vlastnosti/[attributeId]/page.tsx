@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getPrisma } from "@/lib/prisma"
-import { createTerm, deleteTerm } from "./actions"
+import { createTerm, deleteTerm, updateTermOrder } from "./actions"
 
 type AdminPropertyPageProps = {
   params: Promise<{
@@ -36,14 +36,21 @@ async function getAttributeDetails(attributeId: number) {
     where: { taxonomy },
   })
   const termIds = termTaxonomies.map((row) => row.termId)
-  const terms = termIds.length
-    ? await prisma.wpTerm.findMany({
-        where: { termId: { in: termIds } },
-        orderBy: [{ name: "asc" }],
-      })
-    : []
+  const [terms, termMeta] = await Promise.all([
+    termIds.length
+      ? prisma.wpTerm.findMany({
+          where: { termId: { in: termIds } },
+          orderBy: [{ name: "asc" }],
+        })
+      : [],
+    termIds.length
+      ? prisma.wpTermMeta.findMany({
+          where: { termId: { in: termIds }, metaKey: { startsWith: "order" } },
+        })
+      : [],
+  ])
 
-  return { attribute, termTaxonomies, terms, taxonomy }
+  return { attribute, termTaxonomies, terms, termMeta, taxonomy }
 }
 
 export default async function AdminPropertyPage({
@@ -74,7 +81,7 @@ async function AdminPropertyDetails({
   paramsPromise: AdminPropertyPageProps["params"]
 }) {
   const { attributeId } = await paramsPromise
-  const { attribute, termTaxonomies, terms, taxonomy } =
+  const { attribute, termTaxonomies, terms, termMeta, taxonomy } =
     await getAttributeDetails(Number(attributeId))
 
   if (!attribute) {
@@ -82,6 +89,25 @@ async function AdminPropertyDetails({
   }
 
   const termById = new Map(terms.map((term) => [term.termId, term]))
+  const termOrderByKey = new Map<string, number>()
+  const parseOrder = (value: string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return null
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  termMeta.forEach((row) => {
+    const order = parseOrder(row.metaValue)
+    if (order === null) return
+    termOrderByKey.set(`${row.termId}:${row.metaKey}`, order)
+  })
+  const getTermOrder = (termId: number) => {
+    const key = `${termId}:order_pa_${attribute.attributeName}`
+    const value = termOrderByKey.get(key)
+    if (value !== undefined) {
+      return value
+    }
+    return termOrderByKey.get(`${termId}:order`) ?? null
+  }
 
   return (
     <section className="space-y-6">
@@ -152,13 +178,25 @@ async function AdminPropertyDetails({
                     <tr className="border-b">
                       <th className="px-2 py-2 font-medium">Názov</th>
                       <th className="px-2 py-2 font-medium">Slug</th>
+                      <th className="px-2 py-2 font-medium">Poradie</th>
                       <th className="px-2 py-2 font-medium">ID</th>
                       <th className="px-2 py-2 text-right font-medium">Akcia</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {termTaxonomies.map((row) => {
-                      const term = termById.get(row.termId)
+                    {termTaxonomies
+                      .map((row) => ({
+                        row,
+                        term: termById.get(row.termId),
+                        order: getTermOrder(row.termId),
+                      }))
+                      .sort((a, b) => {
+                        const orderA = a.order ?? Number.MAX_SAFE_INTEGER
+                        const orderB = b.order ?? Number.MAX_SAFE_INTEGER
+                        if (orderA !== orderB) return orderA - orderB
+                        return (a.term?.name ?? "").localeCompare(b.term?.name ?? "")
+                      })
+                      .map(({ row, term, order }) => {
                       return (
                         <tr key={row.termTaxonomyId} className="border-b last:border-b-0">
                           <td className="px-2 py-2 font-medium">
@@ -166,6 +204,27 @@ async function AdminPropertyDetails({
                           </td>
                           <td className="px-2 py-2 text-muted-foreground">
                             {term?.slug ?? "—"}
+                          </td>
+                          <td className="px-2 py-2 text-muted-foreground">
+                            <form
+                              action={updateTermOrder.bind(null, {
+                                attributeId: attribute.attributeId,
+                                attributeName: attribute.attributeName,
+                                termId: row.termId,
+                              })}
+                              className="flex items-center gap-2"
+                            >
+                              <Input
+                                name="order"
+                                type="number"
+                                inputMode="numeric"
+                                defaultValue={order ?? ""}
+                                className="h-8 w-20"
+                              />
+                              <Button size="xs" variant="outline" type="submit">
+                                Uložiť
+                              </Button>
+                            </form>
                           </td>
                           <td className="px-2 py-2 text-muted-foreground">
                             {row.termId}

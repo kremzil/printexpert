@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ShoppingCart } from "lucide-react"
 
@@ -37,6 +37,8 @@ type Matrix = {
   kind: "simple" | "finishing"
   mtid: string
   ntp: string
+  numStyle: string | null
+  aUnit: string | null
   material: string | null
   selects: MatrixSelect[]
   isActive: boolean
@@ -85,6 +87,27 @@ function parseNumber(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function resolveAreaUnit(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === "m2" || normalized === "m²") {
+      return "m2"
+    }
+    if (normalized === "cm2" || normalized === "cm²") {
+      return "cm2"
+    }
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === "number") {
+    return value
+  }
+  return null
+}
+
 function parseBreakpoints(value: string | null | undefined) {
   if (!value) {
     return []
@@ -110,17 +133,25 @@ function normalizeDimensions(
   width: number,
   height: number,
   dimUnit: string,
-  aUnit: number
+  aUnit: string | number
 ) {
+  const isMeters =
+    typeof aUnit === "string" ? aUnit.toLowerCase() === "m2" : aUnit !== 1
+
   if (dimUnit === "cm") {
-    if (aUnit !== 1) {
+    if (isMeters) {
       return { width: width / 100, height: height / 100 }
     }
     return { width, height }
   }
 
   if (dimUnit === "mm") {
-    return { width: width / 10, height: height / 10 }
+    const widthCm = width / 10
+    const heightCm = height / 10
+    if (isMeters) {
+      return { width: widthCm / 100, height: heightCm / 100 }
+    }
+    return { width: widthCm, height: heightCm }
   }
 
   return { width, height }
@@ -132,7 +163,7 @@ function calculateQuantity(
   height: number | null,
   ntp: number,
   dimUnit: string,
-  aUnit: number
+  aUnit: string | number
 ) {
   if (ntp === 2 || ntp === 3 || ntp === 4) {
     if (width === null || height === null) {
@@ -236,6 +267,29 @@ export function PriceCalculatorLetaky({
   const minQuantity = parseNumber(data.globals.min_quantity) ?? 1
   const minWidth = parseNumber(data.globals.min_width) ?? 1
   const minHeight = parseNumber(data.globals.min_height) ?? 1
+  const baseMatrix =
+    data.matrices.find((matrix) => matrix.kind === "simple") ?? data.matrices[0]
+  const baseNumStyle = parseNumber(baseMatrix?.numStyle) ?? 0
+  const baseNumType = parseNumber(baseMatrix?.ntp) ?? 0
+  const baseBreakpoints = useMemo(() => {
+    if (!baseMatrix) {
+      return []
+    }
+    return parseBreakpoints(
+      getNumbersEntry(data.globals.numbers_array, baseMatrix.mtid)
+    ).sort((a, b) => a - b)
+  }, [baseMatrix, data.globals.numbers_array])
+  const useQuantitySelect =
+    baseNumStyle === 1 && baseNumType === 0 && baseBreakpoints.length > 0
+  const initialQuantity = useMemo(() => {
+    if (!useQuantitySelect || baseBreakpoints.length === 0) {
+      return minQuantity
+    }
+    const match =
+      baseBreakpoints.find((value) => value >= minQuantity) ??
+      baseBreakpoints[0]
+    return match ?? minQuantity
+  }, [baseBreakpoints, minQuantity, useQuantitySelect])
 
   const initialSelections = useMemo(() => {
     const selections: MatrixSelectionMap = {}
@@ -256,7 +310,7 @@ export function PriceCalculatorLetaky({
   }, [data.matrices])
 
   const [selections, setSelections] = useState(initialSelections)
-  const [quantity, setQuantity] = useState(minQuantity)
+  const [quantity, setQuantity] = useState(initialQuantity)
   const [width, setWidth] = useState<number | null>(
     hasAreaSizing ? minWidth : null
   )
@@ -275,8 +329,11 @@ export function PriceCalculatorLetaky({
   const router = useRouter()
 
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
-  const aUnit = parseNumber(data.globals.a_unit) ?? FALLBACK_A_UNIT
   const orderMinPrice = null
+
+  useEffect(() => {
+    setQuantity(initialQuantity)
+  }, [initialQuantity])
   const baseSizeEntry = useMemo(() => {
     const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
     if (!baseMatrix) {
@@ -367,13 +424,15 @@ export function PriceCalculatorLetaky({
         getNumbersEntry(data.globals.numbers_array, matrix.mtid)
       )
       const baseQuantity = quantity < minQuantity ? minQuantity : quantity
+      const matrixAUnit =
+        resolveAreaUnit(matrix.aUnit ?? data.globals.a_unit) ?? FALLBACK_A_UNIT
       const nmbVal = calculateQuantity(
         baseQuantity,
         width,
         height,
         ntp,
         dimUnit,
-        aUnit
+        matrixAUnit
       )
 
       if (nmbVal === null) {
@@ -435,6 +494,7 @@ export function PriceCalculatorLetaky({
     data.globals.fmatrix,
     data.globals.numbers_array,
     data.globals.smatrix,
+    data.globals.a_unit,
     data.matrices,
     baseSizeEntry,
     finishingHasSize,
@@ -445,7 +505,6 @@ export function PriceCalculatorLetaky({
     width,
     height,
     dimUnit,
-    aUnit,
   ])
 
   const total = useMemo(() => {
@@ -623,13 +682,31 @@ export function PriceCalculatorLetaky({
       <div className="grid gap-4">
         <label className="space-y-2 text-sm font-medium">
           Množstvo
-          <input
-            type="number"
-            min={minQuantity}
-            value={quantity}
-            onChange={(event) => setQuantity(Number(event.target.value))}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-          />
+          {useQuantitySelect ? (
+            <Select
+              value={String(quantity)}
+              onValueChange={(value) => setQuantity(Number(value))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Vyberte…" />
+              </SelectTrigger>
+              <SelectContent>
+                {baseBreakpoints.map((value) => (
+                  <SelectItem key={value} value={String(value)}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <input
+              type="number"
+              min={minQuantity}
+              value={quantity}
+              onChange={(event) => setQuantity(Number(event.target.value))}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+            />
+          )}
         </label>
         {hasAreaSizing ? (
           <div className="grid gap-4 sm:grid-cols-2">

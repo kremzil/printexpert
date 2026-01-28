@@ -15,6 +15,11 @@ type DeleteTermInput = {
   termId: number
   termTaxonomyId: number
 }
+type UpdateTermOrderInput = {
+  attributeId: number
+  attributeName: string
+  termId: number
+}
 
 const normalizeSlug = (value: string) =>
   value
@@ -106,6 +111,54 @@ export async function deleteTerm(input: DeleteTermInput) {
       })
     }
   })
+
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes", audienceTag)
+  revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
+}
+
+export async function updateTermOrder(
+  input: UpdateTermOrderInput,
+  formData: FormData
+) {
+  const prisma = getPrisma()
+  const orderRaw = String(formData.get("order") ?? "").trim()
+  const orderValue =
+    orderRaw === "" ? null : Number.isNaN(Number(orderRaw)) ? null : Number(orderRaw)
+
+  const metaKey = `order_pa_${input.attributeName}`
+  const existing = await prisma.wpTermMeta.findFirst({
+    where: { termId: input.termId, metaKey },
+    select: { metaId: true },
+    orderBy: { metaId: "desc" },
+  })
+
+  if (orderValue === null) {
+    if (existing?.metaId) {
+      await prisma.wpTermMeta.delete({
+        where: { metaId: existing.metaId },
+      })
+    }
+  } else if (existing?.metaId) {
+    await prisma.wpTermMeta.update({
+      where: { metaId: existing.metaId },
+      data: { metaValue: String(orderValue) },
+    })
+  } else {
+    const latestMeta = await prisma.wpTermMeta.findFirst({
+      orderBy: { metaId: "desc" },
+      select: { metaId: true },
+    })
+    const nextMetaId = (latestMeta?.metaId ?? 0) + 1
+    await prisma.wpTermMeta.create({
+      data: {
+        metaId: nextMetaId,
+        termId: input.termId,
+        metaKey,
+        metaValue: String(orderValue),
+      },
+    })
+  }
 
   const audienceTag = await getAudienceTag()
   updateTag("attributes", audienceTag)

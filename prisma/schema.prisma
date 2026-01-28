@@ -161,6 +161,7 @@ model PricingModel {
   breakpoints   Json
   numStyle      Int?
   numType       Int?
+  aUnit         String?
   meta          Json?
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
@@ -198,6 +199,7 @@ model WpMatrixType {
   numbers         String?
   numStyle        Int?
   numType         Int?
+  aUnit           String?
   bqNumbers       String?
   ltextAttr       Int?
   bookMinQuantity Int?

@@ -45,6 +45,8 @@ type MatrixDialogInitialValues = {
   slots: MatrixDialogSlot[]
   kind: "simple" | "finishing"
   numType: string
+  numStyle: string
+  aUnit: string
   numbers: string
 }
 
@@ -92,6 +94,8 @@ export function ProductMatrixDialog({
   )
   const [kind, setKind] = useState(initialValues?.kind ?? "simple")
   const [numType, setNumType] = useState(initialValues?.numType ?? "0")
+  const [numStyle, setNumStyle] = useState(initialValues?.numStyle ?? "0")
+  const [aUnit, setAUnit] = useState(initialValues?.aUnit ?? "cm2")
   const [numbers, setNumbers] = useState(initialValues?.numbers ?? "")
 
   const selectedAttributeLabels = useMemo(() => {
@@ -121,6 +125,8 @@ export function ProductMatrixDialog({
       setActiveSlotId(initialSlots[0]?.id ?? "slot-1")
       setKind(initialValues?.kind ?? "simple")
       setNumType(initialValues?.numType ?? "0")
+      setNumStyle(initialValues?.numStyle ?? "0")
+      setAUnit(initialValues?.aUnit ?? "cm2")
       setNumbers(initialValues?.numbers ?? "")
     }
   }
@@ -429,6 +435,33 @@ export function ProductMatrixDialog({
               </Select>
               <input type="hidden" name="numType" value={numType} />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="matrix-num-style">Štýl množstva</Label>
+              <Select value={numStyle} onValueChange={setNumStyle}>
+                <SelectTrigger id="matrix-num-style">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Vstup</SelectItem>
+                  <SelectItem value="1">Zoznam</SelectItem>
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="numStyle" value={numStyle} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="matrix-a-unit">Jednotka plochy</Label>
+            <Select value={aUnit} onValueChange={setAUnit}>
+              <SelectTrigger id="matrix-a-unit">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cm2">cm2</SelectItem>
+                <SelectItem value="m2">m2</SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="aUnit" value={aUnit} />
           </div>
 
           <div className="space-y-2">

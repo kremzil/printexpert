@@ -31,6 +31,8 @@ type Matrix = {
   isActive: boolean
   title: string | null
   ntp: string
+  numStyle: string | null
+  aUnit: string | null
   material: string | null
   selects: MatrixSelect[]
   prices: MatrixPriceEntry[]
@@ -218,12 +220,18 @@ export async function getWpCalculatorData(
     })
   }
 
-  const [attributes, terms] = await Promise.all([
+  const [attributes, terms, termMeta] = await Promise.all([
     prisma.wpAttributeTaxonomy.findMany({
       where: { attributeId: { in: Array.from(attributeIds).map(Number) } },
     }),
     prisma.wpTerm.findMany({
       where: { termId: { in: Array.from(termIds).map(Number) } },
+    }),
+    prisma.wpTermMeta.findMany({
+      where: {
+        termId: { in: Array.from(termIds).map(Number) },
+        metaKey: { startsWith: "order" },
+      },
     }),
   ])
 
@@ -231,6 +239,27 @@ export async function getWpCalculatorData(
     attributes.map((row) => [String(row.attributeId), row])
   )
   const termById = new Map(terms.map((row) => [String(row.termId), row]))
+  const termOrderByKey = new Map<string, number>()
+  const parseOrder = (value: string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return null
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  termMeta.forEach((row) => {
+    const order = parseOrder(row.metaValue)
+    if (order === null) return
+    termOrderByKey.set(`${row.termId}:${row.metaKey}`, order)
+  })
+  const getTermOrder = (termId: string, attributeName?: string | null) => {
+    if (attributeName) {
+      const key = `${termId}:order_pa_${attributeName}`
+      const value = termOrderByKey.get(key)
+      if (value !== undefined) {
+        return value
+      }
+    }
+    return termOrderByKey.get(`${termId}:order`) ?? null
+  }
 
   const numbersArray: Record<string, string> = {}
   const smatrix: Record<string, number> = {}
@@ -307,14 +336,26 @@ export async function getWpCalculatorData(
         : ""
 
       const termIdsList = toArray(atermsObj[String(aid)] ?? [])
-      const options = termIdsList.map((termId, index) => {
-        const term = termById.get(String(termId))
-        return {
-          value: String(termId),
-          label: term?.name ?? String(termId),
+      const options = termIdsList
+        .map((termId) => {
+          const term = termById.get(String(termId))
+          return {
+            value: String(termId),
+            label: term?.name ?? String(termId),
+            order: getTermOrder(String(termId), attr?.attributeName ?? null),
+          }
+        })
+        .sort((a, b) => {
+          const orderA = a.order ?? Number.MAX_SAFE_INTEGER
+          const orderB = b.order ?? Number.MAX_SAFE_INTEGER
+          if (orderA !== orderB) return orderA - orderB
+          return a.label.localeCompare(b.label)
+        })
+        .map((option, index) => ({
+          value: option.value,
+          label: option.label,
           selected: index === 0 ? true : undefined,
-        }
-      })
+        }))
 
       return {
         aid: String(aid),
@@ -331,6 +372,11 @@ export async function getWpCalculatorData(
       isActive: row.isActive ?? true,
       title: row.title ?? null,
       ntp: String(row.numType ?? 0),
+      numStyle:
+        row.numStyle !== null && row.numStyle !== undefined
+          ? String(row.numStyle)
+          : null,
+      aUnit: row.aUnit ?? null,
       material: null,
       selects,
       prices: (pricesByMtypeId.get(row.mtypeId) ?? []).sort((a, b) =>

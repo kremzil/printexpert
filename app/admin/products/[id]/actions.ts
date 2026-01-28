@@ -227,6 +227,8 @@ export async function createMatrix(
   const title = String(formData.get("title") ?? "").trim()
   const kind = String(formData.get("kind") ?? "simple").trim()
   const numTypeRaw = String(formData.get("numType") ?? "0").trim()
+  const numStyleRaw = String(formData.get("numStyle") ?? "0").trim()
+  const aUnitRaw = String(formData.get("aUnit") ?? "").trim()
   const numbers = String(formData.get("numbers") ?? "").trim()
   const termsByAttribute = new Map<string, Set<string>>()
 
@@ -255,6 +257,8 @@ export async function createMatrix(
   const mtypeId = (maxMtype?.mtypeId ?? 0) + 1
   const sorder = (maxOrder?.sorder ?? 0) + 1
   const numType = Number.isNaN(Number(numTypeRaw)) ? 0 : Number(numTypeRaw)
+  const numStyle = Number.isNaN(Number(numStyleRaw)) ? 0 : Number(numStyleRaw)
+  const aUnit = aUnitRaw === "cm2" || aUnitRaw === "m2" ? aUnitRaw : null
   const attributes = Array.from(termsByAttribute.keys())
   const atermsEntries = attributes.reduce<Record<string, string[]>>(
     (acc, aid) => {
@@ -278,6 +282,8 @@ export async function createMatrix(
       aterms: phpSerialize(atermsEntries),
       numbers: numbers || null,
       numType,
+      numStyle,
+      aUnit,
       sorder,
     },
   })
@@ -298,6 +304,8 @@ export async function updateMatrix(
   const title = String(formData.get("title") ?? "").trim()
   const kind = String(formData.get("kind") ?? "simple").trim()
   const numTypeRaw = String(formData.get("numType") ?? "0").trim()
+  const numStyleRaw = String(formData.get("numStyle") ?? "0").trim()
+  const aUnitRaw = String(formData.get("aUnit") ?? "").trim()
   const numbers = String(formData.get("numbers") ?? "").trim()
   const termsByAttribute = new Map<string, Set<string>>()
 
@@ -312,6 +320,8 @@ export async function updateMatrix(
   }
 
   const numType = Number.isNaN(Number(numTypeRaw)) ? 0 : Number(numTypeRaw)
+  const numStyle = Number.isNaN(Number(numStyleRaw)) ? 0 : Number(numStyleRaw)
+  const aUnit = aUnitRaw === "cm2" || aUnitRaw === "m2" ? aUnitRaw : null
   const attributes = Array.from(termsByAttribute.keys())
   const atermsEntries = attributes.reduce<Record<string, string[]>>(
     (acc, aid) => {
@@ -343,6 +353,8 @@ export async function updateMatrix(
       aterms: phpSerialize(atermsEntries),
       numbers: numbers || null,
       numType,
+      numStyle,
+      aUnit,
     },
   })
 

@@ -55,14 +55,21 @@ async function getAttributesWithTerms() {
   const termIds = Array.from(
     new Set(termTaxonomies.map((row) => row.termId))
   )
-  const terms = termIds.length
-    ? await prisma.wpTerm.findMany({
-        where: { termId: { in: termIds } },
-        orderBy: [{ name: "asc" }],
-      })
-    : []
+  const [terms, termMeta] = await Promise.all([
+    termIds.length
+      ? prisma.wpTerm.findMany({
+          where: { termId: { in: termIds } },
+          orderBy: [{ name: "asc" }],
+        })
+      : [],
+    termIds.length
+      ? prisma.wpTermMeta.findMany({
+          where: { termId: { in: termIds }, metaKey: { startsWith: "order" } },
+        })
+      : [],
+  ])
 
-  return { attributes, termTaxonomies, terms }
+  return { attributes, termTaxonomies, terms, termMeta }
 }
 
 async function getCategories() {
@@ -128,8 +135,33 @@ async function AdminProductDetails({
     "3": "Obvod",
     "4": "Šírka × 2",
   }
-  const { attributes, termTaxonomies, terms } = attributeData
+  const numStyleLabelByValue: Record<string, string> = {
+    "0": "Vstup",
+    "1": "Zoznam",
+  }
+  const { attributes, termTaxonomies, terms, termMeta } = attributeData
   const termById = new Map(terms.map((term) => [term.termId, term]))
+  const termOrderByKey = new Map<string, number>()
+  const parseOrder = (value: string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return null
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  termMeta.forEach((row) => {
+    const order = parseOrder(row.metaValue)
+    if (order === null) return
+    termOrderByKey.set(`${row.termId}:${row.metaKey}`, order)
+  })
+  const getTermOrder = (termId: number, attributeName?: string | null) => {
+    if (attributeName) {
+      const key = `${termId}:order_pa_${attributeName}`
+      const value = termOrderByKey.get(key)
+      if (value !== undefined) {
+        return value
+      }
+    }
+    return termOrderByKey.get(`${termId}:order`) ?? null
+  }
   const termIdsByTaxonomy = new Map<string, number[]>()
   termTaxonomies.forEach((row) => {
     const list = termIdsByTaxonomy.get(row.taxonomy) ?? []
@@ -142,7 +174,16 @@ async function AdminProductDetails({
     const attributeTerms = ids
       .map((termId) => termById.get(termId))
       .filter((term): term is NonNullable<typeof term> => Boolean(term))
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => {
+        const orderA = getTermOrder(a.termId, attribute.attributeName)
+        const orderB = getTermOrder(b.termId, attribute.attributeName)
+        const resolvedA = orderA ?? Number.MAX_SAFE_INTEGER
+        const resolvedB = orderB ?? Number.MAX_SAFE_INTEGER
+        if (resolvedA !== resolvedB) {
+          return resolvedA - resolvedB
+        }
+        return a.name.localeCompare(b.name)
+      })
     return {
       attribute,
       taxonomy,
@@ -371,6 +412,10 @@ async function AdminProductDetails({
                     calculatorData.globals.numbers_array[matrix.mtid]
                   const ntpLabel =
                     ntpLabelByValue[matrix.ntp] ?? `Typ ${matrix.ntp}`
+                  const numStyleLabel =
+                    numStyleLabelByValue[matrix.numStyle ?? "0"] ??
+                    `Štýl ${matrix.numStyle ?? "0"}`
+                  const aUnitLabel = matrix.aUnit ?? "cm2"
                   const kindLabel =
                     matrix.kind === "finishing" ? "Dokončovacia" : "Základná"
                   const uniqueBreakpoints = Array.from(
@@ -420,6 +465,12 @@ async function AdminProductDetails({
                           Typ množstva: {ntpLabel}
                         </span>
                         <span className="text-muted-foreground">
+                          Štýl množstva: {numStyleLabel}
+                        </span>
+                        <span className="text-muted-foreground">
+                          Jednotka plochy: {aUnitLabel}
+                        </span>
+                        <span className="text-muted-foreground">
                           Cenníkové položky: {matrix.prices.length}
                         </span>
                       </summary>
@@ -466,6 +517,8 @@ async function AdminProductDetails({
                                 slots: editSlots,
                                 kind: matrix.kind,
                                 numType: matrix.ntp,
+                                numStyle: matrix.numStyle ?? "0",
+                                aUnit: matrix.aUnit ?? "cm2",
                                 numbers: editNumbers,
                               }}
                             />

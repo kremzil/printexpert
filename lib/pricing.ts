@@ -14,7 +14,11 @@ type Matrix = {
   kind: "simple" | "finishing"
   mtid: string
   ntp: string
+  numStyle: string | null
+  aUnit: string | null
+  material?: string | null
   selects: MatrixSelect[]
+  isActive?: boolean
 }
 
 type PricingGlobals = {
@@ -103,6 +107,27 @@ const parseNumber = (value: string | number | null | undefined) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const resolveAreaUnit = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === "m2" || normalized === "m²") {
+      return "m2"
+    }
+    if (normalized === "cm2" || normalized === "cm²") {
+      return "cm2"
+    }
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === "number") {
+    return value
+  }
+  return null
+}
+
 const parseBreakpoints = (value: string | null | undefined) => {
   if (!value) return []
   return value
@@ -125,17 +150,25 @@ const normalizeDimensions = (
   width: number,
   height: number,
   dimUnit: string,
-  aUnit: number
+  aUnit: string | number
 ) => {
+  const isMeters =
+    typeof aUnit === "string" ? aUnit.toLowerCase() === "m2" : aUnit !== 1
+
   if (dimUnit === "cm") {
-    if (aUnit !== 1) {
+    if (isMeters) {
       return { width: width / 100, height: height / 100 }
     }
     return { width, height }
   }
 
   if (dimUnit === "mm") {
-    return { width: width / 10, height: height / 10 }
+    const widthCm = width / 10
+    const heightCm = height / 10
+    if (isMeters) {
+      return { width: widthCm / 100, height: heightCm / 100 }
+    }
+    return { width: widthCm, height: heightCm }
   }
 
   return { width, height }
@@ -147,7 +180,7 @@ const calculateQuantity = (
   height: number | null,
   ntp: number,
   dimUnit: string,
-  aUnit: number
+  aUnit: string | number
 ) => {
   if (ntp === 2 || ntp === 3 || ntp === 4) {
     if (width === null || height === null) {
@@ -268,7 +301,6 @@ const calculateMatrixTotal = (
 
   const selectionsByMatrix = params.selections ?? {}
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
-  const aUnit = parseNumber(data.globals.a_unit) ?? FALLBACK_A_UNIT
 
   const baseSizeEntry = (() => {
     const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
@@ -350,13 +382,15 @@ const calculateMatrixTotal = (
       getNumbersEntry(data.globals.numbers_array, matrix.mtid)
     )
     const baseQuantity = quantity < minQuantity ? minQuantity : quantity
+    const matrixAUnit =
+      resolveAreaUnit(matrix.aUnit ?? data.globals.a_unit) ?? FALLBACK_A_UNIT
     const nmbVal = calculateQuantity(
       baseQuantity,
       width,
       height,
       ntp,
       dimUnit,
-      aUnit
+      matrixAUnit
     )
 
     if (nmbVal === null) {
@@ -484,7 +518,7 @@ const buildCalculatorDataFromPricingModels = async (
     })
   })
 
-  const [attributes, terms] = await Promise.all([
+  const [attributes, terms, termMeta] = await Promise.all([
     attributeIds.size
       ? prisma.wpAttributeTaxonomy.findMany({
           where: {
@@ -497,12 +531,41 @@ const buildCalculatorDataFromPricingModels = async (
           where: { termId: { in: Array.from(termIds).map(Number) } },
         })
       : [],
+    termIds.size
+      ? prisma.wpTermMeta.findMany({
+          where: {
+            termId: { in: Array.from(termIds).map(Number) },
+            metaKey: { startsWith: "order" },
+          },
+        })
+      : [],
   ])
 
   const attributeById = new Map(
     attributes.map((row) => [String(row.attributeId), row])
   )
   const termById = new Map(terms.map((row) => [String(row.termId), row]))
+  const termOrderByKey = new Map<string, number>()
+  const parseOrder = (value: string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return null
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  termMeta.forEach((row) => {
+    const order = parseOrder(row.metaValue)
+    if (order === null) return
+    termOrderByKey.set(`${row.termId}:${row.metaKey}`, order)
+  })
+  const getTermOrder = (termId: string, attributeName?: string | null) => {
+    if (attributeName) {
+      const key = `${termId}:order_pa_${attributeName}`
+      const value = termOrderByKey.get(key)
+      if (value !== undefined) {
+        return value
+      }
+    }
+    return termOrderByKey.get(`${termId}:order`) ?? null
+  }
 
   const numbersArray: Record<string, string> = {}
   const smatrix: Record<string, number> = {}
@@ -551,15 +614,25 @@ const buildCalculatorDataFromPricingModels = async (
         })
       })
       const options = Array.from(termIdsByAid)
-        .map((termId, index) => {
+        .map((termId) => {
           const term = termById.get(termId)
           return {
             value: termId,
             label: term?.name ?? termId,
-            selected: index === 0 ? true : undefined,
+            order: getTermOrder(termId, attr?.attributeName ?? null),
           }
         })
-        .sort((a, b) => a.label.localeCompare(b.label))
+        .sort((a, b) => {
+          const orderA = a.order ?? Number.MAX_SAFE_INTEGER
+          const orderB = b.order ?? Number.MAX_SAFE_INTEGER
+          if (orderA !== orderB) return orderA - orderB
+          return a.label.localeCompare(b.label)
+        })
+        .map((option, index) => ({
+          value: option.value,
+          label: option.label,
+          selected: index === 0 ? true : undefined,
+        }))
 
       return {
         aid,
@@ -583,6 +656,11 @@ const buildCalculatorDataFromPricingModels = async (
       kind,
       mtid,
       ntp,
+      numStyle:
+        model.numStyle !== null && model.numStyle !== undefined
+          ? String(model.numStyle)
+          : null,
+      aUnit: model.aUnit ?? null,
       material: null,
       selects,
       isActive: model.isActive ?? true,
