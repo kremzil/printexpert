@@ -298,18 +298,9 @@ async function AdminProductDetails({
                   step="0.01"
                   defaultValue={product.priceFrom?.toString() ?? ""}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="vatRate">DPH</Label>
-                <Input
-                  id="vatRate"
-                  name="vatRate"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  defaultValue={product.vatRate.toString()}
-                  required
-                />
+                <p className="text-xs text-muted-foreground">
+                  DPH sa nastavuje globálne v Nastavenia &gt; Obchod.
+                </p>
               </div>
             </div>
 

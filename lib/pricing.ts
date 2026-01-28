@@ -3,6 +3,7 @@ import "server-only"
 import { getPrisma } from "@/lib/prisma"
 import type { AudienceContext } from "@/lib/audience-shared"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
+import { getShopVatRate } from "@/lib/shop-settings"
 
 type MatrixSelect = {
   aid: string
@@ -693,7 +694,6 @@ export async function calculate(
     select: {
       priceType: true,
       priceFrom: true,
-      vatRate: true,
       wpProductId: true,
     },
   })
@@ -702,7 +702,7 @@ export async function calculate(
     throw new Error("Produkt sa nenasiel.")
   }
 
-  const vatRate = Number(product.vatRate.toString())
+  const vatRate = await getShopVatRate()
   let net = null as number | null
 
   if (product.priceType === "FIXED") {

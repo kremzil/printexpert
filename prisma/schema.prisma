@@ -443,3 +443,10 @@ model TopProducts {
   updatedAt    DateTime        @updatedAt
   createdAt    DateTime        @default(now())
 }
+
+model ShopSettings {
+  id        String   @id @default("default")
+  vatRate   Decimal  @default(0.20) @db.Decimal(4, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

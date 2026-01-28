@@ -496,25 +496,21 @@ export async function updateProductDetails(
   const excerptInput = String(formData.get("excerpt") ?? "")
   const descriptionInput = String(formData.get("description") ?? "")
   const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
-  const vatRateRaw = String(formData.get("vatRate") ?? "").trim()
   const showInB2bRaw = String(formData.get("showInB2b") ?? "").trim()
   const showInB2cRaw = String(formData.get("showInB2c") ?? "").trim()
   const isActiveRaw = String(formData.get("isActive") ?? "").trim()
 
-  if (!name || !slug || !vatRateRaw) {
+  if (!name || !slug) {
     return
   }
 
   const normalizedPriceFrom = priceFromRaw.replace(",", ".")
-  const normalizedVatRate = vatRateRaw.replace(",", ".")
   const priceFromValue = normalizedPriceFrom
     ? Number(normalizedPriceFrom)
     : null
-  const vatRateValue = Number(normalizedVatRate)
 
   if (
-    (normalizedPriceFrom && Number.isNaN(priceFromValue)) ||
-    Number.isNaN(vatRateValue)
+    normalizedPriceFrom && Number.isNaN(priceFromValue)
   ) {
     return
   }
@@ -576,7 +572,6 @@ export async function updateProductDetails(
       excerpt: excerpt || null,
       description: description || null,
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
-      vatRate: normalizedVatRate,
       isActive: isActiveRaw === "1",
       showInB2b: showInB2bRaw === "1",
       showInB2c: showInB2cRaw === "1",
