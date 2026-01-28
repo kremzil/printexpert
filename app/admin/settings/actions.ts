@@ -11,6 +11,9 @@ export async function updateShopVatRate(formData: FormData) {
   await requireAdmin()
 
   const vatRateRaw = String(formData.get("vatRate") ?? "").trim()
+  const pricesIncludeVatRaw = String(
+    formData.get("pricesIncludeVat") ?? ""
+  ).trim()
   if (!vatRateRaw) {
     return
   }
@@ -21,11 +24,13 @@ export async function updateShopVatRate(formData: FormData) {
     return
   }
 
+  const pricesIncludeVat = pricesIncludeVatRaw === "1"
+
   const prisma = getPrisma()
   await prisma.shopSettings.upsert({
     where: { id: SETTINGS_ID },
-    create: { id: SETTINGS_ID, vatRate: normalizedVatRate },
-    update: { vatRate: normalizedVatRate },
+    create: { id: SETTINGS_ID, vatRate: normalizedVatRate, pricesIncludeVat },
+    update: { vatRate: normalizedVatRate, pricesIncludeVat },
   })
 
   updateTag("shop-settings")

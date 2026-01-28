@@ -182,6 +182,20 @@ WP product_id (по `data/wp/wc-product-export-21-1-2026-1768984148845.csv`):
 - `POST /api/price` вызывает серверный расчёт и не принимает цену от клиента.
 - Клиент отображает только предварительную цену.
 
+## НДС и базовый источник цены
+Ставка НДС и признак того, **включён ли НДС в исходные цены**, задаются в админке:
+`Nastavenia > Obchod > DPH`.
+
+### Режимы
+- **Ceny sú uvedené: Bez DPH** — в матрицах/ценах хранится `net`.
+  - `vat = round(net * vatRate)`
+  - `gross = round(net + vat)`
+- **Ceny sú uvedené: S DPH** — в матрицах/ценах хранится `gross`.
+  - `net = round(gross / (1 + vatRate))`
+  - `vat = round(gross - net)`
+
+Округление выполняется по функции `roundCurrency` (2 знака).
+
 ## Примечания
 - Данные берутся из БД, а `attributes/aterms` остаются в PHP‑serialized формате.
 - Разбор `attributes/aterms` выполняется в `lib/wp-calculator.ts`.

@@ -3,7 +3,7 @@ import "server-only"
 import { getPrisma } from "@/lib/prisma"
 import type { AudienceContext } from "@/lib/audience-shared"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
-import { getShopVatRate } from "@/lib/shop-settings"
+import { getShopSettings } from "@/lib/shop-settings"
 
 type MatrixSelect = {
   aid: string
@@ -702,7 +702,9 @@ export async function calculate(
     throw new Error("Produkt sa nenasiel.")
   }
 
-  const vatRate = await getShopVatRate()
+  const settings = await getShopSettings()
+  const vatRate = settings.vatRate
+  const pricesIncludeVat = settings.pricesIncludeVat
   let net = null as number | null
 
   if (product.priceType === "FIXED") {
@@ -726,9 +728,21 @@ export async function calculate(
     throw new Error("Cenu sa nepodarilo vypocitat.")
   }
 
-  const roundedNet = roundCurrency(net)
-  const vatAmount = roundCurrency(roundedNet * vatRate)
-  const gross = roundCurrency(roundedNet + vatAmount)
+  let roundedNet = 0
+  let vatAmount = 0
+  let gross = 0
+
+  if (pricesIncludeVat) {
+    const roundedGross = roundCurrency(net)
+    const netValue = roundedGross / (1 + vatRate)
+    roundedNet = roundCurrency(netValue)
+    vatAmount = roundCurrency(roundedGross - roundedNet)
+    gross = roundedGross
+  } else {
+    roundedNet = roundCurrency(net)
+    vatAmount = roundCurrency(roundedNet * vatRate)
+    gross = roundCurrency(roundedNet + vatAmount)
+  }
 
   return {
     net: roundedNet,

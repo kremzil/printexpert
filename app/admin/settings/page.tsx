@@ -55,6 +55,21 @@ export default async function AdminSettingsPage() {
                         Zadajte desatinné číslo (napr. 0,20 pre 20&nbsp;%).
                       </p>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pricesIncludeVat">Ceny sú uvedené</Label>
+                      <select
+                        id="pricesIncludeVat"
+                        name="pricesIncludeVat"
+                        defaultValue={settings.pricesIncludeVat ? "1" : "0"}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="0">Bez DPH</option>
+                        <option value="1">S DPH</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        Zvoľte, či sú ceny v cenníkoch zadávané s DPH alebo bez DPH.
+                      </p>
+                    </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>Nastavenie sa použije pri všetkých výpočtoch.</span>
                       <Button type="submit" size="sm">

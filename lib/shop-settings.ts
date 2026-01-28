@@ -6,10 +6,12 @@ import { getPrisma } from "@/lib/prisma"
 
 const SETTINGS_ID = "default"
 const FALLBACK_VAT_RATE = 0.2
+const FALLBACK_PRICES_INCLUDE_VAT = true
 
 export type ShopSettings = {
   id: string
   vatRate: number
+  pricesIncludeVat: boolean
 }
 
 export async function getShopSettings(): Promise<ShopSettings> {
@@ -22,16 +24,26 @@ export async function getShopSettings(): Promise<ShopSettings> {
   })
 
   if (!settings) {
-    return { id: SETTINGS_ID, vatRate: FALLBACK_VAT_RATE }
+    return {
+      id: SETTINGS_ID,
+      vatRate: FALLBACK_VAT_RATE,
+      pricesIncludeVat: FALLBACK_PRICES_INCLUDE_VAT,
+    }
   }
 
   return {
     id: settings.id,
     vatRate: Number(settings.vatRate.toString()),
+    pricesIncludeVat: settings.pricesIncludeVat,
   }
 }
 
 export async function getShopVatRate() {
   const settings = await getShopSettings()
   return settings.vatRate
+}
+
+export async function getShopPriceIncludesVat() {
+  const settings = await getShopSettings()
+  return settings.pricesIncludeVat
 }
