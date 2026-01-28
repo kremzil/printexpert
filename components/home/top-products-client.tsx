@@ -7,8 +7,21 @@ type TopProductsClientProps = {
   audience: "b2b" | "b2c"
 }
 
+type TopProduct = {
+  id: string
+  slug: string
+  name: string
+  excerpt?: string | null
+  description?: string | null
+  priceFrom?: string | null
+  images?: Array<{
+    url: string
+    alt?: string | null
+  }>
+}
+
 export default function TopProductsClient({ audience }: TopProductsClientProps) {
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<TopProduct[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

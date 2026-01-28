@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
@@ -71,7 +70,6 @@ async function ProductDetails({
     notFound()
   }
 
-  const primaryImage = product.images[0]
   const calculatorData = product.wpProductId
     ? await getWpCalculatorData(product.wpProductId, true)
     : null

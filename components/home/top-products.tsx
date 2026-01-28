@@ -4,8 +4,21 @@ type TopProductsProps = {
   audience: "b2b" | "b2c"
 }
 
+type TopProduct = {
+  id: string
+  slug: string
+  name: string
+  excerpt?: string | null
+  description?: string | null
+  priceFrom?: string | null
+  images?: Array<{
+    url: string
+    alt?: string | null
+  }>
+}
+
 export async function TopProducts({ audience }: TopProductsProps) {
-  let products = []
+  let products: TopProduct[] = []
 
   try {
     const res = await fetch(
@@ -39,7 +52,7 @@ export async function TopProducts({ audience }: TopProductsProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {products.slice(0, 8).map((product: any) => (
+          {products.slice(0, 8).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

@@ -32,21 +32,6 @@ import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
 import { SiteHeaderClient } from "./site-header-client"
 
-async function AudienceBadge() {
-  const audienceContext = await resolveAudienceContext()
-  const label =
-    audienceContext.source === "default"
-      ? "Vyberte režim"
-      : audienceContext.audience === "b2b"
-        ? "Pre firmy"
-        : "Pre jednotlivcov"
-  return (
-    <span className="inline-flex whitespace-nowrap rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-semibold text-primary sm:text-xs backdrop-blur-sm">
-      {label}
-    </span>
-  )
-}
-
 async function AudienceHeaderSwitch() {
   const audienceContext = await resolveAudienceContext()
   if (audienceContext.source === "default") {

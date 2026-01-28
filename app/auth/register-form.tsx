@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2, Mail, CheckCircle2, ArrowRight } from "lucide-react"
+import { Loader2, Mail, CheckCircle2 } from "lucide-react"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
 

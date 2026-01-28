@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server"
+import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
 
-export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET() {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const categories = await prisma.category.findMany({
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
       slug: true,
     },
     orderBy: {
-      name: 'asc',
+      name: "asc",
     },
-  });
+  })
 
-  return NextResponse.json(categories);
+  return NextResponse.json(categories)
 }

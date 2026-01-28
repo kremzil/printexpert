@@ -16,12 +16,12 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
   // Use ref instead of state for scroll position to avoid re-triggering effect loop
   const lastScrollYRef = useRef(0)
 
-  // Don't render header on admin pages
-  if (pathname?.startsWith("/admin")) {
-    return null
-  }
-
   useEffect(() => {
+    // Skip scroll listener on admin pages
+    if (pathname?.startsWith("/admin")) {
+      return
+    }
+
     const handleScroll = () => {
       const currentScrollY = Math.max(0, window.scrollY)
       const lastScrollY = lastScrollYRef.current
@@ -54,7 +54,12 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
     // с проверкой внутри, так надежнее для React state updates.
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, []) // Empty dependency array = stable listener
+  }, [pathname]) // Re-evaluate when the route changes
+
+  // Don't render header on admin pages
+  if (pathname?.startsWith("/admin")) {
+    return null
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur shadow-md supports-[backdrop-filter]:bg-background/60">

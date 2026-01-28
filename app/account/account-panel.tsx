@@ -2,7 +2,6 @@
 
 import { signOut } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -44,7 +43,6 @@ type AccountPanelProps = {
 }
 
 export function AccountPanel({ name, email, hasPassword }: AccountPanelProps) {
-  const router = useRouter()
   const [logoutPending, setLogoutPending] = useState(false)
   const [passwordStatus, setPasswordStatus] = useState<
     "idle" | "loading" | "success" | "error"

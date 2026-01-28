@@ -58,7 +58,6 @@ export function CatalogSidebar({ categories }: CatalogSidebarProps) {
             // Check if root or any child is active
             const isRootActive = activeSlug === root.slug
             const isChildActive = children.some(c => c.slug === activeSlug)
-            const isOpen = isRootActive || isChildActive
 
             return (
               <div key={root.id} className="block">

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       config = await prisma.topProducts.findUnique({
         where: { audience },
       });
-    } catch (e) {
+    } catch {
       // Таблица может еще не существовать - используем режим по умолчанию
       console.warn('TopProducts table not found, using default mode');
       config = null;
