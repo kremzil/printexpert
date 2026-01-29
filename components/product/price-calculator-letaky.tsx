@@ -576,6 +576,13 @@ export function PriceCalculatorLetaky({
       }
 
       const priceResult = await priceResponse.json() as PriceResult
+      const safeQuantity = quantity > 0 ? quantity : 1
+      const perUnitPrice: PriceResult = {
+        ...priceResult,
+        net: priceResult.net / safeQuantity,
+        vatAmount: priceResult.vatAmount / safeQuantity,
+        gross: priceResult.gross / safeQuantity,
+      }
 
       // Добавляем в корзину
       const cartResponse = await fetch("/api/cart/add", {
@@ -591,7 +598,7 @@ export function PriceCalculatorLetaky({
             _attributes: selectedAttributes, // Добавляем читаемые названия
           },
           priceSnapshot: {
-            ...priceResult,
+            ...perUnitPrice,
             calculatedAt: new Date().toISOString(),
           },
         }),
