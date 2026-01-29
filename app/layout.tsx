@@ -49,12 +49,12 @@ export default function RootLayout({
           </Suspense>
           <main
             id="main-content"
-            className="mx-auto w-full max-w-500 flex-1 px-4 py-8"
+            className="mx-auto w-full max-w-500 flex-1 px-12 py-8"
           >
             {children}
           </main>
           <footer className="border-t bg-muted/30">
-            <div className="mx-auto flex h-16 max-w-500 items-center justify-between gap-4 px-4 text-sm text-muted-foreground">
+            <div className="mx-auto flex h-16 max-w-500 items-center justify-between gap-4 px-16 text-sm text-muted-foreground">
               <span className="font-display text-base font-semibold text-foreground">© PrintExpert</span>
               <Suspense fallback={null}>
                 <AudienceFooterNote />

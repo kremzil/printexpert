@@ -101,12 +101,12 @@ async function ProductDetails({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-8">
         <ProductGallery images={product.images} productName={product.name} />
 
         <div className="space-y-6">
           <div className="space-y-3">
-            <h1 className="text-3xl font-semibold tracking-tight">{product.name}</h1>
+            <h1 className="text-5xl font-semibold tracking-tight">{product.name}</h1>
             {product.excerpt ? (
               <div
                 className="text-sm text-muted-foreground"

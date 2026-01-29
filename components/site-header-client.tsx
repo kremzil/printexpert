@@ -60,7 +60,7 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
     <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur shadow-md supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex max-w-500 flex-col">
         <div 
-          className={`flex items-center justify-between gap-4 px-4 transition-all duration-300 ${
+          className={`flex items-center justify-between gap-4 px-12 transition-all duration-300 ${
             isScrolled ? 'h-16' : 'h-20'
           }`}
           data-scrolled={isScrolled}
@@ -72,7 +72,7 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
             isScrollingDown ? 'max-h-0 opacity-0 overflow-hidden' : 'max-h-14 opacity-100'
           }`}
         >
-          <div className="flex h-14 items-center px-4">
+          <div className="flex h-14 justify-center items-center px-8">
             {navBar}
           </div>
         </div>

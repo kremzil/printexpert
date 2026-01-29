@@ -72,7 +72,7 @@
   
   /* Muted - тёплый серый */
   --muted: oklch(0.95 0.008 85);
-  --muted-foreground: oklch(0.40 0.05 265);
+  --muted-foreground: oklch(34.023% 0.04005 263.012);
   
   /* Accent - Light Blue tint for hover states (synced with secondary usually) */
   --accent: oklch(0.96 0.01 265);
