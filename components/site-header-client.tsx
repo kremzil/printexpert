@@ -12,8 +12,6 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isScrollingDown, setIsScrollingDown] = useState(false)
-  
-  // Use ref instead of state for scroll position to avoid re-triggering effect loop
   const lastScrollYRef = useRef(0)
 
   useEffect(() => {
@@ -23,38 +21,35 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
     }
 
     const handleScroll = () => {
-      const currentScrollY = Math.max(0, window.scrollY)
+      const currentScrollY = window.scrollY
       const lastScrollY = lastScrollYRef.current
-      const threshold = 10
       
-      // Логотип уменьшается при скролле > 50px
+      // 1. Logo shrink state (top bar height)
       const shouldBeScrolled = currentScrollY > 50
-      
-      // Обновляем стейт только если изменился, чтобы не ререндерить лишний раз
-      setIsScrolled((prev) => {
-        if (prev !== shouldBeScrolled) return shouldBeScrolled
-        return prev
-      })
-      
-      if (currentScrollY < 80) {
+      setIsScrolled(shouldBeScrolled)
+
+      // 2. Nav bar visibility state (based on the provided Alpine.js example)
+      // Always show nav when at the top of the page
+      if (currentScrollY <= 0) {
         setIsScrollingDown(false)
-        // ВАЖНО: Обновляем ref, чтобы при выходе из этой зоны мы сравнивали с актуальной позицией,
-        // а не с той, которая была до входа в зону < 80.
-        lastScrollYRef.current = currentScrollY
-      } else if (Math.abs(currentScrollY - lastScrollY) > threshold) {
-        // Меняем состояние только при преодолении порога
-        setIsScrollingDown(currentScrollY > lastScrollY)
-        // Обновляем реф только когда значительно сдвинулись, чтобы гистерезис работал
-        lastScrollYRef.current = currentScrollY 
+        lastScrollYRef.current = 0
+        return
       }
+
+      // Only update visibility if scroll difference is more than a threshold (10px)
+      // This prevents "jiggle" on minor scroll movements
+      if (Math.abs(currentScrollY - lastScrollY) > 10) {
+        // Hide if scrolling down, show if scrolling up
+        setIsScrollingDown(currentScrollY > lastScrollY)
+      }
+
+      // 3. Update last scroll position
+      lastScrollYRef.current = currentScrollY
     }
 
-    // Дебаунс/троттлинг через requestAnimationFrame не обязателен для modern browsers с passive: true,
-    // но если оставить, то аккуратно. В данном случае упростим до прямого вызова 
-    // с проверкой внутри, так надежнее для React state updates.
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [pathname]) // Re-evaluate when the route changes
+  }, [pathname]) 
 
   // Don't render header on admin pages
   if (pathname?.startsWith("/admin")) {
@@ -63,7 +58,7 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur shadow-md supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex max-w-[1600px] flex-col">
+      <div className="mx-auto flex max-w-500 flex-col">
         <div 
           className={`flex items-center justify-between gap-4 px-4 transition-all duration-300 ${
             isScrolled ? 'h-16' : 'h-20'

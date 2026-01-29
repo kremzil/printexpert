@@ -83,6 +83,7 @@ async function AudienceNavigation() {
       name: true,
       slug: true,
       categoryId: true,
+      priceFrom: true,
     },
   })
   const productsByCategoryId = products.reduce((map, product) => {
