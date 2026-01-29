@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
+type PaymentStatus = "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
 interface OrderItem {
   id: string;
@@ -19,6 +20,7 @@ interface Order {
   id: string;
   orderNumber: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
   customerName: string;
   customerEmail: string;
   total: number;
@@ -40,6 +42,17 @@ const statusMap: Record<OrderStatus, { label: string; variant: "secondary" | "de
   PROCESSING: { label: "Spracováva sa", variant: "default" },
   COMPLETED: { label: "Dokončená", variant: "default" },
   CANCELLED: { label: "Zrušená", variant: "destructive" },
+};
+
+const paymentStatusMap: Record<
+  PaymentStatus,
+  { label: string; variant: "secondary" | "default" | "destructive" }
+> = {
+  UNPAID: { label: "Nezaplatená", variant: "secondary" },
+  PENDING: { label: "Čaká na platbu", variant: "secondary" },
+  PAID: { label: "Zaplatená", variant: "default" },
+  FAILED: { label: "Neúspešná", variant: "destructive" },
+  REFUNDED: { label: "Refundovaná", variant: "destructive" },
 };
 
 export function AdminOrdersList({ orders }: AdminOrdersListProps) {
@@ -73,6 +86,7 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
     <div className="space-y-4">
       {orders.map((order) => {
         const status = statusMap[order.status];
+        const paymentStatus = paymentStatusMap[order.paymentStatus];
         return (
           <Card key={order.id}>
             <CardHeader>
@@ -85,7 +99,10 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                     {formatDate(order.createdAt)}
                   </p>
                 </div>
-                <Badge variant={status.variant}>{status.label}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={paymentStatus.variant}>{paymentStatus.label}</Badge>
+                  <Badge variant={status.variant}>{status.label}</Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

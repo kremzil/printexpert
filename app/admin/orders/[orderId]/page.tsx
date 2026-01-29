@@ -11,6 +11,26 @@ async function getOrder(orderId: string) {
     where: { id: orderId },
     include: {
       items: true,
+      statusHistory: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          changedByUser: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+        },
+      },
+      stripeEvents: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          type: true,
+          createdAt: true,
+        },
+      },
       user: {
         select: {
           id: true,
@@ -35,6 +55,14 @@ async function getOrder(orderId: string) {
       priceNet: Number(item.priceNet),
       priceVat: Number(item.priceVat),
       priceGross: Number(item.priceGross),
+    })),
+    statusHistory: order.statusHistory.map((entry) => ({
+      ...entry,
+      createdAt: entry.createdAt.toISOString(),
+    })),
+    stripeEvents: order.stripeEvents.map((event) => ({
+      ...event,
+      createdAt: event.createdAt.toISOString(),
     })),
   };
 }

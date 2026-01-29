@@ -1,4 +1,5 @@
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
+export type PaymentStatus = "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
 export interface CheckoutData {
   customerName: string;
@@ -36,6 +37,7 @@ export interface OrderData {
   id: string;
   orderNumber: string;
   status: OrderStatus;
+  paymentStatus?: PaymentStatus;
   audience: string;
   subtotal: number;
   vatAmount: number;

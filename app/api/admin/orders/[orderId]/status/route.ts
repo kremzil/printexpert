@@ -41,9 +41,24 @@ export async function PATCH(
       );
     }
 
-    const order = await prisma.order.update({
-      where: { id: orderId },
-      data: { status },
+    const order = await prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { status },
+      });
+
+      if (currentOrder.status !== status) {
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId,
+            fromStatus: currentOrder.status,
+            toStatus: status as OrderStatus,
+            changedByUserId: session.user.id,
+          },
+        });
+      }
+
+      return updated;
     });
 
     if (currentOrder.status !== status) {

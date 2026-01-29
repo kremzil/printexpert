@@ -42,6 +42,8 @@ interface Order {
   notes: string | null;
   items: OrderItem[];
   createdAt: Date;
+  statusHistory: OrderStatusHistoryEntry[];
+  stripeEvents: StripeEventEntry[];
   user?: {
     id: string;
     email: string;
@@ -51,6 +53,25 @@ interface Order {
 
 interface AdminOrderDetailProps {
   order: Order;
+}
+
+interface OrderStatusHistoryEntry {
+  id: string;
+  fromStatus: OrderStatus;
+  toStatus: OrderStatus;
+  createdAt: string;
+  note: string | null;
+  changedByUser: {
+    id: string;
+    email: string;
+    name: string | null;
+  } | null;
+}
+
+interface StripeEventEntry {
+  id: string;
+  type: string;
+  createdAt: string;
 }
 
 interface OrderAsset {
@@ -119,6 +140,20 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("sk-SK", {
       dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(date));
+  };
+
+  const formatHistoryDate = (date: string) => {
+    return new Intl.DateTimeFormat("sk-SK", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(date));
+  };
+
+  const formatEventDate = (date: string) => {
+    return new Intl.DateTimeFormat("sk-SK", {
+      dateStyle: "short",
       timeStyle: "short",
     }).format(new Date(date));
   };
@@ -312,6 +347,81 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                             Stiahnuť
                           </a>
                         </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>História stavu</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {order.statusHistory.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Zatiaľ nebola zaznamenaná žiadna zmena stavu.
+                </p>
+              )}
+              {order.statusHistory.length > 0 && (
+                <div className="space-y-3">
+                  {order.statusHistory.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="border-b pb-3 last:border-0 last:pb-0"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <div className="font-medium">
+                          {statusMap[entry.fromStatus].label} → {statusMap[entry.toStatus].label}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatHistoryDate(entry.createdAt)}
+                        </div>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {entry.changedByUser
+                          ? entry.changedByUser.name ?? entry.changedByUser.email
+                          : "Systém"}
+                      </div>
+                      {entry.note && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {entry.note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Stripe udalosti</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {order.stripeEvents.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Zatiaľ neboli zaznamenané žiadne webhook udalosti.
+                </p>
+              )}
+              {order.stripeEvents.length > 0 && (
+                <div className="space-y-3">
+                  {order.stripeEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="border-b pb-3 last:border-0 last:pb-0"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <div className="font-medium">{event.type}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatEventDate(event.createdAt)}
+                        </div>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground break-all">
+                        {event.id}
                       </div>
                     </div>
                   ))}
