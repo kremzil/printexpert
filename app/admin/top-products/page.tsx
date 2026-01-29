@@ -62,11 +62,7 @@ export default function TopProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
       const [b2cRes, b2bRes, categoriesRes, productsRes] = await Promise.all([
@@ -95,7 +91,11 @@ export default function TopProductsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [toast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function saveConfig(audience: "b2c" | "b2b") {
     setSaving(true);

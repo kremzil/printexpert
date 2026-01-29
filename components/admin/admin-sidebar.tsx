@@ -13,7 +13,6 @@ import {
   Settings,
   LogOut,
   ShoppingCart,
-  Star,
   ChevronRight,
 } from "lucide-react"
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -105,7 +105,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
     return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
   };
 
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     try {
       setIsLoadingAssets(true);
       const response = await fetch(`/api/orders/${order.id}/assets`);
@@ -119,11 +119,11 @@ export function OrderDetail({ order }: OrderDetailProps) {
     } finally {
       setIsLoadingAssets(false);
     }
-  };
+  }, [order.id]);
 
   useEffect(() => {
     fetchAssets();
-  }, [order.id]);
+  }, [fetchAssets]);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

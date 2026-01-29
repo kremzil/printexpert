@@ -16,7 +16,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { ChevronDown, MoreHorizontal, Eye, Edit, Copy, Trash, ArrowUpDown, Filter } from "lucide-react"
+import { MoreHorizontal, Eye, Edit, Trash, ArrowUpDown, Filter } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -241,6 +241,7 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]))
   }, [products])
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: products,
     columns,

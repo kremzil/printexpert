@@ -232,10 +232,13 @@ export function CartContent({ cart: initialCart }: CartContentProps) {
                             </div>
                             <div className="mt-1 flex items-center gap-3">
                               {pendingPreviewUrl ? (
-                                <img
+                                <Image
                                   src={pendingPreviewUrl}
                                   alt={pendingPreviewName ?? "Náhľad"}
+                                  width={48}
+                                  height={48}
                                   className="h-12 w-12 rounded-md border object-cover"
+                                  unoptimized
                                 />
                               ) : (
                                 <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-background text-[10px] uppercase">

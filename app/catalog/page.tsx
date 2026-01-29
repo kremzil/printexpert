@@ -75,7 +75,6 @@ async function CatalogContent({
     map.get(key).push(category)
     return map
   }, new Map<string, typeof categories>())
-  const rootCategories = childrenByParentId.get("root") ?? []
   const selectedCategory = selectedCategorySlug
     ? categoryBySlug.get(selectedCategorySlug)
     : null

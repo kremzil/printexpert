@@ -61,9 +61,6 @@ type ProductMatrixDialogProps = {
   initialValues?: MatrixDialogInitialValues
 }
 
-const selectClassName =
-  "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
-
 export function ProductMatrixDialog({
   productName,
   attributes,

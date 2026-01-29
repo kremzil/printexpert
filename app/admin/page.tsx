@@ -1,18 +1,8 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { Package, FolderTree, Sliders, Users, ShoppingCart, ArrowUpRight, TrendingUp, DollarSign, Activity, CreditCard } from "lucide-react"
+import { Package, Users, ShoppingCart, DollarSign } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { getAdminProducts } from "@/lib/catalog"
