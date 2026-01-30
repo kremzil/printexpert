@@ -1,9 +1,9 @@
 import { Suspense } from "react"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
-import { AudienceModeCards } from "@/components/audience-mode-cards"
-import { HomeB2B } from "@/components/home/home-b2b"
-import { HomeB2C } from "@/components/home/home-b2c"
+import { ModeSelectionPage } from "@/components/print/mode-selection-page"
+import { Homepage } from "@/components/print/homepage"
+import { getCategories, getProducts } from "@/lib/catalog"
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -23,53 +23,59 @@ async function HomeContent({
     searchParams: resolvedSearchParams,
   })
   const isFirstVisit = audienceContext.source === "default"
-  const isB2B = audienceContext.audience === "b2b"
+  const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
 
-if (isFirstVisit) {
-  return (
-    <section className="relative -mt-8">
-      {/* Hero Section с Editorial стилем */}
-      <div className="relative overflow-hidden border-b bg-gradient-to-br from-background via-accent/5 to-background">
-        <div className="absolute inset-0 paper-texture opacity-40" />
-        <div className="relative mx-auto max-w-5xl px-6 py-20 sm:py-32">
-          <div className="space-y-8 text-center">
-            <div className="inline-block">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary backdrop-blur-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
-                </span>
-                Online tlačiareň pre celé Slovensko
-              </div>
-            </div>
-            <h1 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
-              Rýchla a kvalitná tlač
-              <br />
-              <span className="ink-gradient">
-                pre firmy aj domácnosti
-              </span>
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              Profesionálne tlačové služby s dodaním do 24 hodín. Moderná technológia, 
-              skvelé ceny a jednoduchá objednávka online.
-            </p>
-          </div>
-        </div>
-        
-        {/* Geometrické dekorácie */}
-        <div className="absolute left-0 top-0 h-px w-32 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-        <div className="absolute bottom-0 right-0 h-px w-32 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
-      </div>
+  if (isFirstVisit) {
+    return <ModeSelectionPage />
+  }
 
-      <div className="mx-auto max-w-5xl px-6 py-12">
-        <AudienceModeCards />
-      </div>
-    </section>
+  const [categories, products] = await Promise.all([
+    getCategories(),
+    getProducts({ audience: mode }),
+  ])
+
+  const visibleCategories = categories.filter((category) =>
+    mode === "b2b" ? category.showInB2b !== false : category.showInB2c !== false
   )
-}
+  const categorySlugById = new Map(
+    visibleCategories.map((category) => [category.id, category.slug])
+  )
+  const productCountByCategory = products.reduce((map, product) => {
+    const categorySlug = categorySlugById.get(product.categoryId)
+    if (!categorySlug) return map
+    map.set(categorySlug, (map.get(categorySlug) ?? 0) + 1)
+    return map
+  }, new Map<string, number>())
 
+  const homepageCategories = visibleCategories
+    .filter((category) => !category.parentId)
+    .slice(0, 4)
+    .map((category) => ({
+      id: category.id,
+      slug: category.slug,
+      name: category.name,
+      description: category.description,
+      image: category.image,
+      productCount: productCountByCategory.get(category.slug) ?? 0,
+    }))
 
-  return isB2B ? <HomeB2B /> : <HomeB2C />
+  const featuredProducts = products.slice(0, 4).map((product) => ({
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    excerpt: product.excerpt,
+    description: product.description,
+    priceFrom: product.priceFrom,
+    images: product.images ?? [],
+  }))
+
+  return (
+    <Homepage
+      mode={mode}
+      categories={homepageCategories}
+      featuredProducts={featuredProducts}
+    />
+  )
 }
 
 export default function Page({ searchParams }: HomePageProps) {
