@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
-import { Switch } from "@/components/ui/switch"
 import { Building2, User } from "lucide-react"
 
 type AudienceModeSwitchProps = {
@@ -14,67 +13,67 @@ type AudienceModeSwitchProps = {
 export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-
-  // checked: true = b2b, false = b2c
-  const [checked, setChecked] = useState(initialAudience === "b2b")
+  const [mode, setMode] = useState<"b2b" | "b2c">(initialAudience)
 
   useEffect(() => {
-    setChecked(initialAudience === "b2b")
+    setMode(initialAudience)
   }, [initialAudience])
 
-  const onCheckedChange = (nextChecked: boolean) => {
-    setChecked(nextChecked)
+  const handleModeChange = (nextMode: "b2b" | "b2c") => {
+    if (isPending || nextMode === mode) {
+      return
+    }
+    const previous = mode
+    setMode(nextMode)
     startTransition(async () => {
       try {
         const response = await fetch("/api/audience", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: nextChecked ? "b2b" : "b2c" }),
+          body: JSON.stringify({ mode: nextMode }),
         })
         if (!response.ok) {
-          setChecked(!nextChecked)
+          setMode(previous)
           return
         }
         router.refresh()
       } catch (e) {
         console.error(e)
-        setChecked(!nextChecked)
+        setMode(previous)
       }
     })
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span 
-        className={cn(
-          "text-xs font-medium transition-colors flex items-center gap-1.5",
-          !checked ? "text-[#e43b11] font-bold" : "text-muted-foreground"
-        )}
-      >
-        <User className="h-3.5 w-3.5" />
-        Osoba
-      </span>
-      
-      <Switch
-        checked={checked}
-        onCheckedChange={onCheckedChange}
+    <div className="inline-flex rounded-lg border border-border bg-background p-1">
+      <button
+        type="button"
+        onClick={() => handleModeChange("b2c")}
         disabled={isPending}
-        aria-label="Audience mode"
         className={cn(
-            "data-[state=checked]:bg-[#0a1833] data-[state=unchecked]:bg-[#e43b11]",
-            "border-2 border-transparent hover:border-border/20"
-        )}
-      />
-      
-      <span 
-        className={cn(
-          "text-xs font-medium transition-colors flex items-center gap-1.5",
-          checked ? "text-[#0a1833] font-bold" : "text-muted-foreground"
+          "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+          mode === "b2c"
+            ? "bg-[var(--b2c-primary)] text-white shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
         )}
       >
-        <Building2 className="h-3.5 w-3.5" />
-        Firma
-      </span>
+        <User className="h-4 w-4" />
+        B2C
+      </button>
+      <button
+        type="button"
+        onClick={() => handleModeChange("b2b")}
+        disabled={isPending}
+        className={cn(
+          "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+          mode === "b2b"
+            ? "bg-[var(--b2b-primary)] text-white shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <Building2 className="h-4 w-4" />
+        B2B
+      </button>
     </div>
   )
 }
