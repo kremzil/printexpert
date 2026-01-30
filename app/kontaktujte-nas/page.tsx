@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Suspense } from "react"
 
 import {
   Breadcrumb,
@@ -8,7 +9,26 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { ContactForm } from "@/components/contact-form"
+import { Card } from "@/components/ui/card"
+import { ContactForm } from "@/components/print/contact-form"
+import { ContactInfo } from "@/components/print/contact-info"
+import { FAQSection } from "@/components/print/faq-section"
+import { TeamShowcase } from "@/components/print/team-showcase"
+import { resolveAudienceContext } from "@/lib/audience-context"
+import {
+  CheckCircle,
+  Clock,
+  FileText,
+  Headphones,
+  Mail,
+  MapPin,
+  Phone,
+  Users,
+} from "lucide-react"
+
+type ContactPageProps = {
+  searchParams?: Promise<{ mode?: string }>
+}
 
 const team = [
   {
@@ -61,37 +81,108 @@ const team = [
   },
 ]
 
-const contactBlocks = [
-  {
-    title: "Telefón",
-    value: "+421 917 545 003",
-    icon: (
-      <path d="M20.4 15.5a14.2 14.2 0 0 1-4.3-.7 1 1 0 0 0-1 .3l-2 2a15.2 15.2 0 0 1-6.6-6.6l2-2a1 1 0 0 0 .2-1 14.2 14.2 0 0 1-.7-4.3A1 1 0 0 0 7.9 2H4.8A1 1 0 0 0 3.8 3C3.8 14 12 22.2 23 22.2a1 1 0 0 0 1-1v-3.1a1 1 0 0 0-.6-1.6Z" />
-    ),
-  },
-  {
-    title: "Adresa",
-    value: [
-      "Prevádzka BA: Bojnická 3 83104 Bratislava",
-      "Prevádzka KE: Rozvojová 2, 040 11 Košice (osobný odber)",
-    ],
-    icon: (
-      <path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z" />
-    ),
-  },
-  {
-    title: "E-mail",
-    value: "info@printexpert.sk",
-    icon: (
-      <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-11Zm2.2-.5 6.8 5 6.8-5H5.2Zm13.3 2.2-4.9 3.6 4.9 3.8V8.2Zm-13 0v7.4l4.9-3.8-4.9-3.6Zm6.5 5.1L5.2 18h13.6l-6.8-4.7Z" />
-    ),
-  },
-]
+export default function ContactPage({ searchParams }: ContactPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4 text-center">
+          <h1 className="text-3xl font-bold md:text-4xl">Kontaktujte nás</h1>
+          <p className="text-muted-foreground">Načítavame kontaktné údaje...</p>
+        </div>
+      }
+    >
+      <ContactPageContent searchParams={searchParams} />
+    </Suspense>
+  )
+}
 
-export default function ContactPage() {
+async function ContactPageContent({ searchParams }: ContactPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : {}
+  const audienceContext = await resolveAudienceContext({
+    searchParams: resolvedSearchParams,
+  })
+  const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
+  const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
+  const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
+
+  const contactInfoItems = [
+    {
+      icon: Phone,
+      label: mode === "b2c" ? "Zákaznícka linka" : "B2B hotline",
+      value: "+421 917 545 003",
+      href: "tel:+421917545003",
+    },
+    {
+      icon: Mail,
+      label: "E-mail",
+      value: "info@printexpert.sk",
+      href: "mailto:info@printexpert.sk",
+    },
+    {
+      icon: MapPin,
+      label: "Adresa",
+      value: [
+        "Prevádzka BA: Bojnická 3 83104 Bratislava",
+        "Prevádzka KE: Rozvojová 2, 040 11 Košice (osobný odber)",
+      ],
+    },
+    {
+      icon: Clock,
+      label: "Otváracie hodiny",
+      value: "Po–Pi 08:00–17:00",
+    },
+  ]
+
+  const faqItems =
+    mode === "b2c"
+      ? [
+          {
+            question: "Aké sú dodacie lehoty?",
+            answer:
+              "Štandardná dodacia lehota je 2-3 pracovné dni. Pri expresných objednávkach vieme zabezpečiť aj 24-hodinovú výrobu.",
+          },
+          {
+            question: "Aké formáty súborov prijímate?",
+            answer:
+              "Akceptujeme PDF, AI, EPS, PSD a ďalšie grafické formáty. Odporúčame PDF v kvalite pre tlač s CMYK farbami.",
+          },
+          {
+            question: "Ponúkate grafické služby?",
+            answer:
+              "Áno. Pomôžeme s návrhom vizitiek, letákov a ďalších tlačovín. Ceny vždy upresníme podľa zadania.",
+          },
+          {
+            question: "Je možný osobný odber?",
+            answer:
+              "Áno, osobný odber je možný na našej pobočke v Košiciach alebo Bratislave.",
+          },
+        ]
+      : [
+          {
+            question: "Ako funguje B2B spolupráca?",
+            answer:
+              "Každý B2B klient má k dispozícii account manažéra, ktorý pomáha s objednávkami a pripravuje individuálne ponuky.",
+          },
+          {
+            question: "Ponúkate množstevné zľavy?",
+            answer:
+              "Áno. Pri väčších objemoch pripravíme individuálne cenové podmienky podľa rozsahu spolupráce.",
+          },
+          {
+            question: "Môžeme žiadať fakturáciu?",
+            answer:
+              "Po overení údajov je možné nastaviť fakturáciu so splatnosťou podľa dohody.",
+          },
+          {
+            question: "Pomôžete s technickou prípravou?",
+            answer:
+              "Áno. Naši prepress špecialisti skontrolujú súbory a poradia s technickými parametrami.",
+          },
+        ]
+
   return (
     <div className="space-y-16">
-      <section className="rounded-2xl border bg-muted/40 px-6 py-12 text-center">
+      <section className="text-center">
         <Breadcrumb className="mx-auto w-fit text-xs">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -105,92 +196,149 @@ export default function ContactPage() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">
+        <h1 className="mt-4 text-4xl font-bold md:text-5xl">
           Kontaktujte nás
         </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-          Radi vám pomôžeme s výberom materiálov, cenovou ponukou aj realizáciou.
+        <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+          {mode === "b2c"
+            ? "Sme tu, aby sme vám pomohli s vašimi tlačovými projektami. Kontaktujte nás telefonicky, emailom alebo cez formulár."
+            : "Náš B2B tím pripraví individuálne riešenie pre vašu firmu. Požiadajte o ponuku alebo sa obráťte na account manažéra."}
         </p>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {contactBlocks.map((block) => (
-            <div
-              key={block.title}
-              className="rounded-xl border bg-background p-6"
-            >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="h-6 w-6 fill-current"
+      </section>
+
+      <section className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <ContactForm mode={mode} />
+        </div>
+
+        <div className="space-y-4">
+          <ContactInfo mode={mode} items={contactInfoItems} />
+
+          {mode === "b2b" ? (
+            <Card className="p-6">
+              <h3 className="mb-4 font-semibold">Potrebujete okamžitú pomoc?</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  <Headphones className="h-5 w-5" style={{ color: modeColor }} />
+                  <span className="text-sm font-medium">Zavolať B2B špecialistu</span>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  <FileText className="h-5 w-5" style={{ color: modeColor }} />
+                  <span className="text-sm font-medium">Stiahnuť cenník</span>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+                  <Users className="h-5 w-5" style={{ color: modeColor }} />
+                  <span className="text-sm font-medium">Môj account manažér</span>
+                </div>
+              </div>
+            </Card>
+          ) : null}
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-8 text-center">
+          <h2 className="mb-2 text-3xl font-bold">Často kladené otázky</h2>
+          <p className="text-lg text-muted-foreground">
+            Odpovede na najčastejšie otázky našich {mode === "b2c" ? "zákazníkov" : "B2B partnerov"}
+          </p>
+        </div>
+        <div className="mx-auto max-w-3xl">
+          <FAQSection mode={mode} items={faqItems} />
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-8 text-center">
+          <h2 className="mb-2 text-3xl font-bold">Náš tím</h2>
+          <p className="text-lg text-muted-foreground">
+            Priamy kontakt na našich špecialistov.
+          </p>
+        </div>
+        <TeamShowcase mode={mode} members={team} />
+      </section>
+
+      <section>
+        <div className="mb-8 text-center">
+          <h2 className="mb-2 text-3xl font-bold">Navštívte nás</h2>
+          <p className="text-lg text-muted-foreground">
+            Príďte si prezrieť vzorky a poradiť sa osobne s našimi špecialistami.
+          </p>
+        </div>
+        <Card className="overflow-hidden">
+          <div className="flex h-96 items-center justify-center bg-muted/30">
+            <div className="text-center">
+              <MapPin className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+              <p className="mb-2 font-semibold">Mapa pripojovania</p>
+              <p className="text-sm text-muted-foreground">
+                Bojnická 3, 83104 Bratislava
+              </p>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <section>
+        <Card
+          className="overflow-hidden p-8 md:p-12"
+          style={{
+            background: `linear-gradient(135deg, ${modeAccent} 0%, ${modeColor}15 100%)`,
+          }}
+        >
+          <div className="flex justify-center">
+            <div className="text-center">
+              <h2 className="mb-3 text-2xl font-bold md:text-3xl">
+                {mode === "b2c"
+                  ? "Začnite s vaším projektom dnes"
+                  : "Staňte sa naším B2B partnerom"}
+              </h2>
+              <p className="mb-6 text-muted-foreground">
+                {mode === "b2c"
+                  ? "Máte otázky alebo potrebujete radu? Náš tím je tu pre vás."
+                  : "Získajte prístup k exkluzívnym B2B cenám, osobnému account manažérovi a prioritnej podpore."}
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <a
+                  href="tel:+421917545003"
+                  className="rounded-lg px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+                  style={{ backgroundColor: modeColor }}
                 >
-                  {block.icon}
-                </svg>
-              </div>
-              <h3 className="mt-4 text-sm font-semibold uppercase tracking-wide">
-                {block.title}
-              </h3>
-              <div className="mt-2 text-sm text-muted-foreground">
-                {Array.isArray(block.value) ? (
-                  block.value.map((line) => <p key={line}>{line}</p>)
-                ) : (
-                  <p>{block.value}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-8">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-semibold">Náš tím</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Priamy kontakt na našich špecialistov.
-            </p>
-          </div>
-          <div className="hidden text-sm text-muted-foreground md:block">
-            Po–Pi 08:00–17:00
-          </div>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {team.map((person) => (
-            <div key={person.name} className="rounded-xl border p-5 text-center">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-muted text-lg font-semibold text-muted-foreground">
-                {person.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")}
-              </div>
-              <h3 className="mt-4 text-sm font-semibold uppercase tracking-wide">
-                {person.name}
-              </h3>
-              <p className="mt-1 text-xs uppercase text-primary">{person.role}</p>
-              <div className="mt-4 space-y-1 text-xs text-muted-foreground">
-                <p>{person.phone}</p>
-                <p>{person.email}</p>
+                  <Phone className="mr-2 inline h-5 w-5" />
+                  Zavolať teraz
+                </a>
+                <a
+                  href="mailto:info@printexpert.sk"
+                  className="rounded-lg border-2 px-6 py-3 font-semibold transition-all hover:bg-white"
+                  style={{ borderColor: modeColor, color: modeColor }}
+                >
+                  <Mail className="mr-2 inline h-5 w-5" />
+                  Napísať email
+                </a>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <div className="rounded-xl border p-6">
-          <h2 className="text-xl font-semibold">Napíšte nám</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ozveme sa vám do 24 hodín počas pracovných dní.
-          </p>
-          <ContactForm />
-        </div>
-        <div className="rounded-xl border bg-muted/40 p-6">
-          <h2 className="text-xl font-semibold">Kde nás nájdete</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Rozvojová 2, 040 11 Košice (osobný odber)
-          </p>
-          <div className="mt-6 flex min-h-70 items-center justify-center rounded-lg border border-dashed bg-background text-sm text-muted-foreground">
-            Mapový náhľad
           </div>
+        </Card>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {[
+            "Kontrola súborov zadarmo",
+            "Bezpečná platba",
+            "Expresné dodanie",
+          ].map((item) => (
+            <Card key={item} className="p-6 text-center">
+              <div className="mb-3 flex justify-center">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="mb-2 font-semibold">{item}</h3>
+              <p className="text-sm text-muted-foreground">
+                {item === "Kontrola súborov zadarmo"
+                  ? "Každý súbor prejde kontrolou pred tlačou"
+                  : item === "Bezpečná platba"
+                    ? "SSL šifrovanie a overené platobné brány"
+                    : "Výroba do 2-3 dní + doprava"}
+              </p>
+            </Card>
+          ))}
         </div>
       </section>
     </div>

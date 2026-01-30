@@ -4,10 +4,28 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle, ChevronRight, Download, Home, Minus, Plus, Save, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  AlertCircle,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Download,
+  Edit,
+  FileCheck,
+  Home,
+  Info,
+  MessageSquare,
+  Minus,
+  Plus,
+  Save,
+  ShoppingCart,
+  Trash2,
+  Truck,
+  Upload,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { ModeButton } from "@/components/print/mode-button";
+import { PriceDisplay } from "@/components/print/price-display";
 import type { CartData } from "@/types/cart";
 import type { CustomerMode } from "@/components/print/types";
 
@@ -49,10 +67,16 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
   const [isPending, startTransition] = useTransition();
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [pendingUpload, setPendingUpload] = useState<PendingOrderUpload | null>(null);
-  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
-  const [pendingPreviewName, setPendingPreviewName] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [selectedShipping, setSelectedShipping] = useState<"courier" | "pickup">("courier");
+  const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)";
+  const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)";
+  const subtotal = initialCart.totals.subtotal;
+  const shippingCost = selectedShipping === "pickup" || subtotal >= 100 ? 0 : 4.99;
+  const vatRate = 0.2;
+  const totalWithVAT = initialCart.totals.total + shippingCost;
+  const vatAmount = initialCart.totals.vatAmount + shippingCost * vatRate;
+  const totalWithoutVAT = totalWithVAT - vatAmount;
 
 
   useEffect(() => {
@@ -60,30 +84,6 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
       setPendingUpload(window.__pendingOrderUpload ?? null);
     }
   }, []);
-
-  useEffect(() => {
-    if (!pendingUpload?.file) {
-      setPendingPreviewUrl(null);
-      setPendingPreviewName(null);
-      return;
-    }
-
-    const file = pendingUpload.file;
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
-      setPendingPreviewUrl(null);
-      setPendingPreviewName(file.name);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setPendingPreviewUrl(objectUrl);
-    setPendingPreviewName(file.name);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [pendingUpload]);
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     setUpdatingItems((prev) => new Set(prev).add(itemId));
@@ -140,27 +140,6 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
       style: "currency",
       currency: "EUR",
     }).format(price);
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (!Number.isFinite(bytes) || bytes <= 0) return "—";
-    const units = ["B", "KB", "MB", "GB"];
-    let value = bytes;
-    let index = 0;
-    while (value >= 1024 && index < units.length - 1) {
-      value /= 1024;
-      index += 1;
-    }
-    return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
-  };
-
-  const handleRemovePendingUpload = () => {
-    if (typeof window !== "undefined") {
-      delete window.__pendingOrderUpload;
-    }
-    setPendingUpload(null);
-    setPendingPreviewUrl(null);
-    setPendingPreviewName(null);
   };
 
   return (
@@ -231,15 +210,19 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
               const attributes = getSelectedOptionAttributes(item.selectedOptions);
 
               return (
-                <Card key={item.id} className="p-5">
-                  <div className="flex flex-col gap-5 md:flex-row">
-                    <div className="relative h-32 w-full shrink-0 overflow-hidden rounded-xl border border-border bg-muted md:h-32 md:w-40">
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-border bg-card p-4 transition-all hover:shadow-md"
+                >
+                  <div className="flex gap-4">
+                    <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
                       {item.product.images[0] ? (
                         <Image
                           src={item.product.images[0].url}
                           alt={item.product.images[0].alt || item.product.name}
                           fill
                           className="object-cover"
+                          sizes="96px"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -248,22 +231,22 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
                       )}
                     </div>
 
-                    <div className="flex flex-1 flex-col gap-4">
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="space-y-2">
+                    <div className="flex flex-1 flex-col">
+                      <div className="mb-2 flex items-start justify-between gap-4">
+                        <div className="flex-1">
                           <Link
                             href={`/product/${item.product.slug}`}
-                            className="text-lg font-semibold hover:underline"
+                            className="mb-1 block font-semibold hover:underline"
                           >
                             {item.product.name}
                           </Link>
                           {(item.width || item.height) && (
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                               Rozmery: {item.width} × {item.height} cm
                             </div>
                           )}
                           {attributes && Object.keys(attributes).length > 0 ? (
-                            <div className="space-y-1 text-xs text-muted-foreground">
+                            <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                               {Object.entries(attributes).map(([key, value]) => (
                                 <div key={key}>
                                   <span className="font-medium">{key}:</span> {value}
@@ -271,101 +254,85 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
                               ))}
                             </div>
                           ) : null}
-
-                          {pendingUpload?.file && index === 0 ? (
-                            <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Priložený súbor</span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleRemovePendingUpload}
-                                  className="h-6 px-2 text-destructive hover:text-destructive"
-                                >
-                                  Odstrániť
-                                </Button>
-                              </div>
-                              <div className="mt-1 flex items-center gap-3">
-                                {pendingPreviewUrl ? (
-                                  <Image
-                                    src={pendingPreviewUrl}
-                                    alt={pendingPreviewName ?? "Náhľad"}
-                                    width={48}
-                                    height={48}
-                                    className="h-12 w-12 rounded-md border object-cover"
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-md border bg-background text-[10px] uppercase">
-                                    Súbor
-                                  </div>
-                                )}
-                                <div className="text-xs text-muted-foreground">
-                                  {pendingUpload.file.name} · {formatBytes(pendingUpload.file.size)}
-                                </div>
-                              </div>
-                            </div>
-                          ) : null}
                         </div>
 
                         <div className="text-right">
-                          <div className="text-lg font-semibold">
-                            {formatPrice(itemTotal)}
+                          <div className="mb-1">
+                            <PriceDisplay price={itemTotal} mode={mode} size="lg" />
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatPrice(itemPrice)} / ks
+                          <div className="text-xs text-muted-foreground">
+                            <PriceDisplay price={itemPrice} mode={mode} size="sm" /> / ks
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="mb-3">
+                        {pendingUpload?.file && index === 0 ? (
+                          <div className="flex items-center gap-2 text-xs text-green-600">
+                            <FileCheck className="h-3.5 w-3.5" />
+                            <span>Súbor: {pendingUpload.file.name}</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/product/${item.product.slug}`)}
+                            className="flex items-center gap-2 text-xs font-medium transition-colors hover:underline"
+                            style={{ color: modeColor }}
+                          >
+                            <Upload className="h-3.5 w-3.5" />
+                            <span>Nahrať súbor</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
+                          <button
+                            type="button"
                             onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                             disabled={isUpdating || item.quantity <= 1}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Minus className="h-4 w-4" />
-                          </Button>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              if (val > 0) handleUpdateQuantity(item.id, val);
-                            }}
-                            className="h-8 w-20 text-center"
-                            disabled={isUpdating}
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
+                          </button>
+                          <div className="flex items-center gap-1 text-sm">
+                            <span className="font-medium">{item.quantity}</span>
+                            <span className="text-muted-foreground">ks</span>
+                          </div>
+                          <button
+                            type="button"
                             onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                             disabled={isUpdating}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Plus className="h-4 w-4" />
-                          </Button>
+                          </button>
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemove(item.id)}
-                          disabled={isUpdating}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          Odstrániť
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/product/${item.product.slug}`)}
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all hover:bg-muted"
+                            style={{ color: modeColor }}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Upraviť</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(item.id)}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition-all hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Odstrániť</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
 
@@ -386,53 +353,209 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
           </div>
 
           <div className="lg:col-span-1">
-            <Card className="sticky top-20 p-6">
-              <h2 className="mb-4 text-lg font-semibold">Súhrn objednávky</h2>
+            <div className="sticky top-20 space-y-4">
+              <Card className="p-4">
+                <h3 className="mb-3 font-semibold">Spôsob doručenia</h3>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShipping("courier")}
+                    className={`w-full rounded-lg border-2 p-3 text-left transition-all ${
+                      selectedShipping === "courier"
+                        ? "shadow-sm"
+                        : "border-border hover:border-muted-foreground"
+                    }`}
+                    style={{
+                      borderColor:
+                        selectedShipping === "courier" ? modeColor : undefined,
+                      backgroundColor:
+                        selectedShipping === "courier" ? modeAccent : undefined,
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Truck
+                          className="h-5 w-5"
+                          style={{
+                            color:
+                              selectedShipping === "courier" ? modeColor : undefined,
+                          }}
+                        />
+                        <div>
+                          <div className="font-medium">Kuriér</div>
+                          <div className="text-xs text-muted-foreground">
+                            Doručenie do 1-2 dní
+                          </div>
+                        </div>
+                      </div>
+                      <div className="font-medium">
+                        {shippingCost > 0 ? (
+                          formatPrice(shippingCost)
+                        ) : (
+                          <span className="text-green-600">Zdarma</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Medzisúčet</span>
-                  <span>{formatPrice(initialCart.totals.subtotal)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShipping("pickup")}
+                    className={`w-full rounded-lg border-2 p-3 text-left transition-all ${
+                      selectedShipping === "pickup"
+                        ? "shadow-sm"
+                        : "border-border hover:border-muted-foreground"
+                    }`}
+                    style={{
+                      borderColor:
+                        selectedShipping === "pickup" ? modeColor : undefined,
+                      backgroundColor:
+                        selectedShipping === "pickup" ? modeAccent : undefined,
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ShoppingCart
+                          className="h-5 w-5"
+                          style={{
+                            color:
+                              selectedShipping === "pickup" ? modeColor : undefined,
+                          }}
+                        />
+                        <div>
+                          <div className="font-medium">Osobný odber</div>
+                          <div className="text-xs text-muted-foreground">
+                            Bratislava - zadarmo
+                          </div>
+                        </div>
+                      </div>
+                      <div className="font-medium text-green-600">Zdarma</div>
+                    </div>
+                  </button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">DPH</span>
-                  <span>{formatPrice(initialCart.totals.vatAmount)}</span>
-                </div>
-                <div className="border-t border-border pt-2 flex justify-between font-semibold text-base">
-                  <span>Celkom</span>
-                  <span>{formatPrice(initialCart.totals.total)}</span>
-                </div>
-              </div>
+              </Card>
 
-              <div className="mt-4 space-y-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
-                <div className="font-medium">Doprava</div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={selectedShipping === "courier"}
-                    onChange={() => setSelectedShipping("courier")}
-                  />
-                  Kuriér (vypočíta sa v pokladni)
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={selectedShipping === "pickup"}
-                    onChange={() => setSelectedShipping("pickup")}
-                  />
-                  Osobný odber (vypočíta sa v pokladni)
-                </label>
-              </div>
+              <Card className="p-4">
+                <h3 className="mb-4 font-semibold">Súhrn objednávky</h3>
 
-              <div className="mt-6 space-y-3">
-                <Button asChild className="w-full" size="lg" disabled={isPending}>
-                  <Link href="/checkout">Pokračovať k pokladni</Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/catalog">Pokračovať v nákupe</Link>
-                </Button>
-              </div>
-            </Card>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Medzisúčet:</span>
+                    <span>{formatPrice(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Doprava:</span>
+                    {selectedShipping === "pickup" || shippingCost === 0 ? (
+                      <span className="font-medium text-green-600">Zdarma</span>
+                    ) : (
+                      <span>{formatPrice(shippingCost)}</span>
+                    )}
+                  </div>
+
+                  {mode === "b2c" ? (
+                    <div className="border-t border-border pt-3">
+                      <div className="flex justify-between font-semibold">
+                        <span>Celkom s DPH:</span>
+                        <span>{formatPrice(totalWithVAT)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Obsahuje DPH {(vatRate * 100).toFixed(0)}%:{" "}
+                        {formatPrice(vatAmount)}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="border-t border-border pt-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Celkom bez DPH:
+                          </span>
+                          <span>{formatPrice(totalWithoutVAT)}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          DPH {(vatRate * 100).toFixed(0)}%:
+                        </span>
+                        <span className="font-medium">+{formatPrice(vatAmount)}</span>
+                      </div>
+                      <div className="border-t border-border pt-3">
+                        <div className="flex justify-between font-semibold">
+                          <span>Celkom s DPH:</span>
+                          <span>{formatPrice(totalWithVAT)}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div
+                  className="mt-4 flex items-center gap-2 rounded-lg p-3"
+                  style={{ backgroundColor: modeAccent }}
+                >
+                  <Clock className="h-4 w-4 flex-shrink-0" style={{ color: modeColor }} />
+                  <div className="text-xs">
+                    <span className="font-medium" style={{ color: modeColor }}>
+                      Odhadovaná výroba:
+                    </span>
+                    <span className="ml-1 text-muted-foreground">3-4 pracovné dni</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <ModeButton
+                    mode={mode}
+                    variant="primary"
+                    size="lg"
+                    onClick={() => router.push("/checkout")}
+                    className="w-full"
+                    disabled={isPending}
+                  >
+                    {mode === "b2c" ? "Pokračovať k platbe" : "Pokračovať k objednávke"}
+                  </ModeButton>
+                  {mode === "b2b" ? (
+                    <ModeButton
+                      mode={mode}
+                      variant="outline"
+                      size="md"
+                      onClick={() => router.push("/checkout")}
+                      className="w-full"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Požiadať o cenovú ponuku
+                    </ModeButton>
+                  ) : null}
+                  <ModeButton
+                    mode={mode}
+                    variant="outline"
+                    size="md"
+                    onClick={() => router.push("/catalog")}
+                    className="w-full"
+                  >
+                    Pokračovať v nákupe
+                  </ModeButton>
+                </div>
+
+                {mode === "b2b" ? (
+                  <div className="mt-4 flex items-start gap-2 rounded-lg border border-border p-3 text-xs">
+                    <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <div className="text-muted-foreground">
+                      Pri objednávke nad 500 € kontaktujeme vás pre overenie detailov
+                      a možné ďalšie zľavy.
+                    </div>
+                  </div>
+                ) : null}
+              </Card>
+
+              {mode === "b2c" && subtotal < 100 && selectedShipping === "courier" ? (
+                <div className="rounded-lg border-2 border-dashed border-orange-300 bg-orange-50 p-4 text-center">
+                  <div className="text-sm font-medium text-orange-900">
+                    Pridajte ešte {formatPrice(100 - subtotal)}{" "}
+                    <span className="ml-1">a získate dopravu zadarmo! 🎉</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
