@@ -26,7 +26,7 @@ import {
 import { FileUpload } from "@/components/print/file-upload"
 import { QuantitySelector } from "@/components/print/quantity-selector"
 import { TrustBlock } from "@/components/print/trust-block"
-import { RelatedProductCard } from "@/components/print/related-product-card"
+import { ProductCard } from "@/components/product/product-card"
 import type { CustomerMode } from "@/components/print/types"
 import { ProductGallery } from "@/components/product/product-gallery"
 import {
@@ -875,17 +875,19 @@ export function ProductPageClient({
           <h2 className="mb-6 text-2xl font-bold">Súvisiace produkty</h2>
           {relatedProducts.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {relatedProducts.map((item) => (
-                <RelatedProductCard
-                  key={item.id}
-                  mode={mode}
-                  href={`/product/${item.slug}`}
-                  title={item.name}
-                  description={item.excerpt ?? null}
-                  image={item.images[0]?.url ?? null}
-                  priceFrom={item.priceFrom ?? null}
-                />
-              ))}
+                {relatedProducts.map((item) => (
+                  <ProductCard
+                    key={item.id}
+                    mode={mode}
+                    product={{
+                      slug: item.slug,
+                      name: item.name,
+                      excerpt: item.excerpt ?? null,
+                      priceFrom: item.priceFrom ?? null,
+                      images: item.images ?? [],
+                    }}
+                  />
+                ))}
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border bg-background/60 p-6 text-sm text-muted-foreground">

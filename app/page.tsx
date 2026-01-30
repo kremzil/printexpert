@@ -29,9 +29,15 @@ async function HomeContent({
     return <ModeSelectionPage />
   }
 
-  const [categories, products] = await Promise.all([
+  const [categories, products, topProducts] = await Promise.all([
     getCategories(),
     getProducts({ audience: mode }),
+    fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/top-products?audience=${mode}&count=8`,
+      { cache: "no-store" }
+    )
+      .then(async (res) => (res.ok ? res.json() : []))
+      .catch(() => []),
   ])
 
   const visibleCategories = categories.filter((category) =>
@@ -49,7 +55,6 @@ async function HomeContent({
 
   const homepageCategories = visibleCategories
     .filter((category) => !category.parentId)
-    .slice(0, 4)
     .map((category) => ({
       id: category.id,
       slug: category.slug,
@@ -59,15 +64,26 @@ async function HomeContent({
       productCount: productCountByCategory.get(category.slug) ?? 0,
     }))
 
-  const featuredProducts = products.slice(0, 4).map((product) => ({
-    id: product.id,
-    slug: product.slug,
-    name: product.name,
-    excerpt: product.excerpt,
-    description: product.description,
-    priceFrom: product.priceFrom,
-    images: product.images ?? [],
-  }))
+  const featuredProducts =
+    Array.isArray(topProducts) && topProducts.length > 0
+      ? topProducts.map((product: typeof products[number]) => ({
+          id: product.id,
+          slug: product.slug,
+          name: product.name,
+          excerpt: product.excerpt,
+          description: product.description,
+          priceFrom: product.priceFrom ? String(product.priceFrom) : null,
+          images: product.images ?? [],
+        }))
+      : products.slice(0, 8).map((product) => ({
+          id: product.id,
+          slug: product.slug,
+          name: product.name,
+          excerpt: product.excerpt,
+          description: product.description,
+          priceFrom: product.priceFrom,
+          images: product.images ?? [],
+        }))
 
   return (
     <Homepage

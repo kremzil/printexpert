@@ -21,6 +21,13 @@ import {
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 import { ProductCard } from "@/components/product/product-card"
 import type { CustomerMode } from "@/components/print/types"
 
@@ -185,16 +192,27 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                modeColor={modeColor}
-                modeAccent={modeAccent}
-                category={category}
-              />
-            ))}
-          </div>
+          <Carousel
+            opts={{ align: "start", loop: false }}
+            className="relative"
+          >
+            <CarouselContent className="-ml-4">
+              {categories.map((category) => (
+                <CarouselItem
+                  key={category.id}
+                  className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                >
+                  <CategoryCard
+                    modeColor={modeColor}
+                    modeAccent={modeAccent}
+                    category={category}
+                  />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="-left-3" />
+            <CarouselNext className="-right-3" />
+          </Carousel>
         </section>
 
         <section className="bg-muted/30 py-16">
@@ -222,7 +240,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} mode={mode} />
               ))}
             </div>
           </div>

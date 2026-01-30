@@ -1,7 +1,11 @@
-import Image from "next/image"
-import Link from "next/link"
+"use client"
 
-import { Card, CardContent, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
+import { MessageSquare, ShoppingCart } from "lucide-react"
+
+import { ModeButton } from "@/components/print/mode-button"
+import { PriceDisplay } from "@/components/print/price-display"
+import type { CustomerMode } from "@/components/print/types"
 
 type Props = {
   product: {
@@ -15,9 +19,11 @@ type Props = {
       alt?: string | null
     }>
   }
+  mode?: CustomerMode
 }
 
-export function ProductCard({ product }: Props) {
+export function ProductCard({ product, mode = "b2c" }: Props) {
+  const router = useRouter()
   const primaryImage = product.images?.[0]
   const shortDescription =
     product.excerpt ||
@@ -27,79 +33,86 @@ export function ProductCard({ product }: Props) {
         }`
       : "")
 
+  const priceValue = Number(product.priceFrom)
+  const hasPrice = Number.isFinite(priceValue) && priceValue > 0
+
+  const handleOpenProduct = () => {
+    router.push(`/product/${product.slug}`)
+  }
+
   return (
-    <Link href={`/product/${product.slug}`} className="group block h-full"> 
-      <Card className="h-full overflow-hidden border-border/40 bg-card transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:-translate-y-1">
-        <div className="relative aspect-square w-full overflow-hidden bg-secondary/10">
-          {primaryImage?.url ? (
-            <Image
-              src={primaryImage.url}
-              alt={primaryImage.alt ?? product.name}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 100vw"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
-              No image
-            </div>
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        {primaryImage?.url ? (
+          <img
+            src={primaryImage.url}
+            alt={primaryImage.alt ?? product.name}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+            Bez obrázka
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div>
+          <h3 className="mb-1 line-clamp-2 font-semibold">{product.name}</h3>
+          {shortDescription && (
+            <p className="line-clamp-2 text-sm text-muted-foreground">
+              {shortDescription}
+            </p>
           )}
-          
-          {/* Overlay gradient on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </div>
 
-        <CardContent className="flex flex-col gap-2 p-5 text-left">
-          <div className="space-y-1">
-            <CardTitle className="font-display text-lg font-bold leading-tight decoration-primary/50 decoration-2 underline-offset-4 transition-colors group-hover:text-primary text-left">
-              {product.name}
-            </CardTitle>
-            {shortDescription && (
-              <p className="line-clamp-2 text-sm text-muted-foreground">
-                {shortDescription}
-              </p>
-            )}
-          </div>
+        <div className="mt-auto">
+          {hasPrice ? (
+            <PriceDisplay price={priceValue} mode={mode} size="md" showFrom />
+          ) : (
+            <div className="text-sm text-muted-foreground">Na vyžiadanie</div>
+          )}
+        </div>
 
-          <div className="mt-auto flex items-center justify-between pt-3">
-            <div className="flex flex-col">
-              {product.priceFrom ? (
-                <>
-                  <span className="text-xs text-muted-foreground">Cena od</span>
-                  <span className="font-bold text-primary">
-                    {product.priceFrom} €
-                  </span>
-                </>
-              ) : (
-                <span className="text-sm font-medium text-muted-foreground">
-                  Na vyžiadanie
-                </span>
-              )}
-            </div>
-            
-            <div 
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground opacity-0 shadow-sm transition-all duration-300 group-hover:opacity-100 group-hover:bg-primary group-hover:text-primary-foreground"
+        <div className="flex gap-2">
+          {mode === "b2c" ? (
+            <ModeButton
+              mode={mode}
+              variant="primary"
+              size="md"
+              onClick={handleOpenProduct}
+              className="flex-1"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-arrow-right"
+              <ShoppingCart className="h-4 w-4" />
+              Kúpiť
+            </ModeButton>
+          ) : (
+            <>
+              <ModeButton
+                mode={mode}
+                variant="outline"
+                size="md"
+                onClick={handleOpenProduct}
+                className="flex-1"
               >
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+                <MessageSquare className="h-4 w-4" />
+                Cenová ponuka
+              </ModeButton>
+              <ModeButton
+                mode={mode}
+                variant="primary"
+                size="md"
+                onClick={handleOpenProduct}
+                className="flex-1"
+              >
+                Konfigurovať
+              </ModeButton>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
