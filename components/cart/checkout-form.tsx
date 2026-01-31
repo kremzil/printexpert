@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2,
+  Lock,
+  Info,
+  ShoppingCart,
+} from "lucide-react";
 import type { CartData } from "@/types/cart";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -17,9 +18,17 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
+import type { CustomerMode } from "@/components/print/types";
+import { ModeButton } from "@/components/print/mode-button";
+import { PriceDisplay } from "@/components/print/price-display";
+import { PaymentMethodSelector } from "@/components/print/payment-method-selector";
+import { CheckoutSteps } from "@/components/print/checkout-steps";
+import { AddressForm } from "@/components/print/address-form";
+import { OrderReview } from "@/components/print/order-review";
 
 interface CheckoutFormProps {
   cart: CartData;
+  mode: CustomerMode;
 }
 
 type PendingOrderUpload = {
@@ -41,9 +50,10 @@ type PaymentFormProps = {
   orderId: string;
   onError: (message: string) => void;
   onProcessing: (value: boolean) => void;
+  mode: CustomerMode;
 };
 
-function PaymentForm({ orderId, onError, onProcessing }: PaymentFormProps) {
+function PaymentForm({ orderId, onError, onProcessing, mode }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isPaying, setIsPaying] = useState(false);
@@ -85,11 +95,18 @@ function PaymentForm({ orderId, onError, onProcessing }: PaymentFormProps) {
   return (
     <form onSubmit={handlePay} className="space-y-4">
       <PaymentElement />
-      <Button type="submit" className="w-full" size="lg" disabled={!stripe || isPaying}>
+      <ModeButton
+        mode={mode}
+        variant="primary"
+        size="lg"
+        type="submit"
+        className="w-full"
+        disabled={!stripe || isPaying}
+      >
         {isPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Zaplatiť
-      </Button>
-      <p className="text-xs text-muted-foreground text-center">
+      </ModeButton>
+      <p className="text-center text-xs text-muted-foreground">
         Platbu spracúva Stripe. Podporované sú karty aj Link.
       </p>
     </form>
@@ -114,7 +131,7 @@ const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, s
   return attributes as Record<string, string>;
 };
 
-export function CheckoutForm({ cart }: CheckoutFormProps) {
+export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -123,10 +140,34 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"bank" | "stripe">("bank");
-  const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
+  const [billingData, setBillingData] = useState({
+    companyName: "",
+    ico: "",
+    dic: "",
+    icDph: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    street: "",
+    city: "",
+    zipCode: "",
+    country: "SK",
+  });
+  const [deliveryDifferent, setDeliveryDifferent] = useState(false);
+  const [deliveryData, setDeliveryData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    street: "",
+    city: "",
+    zipCode: "",
+    country: "SK",
+  });
   const [notes, setNotes] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -135,12 +176,88 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
     }).format(price);
   };
 
+  const steps =
+    mode === "b2c"
+      ? [
+          { number: 1, title: "Kontakt", description: "Fakturačné údaje" },
+          { number: 2, title: "Doručenie", description: "Adresa doručenia" },
+          { number: 3, title: "Platba", description: "Spôsob platby" },
+          { number: 4, title: "Dokončenie", description: "Kontrola a potvrdenie" },
+        ]
+      : [
+          { number: 1, title: "Prezeranie", description: "Kontrola košíka" },
+          { number: 2, title: "Fakturácia", description: "Firemné údaje" },
+          { number: 3, title: "Doručenie", description: "Adresa dodania" },
+          { number: 4, title: "Platba", description: "Spôsob úhrady" },
+          { number: 5, title: "Dokončenie", description: "Potvrdenie" },
+        ];
+
+  const billingStep = mode === "b2c" ? 1 : 2;
+  const deliveryStep = mode === "b2c" ? 2 : 3;
+  const paymentStep = mode === "b2c" ? 3 : 4;
+  const reviewStep = mode === "b2c" ? 4 : 5;
+
+  const handleBillingChange = (field: string, value: string) => {
+    setBillingData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleDeliveryChange = (field: string, value: string) => {
+    setDeliveryData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const customerName = `${billingData.firstName} ${billingData.lastName}`.trim();
+  const customerEmail = billingData.email.trim();
+  const customerPhone = billingData.phone.trim();
+
+  const canProceedFromBilling =
+    billingData.firstName.trim() &&
+    billingData.lastName.trim() &&
+    billingData.email.trim() &&
+    billingData.street.trim() &&
+    billingData.city.trim() &&
+    billingData.zipCode.trim() &&
+    (mode === "b2b"
+      ? billingData.companyName.trim() && billingData.ico.trim() && billingData.dic.trim()
+      : true);
+  const canProceedFromDelivery = deliveryDifferent
+    ? deliveryData.street.trim() &&
+      deliveryData.city.trim() &&
+      deliveryData.zipCode.trim()
+    : true;
+
   const createOrderAndUpload = useCallback(async () => {
+    const deliveryDetails = deliveryDifferent
+      ? [
+          "Adresa doručenia:",
+          deliveryData.firstName || deliveryData.lastName
+            ? `Meno: ${`${deliveryData.firstName} ${deliveryData.lastName}`.trim()}`
+            : null,
+          deliveryData.email ? `Email: ${deliveryData.email}` : null,
+          deliveryData.phone ? `Telefón: ${deliveryData.phone}` : null,
+          deliveryData.street ? `Ulica: ${deliveryData.street}` : null,
+          deliveryData.city ? `Mesto: ${deliveryData.city}` : null,
+          deliveryData.zipCode ? `PSČ: ${deliveryData.zipCode}` : null,
+          deliveryData.country ? `Krajina: ${deliveryData.country}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : null;
+
+    const extraNotes = [
+      billingData.companyName ? `Spoločnosť: ${billingData.companyName}` : null,
+      billingData.ico ? `IČO: ${billingData.ico}` : null,
+      billingData.dic ? `DIČ: ${billingData.dic}` : null,
+      billingData.icDph ? `IČ DPH: ${billingData.icDph}` : null,
+      deliveryDetails,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     const data = {
-      customerName: customerName.trim(),
-      customerEmail: customerEmail.trim(),
-      customerPhone: customerPhone.trim(),
-      notes: notes.trim(),
+      customerName,
+      customerEmail,
+      customerPhone,
+      notes: [notes.trim(), extraNotes].filter(Boolean).join("\n\n"),
     };
 
     const response = await fetch("/api/checkout", {
@@ -210,7 +327,7 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
     window.dispatchEvent(new Event("cart-updated"));
 
     return { orderId: order.id as string, uploadFailed };
-  }, [customerEmail, customerName, customerPhone, notes]);
+  }, [billingData, deliveryData, deliveryDifferent, notes, customerEmail, customerName, customerPhone]);
 
   const preparePayment = useCallback(async () => {
     if (paymentMethod !== "stripe") {
@@ -277,8 +394,6 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
     isPreparingPayment,
     customerName,
     customerEmail,
-    customerPhone,
-    notes,
     saveCard,
     createOrderAndUpload,
     paymentMethod,
@@ -313,284 +428,417 @@ export function CheckoutForm({ cart }: CheckoutFormProps) {
     orderId,
   ]);
 
+  const getItemConfiguration = (item: CartData["items"][number]) => {
+    const attributes = getSelectedOptionAttributes(item.selectedOptions);
+    const attributeValues = attributes ? Object.values(attributes).filter(Boolean) : [];
+    const sizePart =
+      item.width && item.height ? `${item.width} × ${item.height} mm` : null;
+    return [sizePart, ...attributeValues].filter(Boolean).join(", ");
+  };
+
+  const orderItems = cart.items.map((item) => ({
+    id: item.id,
+    productName: item.product.name,
+    quantity: item.quantity,
+    pricePerUnit: item.priceSnapshot?.gross || 0,
+    configuration: getItemConfiguration(item) || "—",
+  }));
+
+  const paymentLabel =
+    paymentMethod === "stripe" ? "Platobná karta" : "Bankový prevod";
+
+  const handleEditStep = (step: number) => {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <div className="grid gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-6">
-        {isStripeTestMode && (
-          <Alert>
-            <AlertDescription>
-              Testovací režim Stripe je zapnutý. Použite testovaciu kartu 4242 4242 4242 4242,
-              akýkoľvek dátum v budúcnosti a ľubovoľné CVC.
-            </AlertDescription>
-          </Alert>
-        )}
-        <Card>
-          <CardHeader>
-            <CardTitle>Kontaktné údaje</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="customerName">
-                Meno a priezvisko <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="customerName"
-                name="customerName"
-                required
-                placeholder="Ján Novák"
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                onBlur={preparePayment}
-                disabled={isSubmitting || Boolean(clientSecret)}
-              />
+    <div className="space-y-6">
+      <CheckoutSteps mode={mode} currentStep={currentStep} steps={steps} />
+      {isStripeTestMode && (
+        <Alert>
+          <AlertDescription>
+            Testovací režim Stripe je zapnutý. Použite testovaciu kartu 4242 4242 4242 4242,
+            akýkoľvek dátum v budúcnosti a ľubovoľné CVC.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+        {mode === "b2b" && currentStep === 1 && (
+          <Card className="p-6">
+            <h3 className="mb-4 text-lg font-semibold">Kontrola objednávky</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Skontrolujte položky vo vašom košíku pred pokračovaním na zadanie firemných údajov.
+            </p>
+
+            <div className="space-y-3">
+              {cart.items.map((item) => {
+                const itemPrice = item.priceSnapshot?.gross || 0;
+                const itemTotal = itemPrice * item.quantity;
+                return (
+                  <div key={item.id} className="flex justify-between border-b border-border pb-3">
+                    <div>
+                      <div className="font-medium">{item.product.name}</div>
+                      <div className="text-sm text-muted-foreground">{item.quantity} ks</div>
+                    </div>
+                    <div className="font-semibold">
+                      <PriceDisplay price={itemTotal} mode={mode} size="sm" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            <div>
-              <Label htmlFor="customerEmail">
-                E-mail <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="customerEmail"
-                name="customerEmail"
-                type="email"
-                required
-                placeholder="jan.novak@example.com"
-                value={customerEmail}
-                onChange={(event) => setCustomerEmail(event.target.value)}
-                onBlur={preparePayment}
-                disabled={isSubmitting || Boolean(clientSecret)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="customerPhone">Telefón</Label>
-              <Input
-                id="customerPhone"
-                name="customerPhone"
-                type="tel"
-                placeholder="+421 XXX XXX XXX"
-                value={customerPhone}
-                onChange={(event) => setCustomerPhone(event.target.value)}
-                disabled={isSubmitting || Boolean(clientSecret)}
-              />
-            </div>
-            {paymentMethod === "stripe" && (
+            <div className="mt-4 rounded-lg border border-border bg-muted/50 p-4">
               <div className="flex items-start gap-2">
-                <input
-                  id="saveCard"
-                  name="saveCard"
-                  type="checkbox"
-                  checked={saveCard}
-                  onChange={(event) => setSaveCard(event.target.checked)}
-                  disabled={isSubmitting || Boolean(clientSecret)}
-                  className="mt-1 h-4 w-4 rounded border border-input"
-                />
-                <div className="space-y-1">
-                  <Label htmlFor="saveCard" className="text-sm leading-tight">
-                    Uložiť kartu pre budúce platby
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Uloženie karty vyžaduje prihlásenie.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Spôsob platby</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <RadioGroup
-            value={paymentMethod}
-            onValueChange={(value) => {
-              const nextValue = value === "stripe" ? "stripe" : "bank";
-              setPaymentMethod(nextValue);
-              if (nextValue === "stripe") {
-                preparePayment();
-              }
-            }}
-            className="space-y-4"
-          >
-            <div className="flex items-start gap-3">
-              <RadioGroupItem value="bank" id="payment-bank" className="mt-1" />
-              <div className="space-y-2">
-                <Label htmlFor="payment-bank" className="text-sm font-medium">
-                  Priamy vklad na účet
-                </Label>
-                <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                  Uskutočnite platbu priamo na náš bankový účet. Ako referenciu pre platbu
-                  použite svoje ID objednávky. Vaša objednávka bude odoslaná až po pripísaní
-                  prostriedkov na náš účet.
-                </div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <RadioGroupItem value="stripe" id="payment-stripe" className="mt-1" />
-              <div className="space-y-1">
-                <Label htmlFor="payment-stripe" className="text-sm font-medium">
-                  Stripe
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Platba kartou alebo Link priamo na stránke.
+                <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Ako B2B zákazník získate prístup k objemovým zľavám a osobnému account manažérovi.
                 </p>
               </div>
             </div>
-          </RadioGroup>
-        </CardContent>
-      </Card>
+          </Card>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Poznámka k objednávke</CardTitle>
-        </CardHeader>
-          <CardContent>
-            <Textarea
-              id="notes"
-              name="notes"
-              placeholder="Doplňujúce informácie k objednávke..."
-              rows={4}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              disabled={isSubmitting}
+        {currentStep === billingStep && (
+          <AddressForm
+            mode={mode}
+            title={mode === "b2c" ? "Kontaktné a fakturačné údaje" : "Fakturačné údaje"}
+            showCompanyFields={mode === "b2b"}
+            values={billingData}
+            onChange={handleBillingChange}
+          />
+        )}
+
+        {currentStep === deliveryStep && (
+          <>
+            <Card className="p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="different-delivery"
+                  checked={deliveryDifferent}
+                  onChange={(event) => setDeliveryDifferent(event.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <label htmlFor="different-delivery" className="text-sm font-medium">
+                  {mode === "b2c"
+                    ? "Doručiť na inú adresu"
+                    : "Adresa dodania je iná ako fakturačná"}
+                </label>
+              </div>
+            </Card>
+
+            {deliveryDifferent && (
+              <AddressForm
+                mode={mode}
+                title={mode === "b2c" ? "Adresa doručenia" : "Adresa dodania"}
+                showCompanyFields={false}
+                values={deliveryData}
+                onChange={handleDeliveryChange}
+              />
+            )}
+          </>
+        )}
+
+        {currentStep === paymentStep && (
+          <>
+            <PaymentMethodSelector
+              mode={mode}
+              selected={paymentMethod}
+              onSelect={(next) => {
+                setPaymentMethod(next);
+                if (next === "stripe") {
+                  preparePayment();
+                }
+              }}
             />
-          </CardContent>
-        </Card>
+
+            {paymentMethod === "stripe" && (
+              <Card className="p-6">
+                <div className="flex items-start gap-2">
+                  <input
+                    id="saveCard"
+                    name="saveCard"
+                    type="checkbox"
+                    checked={saveCard}
+                    onChange={(event) => setSaveCard(event.target.checked)}
+                    disabled={isSubmitting || Boolean(clientSecret)}
+                    className="mt-1 h-4 w-4 rounded border border-input"
+                  />
+                  <div className="space-y-1">
+                    <label htmlFor="saveCard" className="text-sm leading-tight">
+                      Uložiť kartu pre budúce platby
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Uloženie karty vyžaduje prihlásenie.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            <Card className="p-6">
+              <h3 className="mb-2 text-lg font-semibold">Poznámka k objednávke</h3>
+              <Textarea
+                id="notes"
+                name="notes"
+                placeholder="Doplňujúce informácie k objednávke..."
+                rows={4}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                disabled={isSubmitting}
+              />
+            </Card>
+          </>
+        )}
+
+        {currentStep === reviewStep && (
+          <>
+            <OrderReview
+              mode={mode}
+              items={orderItems}
+              shippingMethod="Kuriér"
+              shippingCost={0}
+              paymentMethod={paymentLabel}
+              billingAddress={{
+                companyName: billingData.companyName,
+                name: customerName,
+                street: billingData.street,
+                city: billingData.city,
+                zipCode: billingData.zipCode,
+                country: billingData.country,
+              }}
+              deliveryAddress={
+                deliveryDifferent
+                  ? {
+                      name: `${deliveryData.firstName} ${deliveryData.lastName}`.trim(),
+                      street: deliveryData.street,
+                      city: deliveryData.city,
+                      zipCode: deliveryData.zipCode,
+                      country: deliveryData.country,
+                    }
+                  : undefined
+              }
+              onEditStep={handleEditStep}
+              editSteps={{
+                items: mode === "b2c" ? billingStep : 1,
+                shipping: deliveryStep,
+                billing: billingStep,
+                payment: paymentStep,
+              }}
+            />
+
+            <Card className="p-6">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-border"
+                />
+                <label htmlFor="terms" className="text-sm text-muted-foreground">
+                  Súhlasím s{" "}
+                  <a href="#" className="font-medium text-primary hover:underline">
+                    obchodnými podmienkami
+                  </a>{" "}
+                  a{" "}
+                  <a href="#" className="font-medium text-primary hover:underline">
+                    ochranou osobných údajov
+                  </a>
+                </label>
+              </div>
+            </Card>
+          </>
+        )}
 
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <div className="flex gap-4">
+          {currentStep > 1 && (
+            <ModeButton
+              mode={mode}
+              variant="outline"
+              size="lg"
+              type="button"
+              onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
+            >
+              Späť
+            </ModeButton>
+          )}
+          {currentStep < steps.length && (
+            <ModeButton
+              mode={mode}
+              variant="primary"
+              size="lg"
+              type="button"
+              className="flex-1"
+              onClick={() => {
+                if (currentStep === billingStep && !canProceedFromBilling) {
+                  setError("Vyplňte povinné údaje.");
+                  return;
+                }
+                if (currentStep === deliveryStep && !canProceedFromDelivery) {
+                  setError("Vyplňte adresu doručenia.");
+                  return;
+                }
+                setError(null);
+                setCurrentStep((prev) => Math.min(steps.length, prev + 1));
+              }}
+            >
+              Pokračovať
+            </ModeButton>
+          )}
+        </div>
       </div>
 
       <div className="lg:col-span-1">
-        <Card className="sticky top-4">
-          <CardHeader>
-            <CardTitle>Súhrn objednávky</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+        <div className="sticky top-24 space-y-4">
+          <Card className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+              <h3 className="font-semibold">Zhrnutie</h3>
+            </div>
+
+            <div className="mb-4 space-y-3">
               {cart.items.map((item) => {
                 const itemPrice = item.priceSnapshot?.gross || 0;
                 const itemTotal = itemPrice * item.quantity;
                 return (
-                  <div key={item.id} className="space-y-1 pb-2 border-b last:border-0 last:pb-0">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {item.product.name} × {item.quantity}
-                      </span>
-                      <span>{formatPrice(itemTotal)}</span>
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <div className="flex-1">
+                      <div className="font-medium">{item.product.name}</div>
+                      <div className="text-muted-foreground">{item.quantity} ks</div>
                     </div>
-                    {(() => {
-                      const attributes = getSelectedOptionAttributes(item.selectedOptions);
-
-                      if (!attributes || Object.keys(attributes).length === 0) {
-                        return null;
-                      }
-
-                      return (
-                        <div className="text-xs text-muted-foreground pl-2">
-                          {Object.entries(attributes).map(([key, value]) => (
-                            <div key={key}>{key}: {value}</div>
-                          ))}
-                        </div>
-                      );
-                    })()}
+                    <div className="font-medium">
+                      <PriceDisplay price={itemTotal} mode={mode} size="sm" />
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="border-t pt-4 space-y-2 text-sm">
+            <div className="space-y-2 border-t border-border pt-4 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Medzisoučet</span>
-                <span>{formatPrice(cart.totals.subtotal)}</span>
+                <span className="text-muted-foreground">Medzisúčet:</span>
+                <PriceDisplay price={cart.totals.subtotal} mode={mode} size="sm" />
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">DPH</span>
+                <span className="text-muted-foreground">DPH:</span>
                 <span>{formatPrice(cart.totals.vatAmount)}</span>
               </div>
-              <div className="border-t pt-2 flex justify-between font-semibold text-base">
-                <span>Celkom</span>
-                <span>{formatPrice(cart.totals.total)}</span>
+              <div className="border-t border-border pt-2">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Celkom:</span>
+                  {mode === "b2c" ? (
+                    <PriceDisplay price={cart.totals.total} mode={mode} size="lg" />
+                  ) : (
+                    <span>{formatPrice(cart.totals.total)}</span>
+                  )}
+                </div>
               </div>
             </div>
 
             {isPreparingPayment && (
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="mt-3 text-xs text-muted-foreground text-center">
                 Pripravujeme platbu...
               </p>
             )}
-          </CardContent>
-        </Card>
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Platba</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {paymentMethod === "bank" && (
-              <div className="space-y-3">
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={handleBankTransfer}
-                  disabled={isSubmitting || isPreparingPayment}
-                >
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Potvrdiť objednávku
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  Pokyny k platbe uvidíte po vytvorení objednávky.
-                </p>
-              </div>
-            )}
-            {paymentMethod === "stripe" && (
-              <>
-                {!clientSecret && (
-                  <div className="space-y-3 text-sm text-muted-foreground">
-                    <p>
-                      Vyplňte kontaktné údaje, aby sme mohli pripraviť platbu.
-                    </p>
-                    <Button
-                      type="button"
-                      className="w-full"
-                      onClick={preparePayment}
-                      disabled={isSubmitting || isPreparingPayment}
-                    >
-                      {isPreparingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Načítať platobný formulár
-                    </Button>
-                  </div>
-                )}
-                {clientSecret && orderId && stripePromise && (
-                  <>
-                    <Elements
-                      stripe={stripePromise}
-                      options={{
-                        clientSecret,
-                        appearance: { theme: "stripe" },
-                      }}
-                    >
-                      <PaymentForm
-                        orderId={orderId}
-                        onError={(message) => setError(message)}
-                        onProcessing={(value) => setIsProcessingPayment(value)}
-                      />
-                    </Elements>
-                    {isProcessingPayment && (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Platba sa spracováva. Prosím, neodchádzajte z tejto stránky.
+          </Card>
+
+          {currentStep === reviewStep && (
+            <Card className="p-6">
+              <h3 className="mb-3 text-lg font-semibold">Platba</h3>
+              {paymentMethod === "bank" && (
+                <div className="space-y-3">
+                  <ModeButton
+                    mode={mode}
+                    variant="primary"
+                    size="lg"
+                    type="button"
+                    className="w-full"
+                    onClick={handleBankTransfer}
+                    disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
+                  >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Potvrdiť objednávku
+                  </ModeButton>
+                  <p className="text-center text-xs text-muted-foreground">
+                    Pokyny k platbe uvidíte po vytvorení objednávky.
+                  </p>
+                </div>
+              )}
+
+              {paymentMethod === "stripe" && (
+                <>
+                  {!clientSecret && (
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                      <p>
+                        Vyplňte kontaktné údaje, aby sme mohli pripraviť platbu.
                       </p>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+                      <ModeButton
+                        mode={mode}
+                        variant="outline"
+                        size="md"
+                        type="button"
+                        className="w-full"
+                        onClick={preparePayment}
+                        disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
+                      >
+                        {isPreparingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Načítať platobný formulár
+                      </ModeButton>
+                    </div>
+                  )}
+                  {clientSecret && orderId && stripePromise && (
+                    <>
+                      <Elements
+                        stripe={stripePromise}
+                        options={{
+                          clientSecret,
+                          appearance: { theme: "stripe" },
+                        }}
+                      >
+                        <PaymentForm
+                          mode={mode}
+                          orderId={orderId}
+                          onError={(message) => setError(message)}
+                          onProcessing={(value) => setIsProcessingPayment(value)}
+                        />
+                      </Elements>
+                      {isProcessingPayment && (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Platba sa spracováva. Prosím, neodchádzajte z tejto stránky.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </Card>
+          )}
+
+          <Card className="p-4">
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-green-600" />
+                <span className="text-muted-foreground">100% zabezpečená platba</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-green-600" />
+                <span className="text-muted-foreground">Kontrola súborov zdarma</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
       </div>
     </div>
   );

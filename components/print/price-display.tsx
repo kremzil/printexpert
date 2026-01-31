@@ -8,6 +8,7 @@ interface PriceDisplayProps {
   size?: "sm" | "md" | "lg" | "xl"
   showFrom?: boolean
   oldPrice?: number
+  showVAT?: boolean
 }
 
 export function PriceDisplay({
@@ -16,6 +17,7 @@ export function PriceDisplay({
   size = "md",
   showFrom = false,
   oldPrice,
+  showVAT = true,
 }: PriceDisplayProps) {
   const vatRate = 0.2
   const priceWithoutVat = price / (1 + vatRate)
@@ -51,7 +53,9 @@ export function PriceDisplay({
             {price.toFixed(2)} €
           </span>
         </div>
-        <span className={`text-muted-foreground ${classes.detail}`}>s DPH</span>
+        {showVAT && (
+          <span className={`text-muted-foreground ${classes.detail}`}>s DPH</span>
+        )}
       </div>
     )
   }
@@ -76,9 +80,11 @@ export function PriceDisplay({
           {priceWithoutVat.toFixed(2)} €
         </span>
       </div>
-      <div className={`text-muted-foreground ${classes.detail}`}>
-        bez DPH (+ {vatAmount.toFixed(2)} € DPH = {price.toFixed(2)} €)
-      </div>
+      {showVAT && (
+        <div className={`text-muted-foreground ${classes.detail}`}>
+          bez DPH (+ {vatAmount.toFixed(2)} € DPH = {price.toFixed(2)} €)
+        </div>
+      )}
     </div>
   )
 }
