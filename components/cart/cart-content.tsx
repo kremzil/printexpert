@@ -143,8 +143,8 @@ export function CartContent({ cart: initialCart, mode }: CartContentProps) {
   };
 
   return (
-    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
-      <div className="container mx-auto px-4 py-6">
+    <div className="w-full">
+      <div className="container-main py-6">
         <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Home className="h-4 w-4" />
           <ChevronRight className="h-4 w-4" />

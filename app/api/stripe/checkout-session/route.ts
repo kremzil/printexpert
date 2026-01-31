@@ -67,8 +67,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const resolvedAudience = resolveAudience(order.audience);
     const audienceContext: AudienceContext = {
-      audience: resolveAudience(order.audience),
+      audience: resolvedAudience,
+      mode: resolvedAudience,
       source: "account",
     };
 

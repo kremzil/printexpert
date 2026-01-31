@@ -105,7 +105,7 @@ async function AdminPropertiesContent() {
               Zatiaľ tu nie sú žiadne vlastnosti.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="table-responsive rounded-lg border">
               <table className="w-full text-left text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr className="border-b">

@@ -39,8 +39,8 @@ export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
-          <div className="container mx-auto px-4 py-8">
+        <div className="w-full">
+          <div className="container-main py-8">
           <div className="space-y-4">
             <Skeleton className="h-14 w-64" />
             <Skeleton className="h-24 w-full" />
@@ -61,7 +61,7 @@ async function CheckoutShell() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container-main py-8">
         <div className="mb-6 flex flex-col gap-4">
           <Link
             href="/cart"

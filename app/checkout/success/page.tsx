@@ -17,7 +17,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container-main py-12">
         <OrderSuccess mode={mode} orderNumber={orderId} />
       </div>
     </div>

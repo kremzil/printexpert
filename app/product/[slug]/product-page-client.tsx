@@ -458,7 +458,7 @@ export function ProductPageClient({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6">
+      <div className="container-main py-6">
         <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Home className="h-4 w-4" />
           <ChevronRight className="h-4 w-4" />

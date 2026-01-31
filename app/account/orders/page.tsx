@@ -16,8 +16,13 @@ async function OrdersContent() {
 
 export default function OrdersPage() {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">Moje objednávky</h1>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-semibold">Moje objednávky</h2>
+        <p className="text-sm text-muted-foreground">
+          História vašich objednávok a ich stav.
+        </p>
+      </div>
       <Suspense
         fallback={
           <div className="space-y-4">

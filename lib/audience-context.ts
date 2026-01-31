@@ -6,6 +6,7 @@ import {
   AUDIENCE_COOKIE_NAME,
   AUDIENCE_QUERY_PARAM,
   type Audience,
+  type AudienceSource,
   type AudienceContext,
   parseAudience,
 } from "@/lib/audience-shared"
@@ -64,6 +65,15 @@ const resolveAccountAudience = async (): Promise<Audience | null> => {
   return null
 }
 
+const buildAudienceContext = (
+  audience: Audience,
+  source: AudienceSource
+): AudienceContext => ({
+  audience,
+  mode: audience,
+  source,
+})
+
 export const resolveAudienceContext = async (
   options: ResolveAudienceOptions = {}
 ): Promise<AudienceContext> => {
@@ -85,32 +95,20 @@ export const resolveAudienceContext = async (
   const queryAudience = parseAudience(queryFromSearchParams ?? queryFromRequest)
 
   if (queryAudience) {
-    return {
-      audience: queryAudience,
-      source: "query",
-    }
+    return buildAudienceContext(queryAudience, "query")
   }
 
   const accountAudience = await resolveAccountAudience()
   if (accountAudience) {
-    return {
-      audience: accountAudience,
-      source: "account",
-    }
+    return buildAudienceContext(accountAudience, "account")
   }
 
   const cookieAudience = options.request
     ? getAudienceFromRequestCookies(options.request)
     : await getAudienceFromServerCookies()
   if (cookieAudience) {
-    return {
-      audience: cookieAudience,
-      source: "cookie",
-    }
+    return buildAudienceContext(cookieAudience, "cookie")
   }
 
-  return {
-    audience: "b2c",
-    source: "default",
-  }
+  return buildAudienceContext("b2c", "default")
 }

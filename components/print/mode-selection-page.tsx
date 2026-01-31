@@ -77,9 +77,9 @@ export function ModeSelectionPage() {
   }
 
   return (
-    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
+    <div className="w-full">
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-        <div className="container mx-auto px-4 py-12 md:py-20">
+        <div className="container-main py-12 md:py-20">
           <div className="mb-16 text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
               <Sparkles className="h-4 w-4" />

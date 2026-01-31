@@ -21,7 +21,7 @@ async function OrderContent({ params }: { params: Promise<{ orderId: string }> }
 
 export default async function OrderPage({ params }: OrderPageProps) {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="space-y-6 max-w-4xl">
       <Suspense
         fallback={
           <div className="space-y-4">

@@ -1,27 +1,58 @@
-import { ReactNode, Suspense } from "react"
+import { ReactNode } from "react"
+import { AccountMenu } from "@/components/account/account-menu"
 import { AccountSidebar } from "@/components/account/account-sidebar"
-import { Skeleton } from "@/components/ui/skeleton"
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
+import { resolveAudienceContext } from "@/lib/audience-context"
+import { auth } from "@/auth"
 
-export default function AccountLayout({
+export default async function AccountLayout({
   children,
 }: {
   children: ReactNode
 }) {
+  const audienceContext = await resolveAudienceContext()
+  const session = await auth()
+
   return (
-    <div className="flex min-h-screen">
-      <Suspense fallback={<Skeleton className="w-64 h-full" />}>
-        <AccountSidebar />
-      </Suspense>
-      <div className="flex-1">
-        <header className="border-b">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-2xl font-semibold">Môj účet</h1>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-8">
-          {children}
-        </main>
+    <>
+      {/* Mobile: Sidebar */}
+      <div className="lg:hidden">
+        <SidebarProvider>
+          <AccountSidebar mode={audienceContext.mode} />
+          <SidebarInset>
+            <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <SidebarTrigger className="-ml-1" />
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Osobný účet</span>
+              </div>
+            </header>
+            <main className="container-main py-6">
+              {children}
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
       </div>
-    </div>
+
+      {/* Desktop: Scroll menu */}
+      <div className="hidden lg:block w-full">
+        <div className="container-main py-8">
+             <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
+            <aside className="h-full">
+              <div className="sticky top-20">
+              <AccountMenu
+                mode={audienceContext.mode}
+                userName={session?.user?.name}
+                userEmail={session?.user?.email}
+              />
+              </div>
+            </aside>
+            <main>
+              {children}
+            </main>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

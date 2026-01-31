@@ -37,18 +37,16 @@ async function CartItems() {
 
 export default function CartPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Suspense
-        fallback={
-          <div className="space-y-4">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        }
-      >
-        <CartItems />
-      </Suspense>
-    </div>
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      }
+    >
+      <CartItems />
+    </Suspense>
   );
 }

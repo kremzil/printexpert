@@ -12,8 +12,8 @@ export function EmptyCart({ mode }: EmptyCartProps) {
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
 
   return (
-    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
-      <div className="container mx-auto px-4 py-12">
+    <div className="w-full">
+      <div className="py-12">
         <div className="rounded-2xl border border-border bg-card p-10 text-center">
           <div
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"

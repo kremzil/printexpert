@@ -167,7 +167,7 @@ async function AdminPropertyDetails({
                 Zatiaľ tu nie sú žiadne hodnoty.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="table-responsive rounded-lg border">
                 <table className="w-full text-left text-sm">
                   <thead className="text-xs text-muted-foreground">
                     <tr className="border-b">

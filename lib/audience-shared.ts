@@ -3,6 +3,7 @@ export type AudienceSource = "query" | "cookie" | "account" | "default"
 
 export type AudienceContext = {
   audience: Audience
+  mode: Audience
   source: AudienceSource
   expiresAt?: string
   locale?: string

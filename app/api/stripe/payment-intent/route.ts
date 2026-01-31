@@ -85,8 +85,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ clientSecret: existingIntent.client_secret });
     }
 
+    const resolvedAudience = resolveAudience(order.audience);
     const audienceContext: AudienceContext = {
-      audience: resolveAudience(order.audience),
+      audience: resolvedAudience,
+      mode: resolvedAudience,
       source: "account",
     };
 

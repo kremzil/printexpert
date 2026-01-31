@@ -127,9 +127,9 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
   }
 
   return (
-    <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
+    <div className="w-full">
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6">
+        <div className="w-full">
           <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
             <Home className="h-4 w-4" />
             <ChevronRight className="h-4 w-4" />
