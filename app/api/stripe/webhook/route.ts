@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const payload = event.data.object as Prisma.InputJsonValue;
+      const payload = event.data.object as unknown as Prisma.InputJsonValue;
       const initialOrderId = (() => {
         if (event.type === "checkout.session.completed" || event.type === "checkout.session.expired") {
           const session = event.data.object as Stripe.Checkout.Session;

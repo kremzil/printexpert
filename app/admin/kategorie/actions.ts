@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth-helpers"
 
 type UpdateCategoryInput = {
   categoryId: string

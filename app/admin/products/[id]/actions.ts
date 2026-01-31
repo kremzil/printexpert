@@ -474,10 +474,12 @@ export async function updateProductWpId(
     select: { slug: true },
   })
 
-  updateTag("products", `product-id:${input.productId}`)
+  updateTag("products")
+  updateTag(`product-id:${input.productId}`)
   revalidatePath(`/admin/products/${input.productId}`)
   if (updated?.slug) {
-    updateTag("products", `product:${updated.slug}`)
+    updateTag("products")
+    updateTag(`product:${updated.slug}`)
     revalidatePath(`/product/${updated.slug}`)
   }
   updateTag("wp-matrix")
@@ -579,14 +581,14 @@ export async function updateProductDetails(
     select: { slug: true },
   })
 
-  updateTag(
-    "products",
-    `product-id:${input.productId}`,
-    `product:${existing.slug}`,
-    `product:${updated.slug}`
-  )
+  updateTag("products")
+  updateTag(`product-id:${input.productId}`)
+  updateTag(`product:${existing.slug}`)
+  updateTag(`product:${updated.slug}`)
   // invalidate audience-specific caches as visibility may have changed
-  updateTag("products", `audience:b2b`, `audience:b2c`)
+  updateTag("products")
+  updateTag(`audience:b2b`)
+  updateTag(`audience:b2c`)
   revalidatePath("/admin")
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${existing.slug}`)

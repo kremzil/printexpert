@@ -150,8 +150,8 @@ export default function TopProductsPage() {
             <Label>Režim výberu</Label>
             <RadioGroup
               value={config.mode}
-              onValueChange={(value: Mode) =>
-                setConfig({ ...config, mode: value })
+              onValueChange={(value) =>
+                setConfig({ ...config, mode: value as Mode })
               }
             >
               <div className="flex items-center space-x-2">

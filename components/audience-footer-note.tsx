@@ -1,10 +1,6 @@
-import { cacheLife } from "next/cache"
-
 import { resolveAudienceContext } from "@/lib/audience-context"
 
 export async function AudienceFooterNote() {
-  "use cache: private"
-  cacheLife("minutes")
   const audienceContext = await resolveAudienceContext()
   const footerLabel =
     audienceContext.source === "default"

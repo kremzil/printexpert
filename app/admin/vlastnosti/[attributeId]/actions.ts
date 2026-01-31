@@ -84,7 +84,8 @@ export async function createTerm(
   ])
 
   const audienceTag = await getAudienceTag()
-  updateTag("attributes", audienceTag)
+  updateTag("attributes")
+  updateTag(audienceTag)
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }
 
@@ -113,7 +114,8 @@ export async function deleteTerm(input: DeleteTermInput) {
   })
 
   const audienceTag = await getAudienceTag()
-  updateTag("attributes", audienceTag)
+  updateTag("attributes")
+  updateTag(audienceTag)
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }
 
@@ -161,6 +163,7 @@ export async function updateTermOrder(
   }
 
   const audienceTag = await getAudienceTag()
-  updateTag("attributes", audienceTag)
+  updateTag("attributes")
+  updateTag(audienceTag)
   revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
 }

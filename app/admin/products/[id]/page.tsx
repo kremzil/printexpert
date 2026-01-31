@@ -2,8 +2,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
-import { cacheLife, cacheTag } from "next/cache"
-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,9 +35,6 @@ type AdminProductPageProps = {
 }
 
 async function getAttributesWithTerms() {
-  "use cache"
-  cacheTag("attributes")
-  cacheLife("minutes")
   const prisma = getPrisma()
   const attributes = await prisma.wpAttributeTaxonomy.findMany({
     orderBy: [{ attributeLabel: "asc" }, { attributeName: "asc" }],
@@ -73,9 +68,6 @@ async function getAttributesWithTerms() {
 }
 
 async function getCategories() {
-  "use cache"
-  cacheTag("categories")
-  cacheLife("hours")
   const prisma = getPrisma()
   return prisma.category.findMany({
     orderBy: { name: "asc" },
@@ -434,15 +426,19 @@ async function AdminProductDetails({
                   >()
 
                   for (const row of matrix.prices) {
-                    const existing =
-                      rowsByCombo.get(row.aterms) ??
-                      ({
+                    const key = row.aterms
+                    const existing = rowsByCombo.get(key)
+                    if (existing) {
+                      existing.prices[String(row.breakpoint)] = row.price
+                    } else {
+                      rowsByCombo.set(key, {
                         aterms: row.aterms,
                         terms: row.terms,
-                        prices: {},
-                      } as const)
-                    existing.prices[String(row.breakpoint)] = row.price
-                    rowsByCombo.set(row.aterms, existing)
+                        prices: {
+                          [String(row.breakpoint)]: row.price,
+                        },
+                      })
+                    }
                   }
 
                   return (

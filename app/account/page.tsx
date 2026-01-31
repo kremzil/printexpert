@@ -3,21 +3,29 @@ import { redirect } from "next/navigation"
 
 import { AccountPanel } from "@/app/account/account-panel"
 import { auth } from "@/auth"
+import { getPrisma } from "@/lib/prisma"
 
 async function AccountContent() {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/auth")
   }
 
+  const prisma = getPrisma()
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  })
+
   const name = session.user.name ?? null
   const email = session.user.email ?? ""
+  const hasPassword = Boolean(user?.passwordHash)
 
   return (
     <AccountPanel
       name={name}
       email={email}
-      hasPassword={Boolean(session.user.passwordHash)}
+      hasPassword={hasPassword}
     />
   )
 }

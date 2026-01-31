@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Prisma } from "@/lib/generated/prisma";
 
+export const dynamic = "force-dynamic";
+
 const orderStatuses = ["PENDING", "CONFIRMED", "PROCESSING", "COMPLETED", "CANCELLED"] as const;
 const paymentStatuses = ["UNPAID", "PENDING", "PAID", "FAILED", "REFUNDED"] as const;
 const orderStatusLabels: Record<(typeof orderStatuses)[number], string> = {

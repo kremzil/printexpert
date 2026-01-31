@@ -1,7 +1,5 @@
 import "server-only"
 
-import { cacheLife, cacheTag } from "next/cache"
-
 import { getPrisma } from "@/lib/prisma"
 
 const SETTINGS_ID = "default"
@@ -15,9 +13,6 @@ export type ShopSettings = {
 }
 
 export async function getShopSettings(): Promise<ShopSettings> {
-  "use cache"
-  cacheTag("shop-settings")
-  cacheLife("hours")
   const prisma = getPrisma()
   const settings = await prisma.shopSettings.findUnique({
     where: { id: SETTINGS_ID },

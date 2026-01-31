@@ -1,8 +1,6 @@
 
 import Link from "next/link"
 import { Suspense } from "react"
-import { cacheLife, cacheTag } from "next/cache"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,9 +11,6 @@ import { requireAdmin } from "@/lib/auth-helpers"
 import { createAttribute, deleteAttribute } from "./actions"
 
 async function getAdminAttributes() {
-  "use cache"
-  cacheTag("attributes")
-  cacheLife("minutes")
   const prisma = getPrisma()
   return prisma.wpAttributeTaxonomy.findMany({
     orderBy: [{ attributeLabel: "asc" }, { attributeName: "asc" }],

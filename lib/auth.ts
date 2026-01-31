@@ -50,17 +50,17 @@ export const createSession = async (userId: string) => {
   const prisma = getPrisma()
   const rawToken = createRandomToken()
   const tokenHash = hashToken(rawToken)
-  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000)
+  const expires = new Date(Date.now() + SESSION_TTL_SECONDS * 1000)
 
   await prisma.session.create({
     data: {
       userId,
       sessionToken: tokenHash,
-      expiresAt,
+      expires,
     },
   })
 
-  return { rawToken, expiresAt }
+  return { rawToken, expires }
 }
 
 const getSessionByTokenHash = async (tokenHash: string) => {
@@ -68,7 +68,7 @@ const getSessionByTokenHash = async (tokenHash: string) => {
   return prisma.session.findFirst({
     where: {
       sessionToken: tokenHash,
-      expiresAt: { gt: new Date() },
+      expires: { gt: new Date() },
     },
     include: { user: true },
   })

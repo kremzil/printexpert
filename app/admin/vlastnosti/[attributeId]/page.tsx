@@ -2,8 +2,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
-import { cacheLife, cacheTag } from "next/cache"
-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,9 +17,6 @@ type AdminPropertyPageProps = {
 }
 
 async function getAttributeDetails(attributeId: number) {
-  "use cache"
-  cacheTag("attributes")
-  cacheLife("minutes")
   const prisma = getPrisma()
   const attribute = await prisma.wpAttributeTaxonomy.findUnique({
     where: { attributeId },

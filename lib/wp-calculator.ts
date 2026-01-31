@@ -1,7 +1,5 @@
 import "server-only"
 
-import { cacheLife, cacheTag } from "next/cache"
-
 import { getPrisma } from "@/lib/prisma"
 
 type MatrixSelectOption = {
@@ -57,7 +55,18 @@ export type WpCalculatorData = {
   matrices: Matrix[]
 }
 
-type PhpSerializedValue = string | number | null | PhpSerializedValue[] | Record<string, PhpSerializedValue>
+type PhpSerializedPrimitive = string | number | null
+
+interface PhpSerializedObject {
+  [key: string]: PhpSerializedValue
+}
+
+type PhpSerializedArray = PhpSerializedValue[]
+
+type PhpSerializedValue =
+  | PhpSerializedPrimitive
+  | PhpSerializedArray
+  | PhpSerializedObject
 
 const sizeKeywords = [
   "velkost",
@@ -184,9 +193,6 @@ export async function getWpCalculatorData(
   wpProductId: number,
   includeInactive = false
 ): Promise<WpCalculatorData | null> {
-  "use cache"
-  cacheTag("wp-matrix")
-  cacheLife("hours")
   const prisma = getPrisma()
 
   const matrixTypes = await prisma.wpMatrixType.findMany({

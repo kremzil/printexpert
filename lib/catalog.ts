@@ -1,7 +1,5 @@
 import "server-only";
 
-import { cacheLife, cacheTag } from "next/cache";
-
 import { getPrisma } from "@/lib/prisma";
 
 const serializeProduct = <
@@ -18,9 +16,6 @@ const serializeProduct = <
 });
 
 export async function getCategories() {
-  "use cache";
-  cacheTag("categories");
-  cacheLife("hours");
   const prisma = getPrisma();
   return prisma.category.findMany({
     where: { isActive: true },
@@ -29,9 +24,6 @@ export async function getCategories() {
 }
 
 export async function getCategoryBySlug(slug: string) {
-  "use cache";
-  cacheTag("categories", `category:${slug}`);
-  cacheLife("hours");
   const prisma = getPrisma();
   return prisma.category.findFirst({
     where: { slug, isActive: true },
@@ -47,19 +39,6 @@ export async function getProducts({
   categorySlugs?: string[];
   audience?: string | null;
 }) {
-  "use cache";
-  const tags = new Set<string>(["products"]);
-  if (categorySlug) {
-    tags.add(`category:${categorySlug}`);
-  }
-  if (categorySlugs) {
-    categorySlugs.forEach((slug) => tags.add(`category:${slug}`));
-  }
-  // include audience in cache tags so personalised views are cached separately
-  if (audience) tags.add(`audience:${audience}`)
-  else tags.add(`audience:all`)
-  cacheTag(...Array.from(tags));
-  cacheLife("hours");
   const prisma = getPrisma();
   const slugFilter =
     categorySlugs && categorySlugs.length > 0
@@ -99,11 +78,6 @@ export async function getProducts({
 }
 
 export async function getProductBySlug(slug: string) {
-  "use cache";
-  // audience must be passed from caller (do not access cookies inside use cache)
-  // caller should call getProductBySlug(slug, audience)
-  cacheTag("products", `product:${slug}`);
-  cacheLife("hours");
   const prisma = getPrisma();
   const product = await prisma.product.findFirst({
     where: { slug, isActive: true },
@@ -123,9 +97,6 @@ export async function getProductBySlug(slug: string) {
 }
 
 export async function getAdminCategories() {
-  "use cache";
-  cacheTag("categories");
-  cacheLife("hours");
   const prisma = getPrisma();
   return prisma.category.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -141,9 +112,6 @@ export async function getAdminCategories() {
 }
 
 export async function getAdminProducts() {
-  "use cache";
-  cacheTag("products");
-  cacheLife("hours");
   const prisma = getPrisma();
   const products = await prisma.product.findMany({
     orderBy: [{ name: "asc" }],
@@ -165,9 +133,6 @@ export async function getAdminProducts() {
 }
 
 export async function getAdminProductById(id: string) {
-  "use cache";
-  cacheTag("products", `product-id:${id}`);
-  cacheLife("hours");
   const prisma = getPrisma();
   const product = await prisma.product.findUnique({
     where: { id },

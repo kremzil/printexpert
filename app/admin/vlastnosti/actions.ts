@@ -51,7 +51,8 @@ export async function createAttribute(formData: FormData) {
   })
 
   const audienceTag = await getAudienceTag()
-  updateTag("attributes", audienceTag)
+  updateTag("attributes")
+  updateTag(audienceTag)
   revalidatePath("/admin/vlastnosti")
 }
 
@@ -102,6 +103,7 @@ export async function deleteAttribute(input: DeleteAttributeInput) {
   })
 
   const audienceTag = await getAudienceTag()
-  updateTag("attributes", audienceTag)
+  updateTag("attributes")
+  updateTag(audienceTag)
   revalidatePath("/admin/vlastnosti")
 }

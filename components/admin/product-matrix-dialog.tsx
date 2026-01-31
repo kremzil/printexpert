@@ -394,8 +394,9 @@ export function ProductMatrixDialog({
               <Select
                 value={kind}
                 onValueChange={(value) => {
-                  setKind(value)
-                  if (value === "finishing") {
+                  const nextKind = value as "simple" | "finishing"
+                  setKind(nextKind)
+                  if (nextKind === "finishing") {
                     setAttributeSlots((slots) => slots.slice(0, 1))
                     setActiveSlotId((current) =>
                       current === "slot-1" ? current : "slot-1"
