@@ -10,10 +10,13 @@ async function AccountContent() {
     redirect("/auth")
   }
 
+  const name = session.user.name ?? null
+  const email = session.user.email ?? ""
+
   return (
     <AccountPanel
-      name={session.user.name}
-      email={session.user.email}
+      name={name}
+      email={email}
       hasPassword={Boolean(session.user.passwordHash)}
     />
   )
