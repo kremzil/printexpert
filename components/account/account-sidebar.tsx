@@ -44,7 +44,6 @@ const menuItems = [
     title: "Objednávky",
     url: "/account/orders",
     icon: Package,
-    badge: "3",
   },
   {
     title: "Adresy",
@@ -58,7 +57,15 @@ const menuItems = [
   },
 ]
 
-function NavigationItems({ pathname, mode }: { pathname: string; mode: 'b2c' | 'b2b' }) {
+function NavigationItems({
+  pathname,
+  mode,
+  orderCount,
+}: {
+  pathname: string
+  mode: "b2c" | "b2b"
+  orderCount?: number
+}) {
   const modeColor = mode === 'b2c' ? 'var(--b2c-primary)' : 'var(--b2b-primary)'
   const modeAccent = mode === 'b2c' ? 'var(--b2c-accent)' : 'var(--b2b-accent)'
   
@@ -70,6 +77,7 @@ function NavigationItems({ pathname, mode }: { pathname: string; mode: 'b2c' | '
       {menuItems.map((item) => {
         const isActive = pathname === item.url
         const Icon = item.icon
+        const badge = item.title === "Objednávky" ? orderCount : undefined
         return (
           <SidebarMenuItem key={item.title}>
             <Link
@@ -84,7 +92,7 @@ function NavigationItems({ pathname, mode }: { pathname: string; mode: 'b2c' | '
                 <Icon className="h-5 w-5" />
                 <span>{item.title}</span>
               </div>
-              {item.badge && (
+              {badge && badge > 0 && (
                 <span
                   className="rounded-full px-2 py-0.5 text-xs font-semibold"
                   style={{
@@ -92,7 +100,7 @@ function NavigationItems({ pathname, mode }: { pathname: string; mode: 'b2c' | '
                     color: isActive ? 'white' : 'var(--muted-foreground)',
                   }}
                 >
-                  {item.badge}
+                  {badge}
                 </span>
               )}
             </Link>
@@ -103,7 +111,13 @@ function NavigationItems({ pathname, mode }: { pathname: string; mode: 'b2c' | '
   )
 }
 
-export function AccountSidebar({ mode }: { mode: 'b2c' | 'b2b' }) {
+export function AccountSidebar({
+  mode,
+  orderCount,
+}: {
+  mode: "b2c" | "b2b"
+  orderCount?: number
+}) {
   const pathname = usePathname()
 
   const handleLogout = () => {
@@ -121,7 +135,7 @@ export function AccountSidebar({ mode }: { mode: 'b2c' | 'b2b' }) {
 
       <SidebarContent>
         <SidebarMenu className="space-y-1 p-4">
-          <NavigationItems pathname={pathname} mode={mode} />
+          <NavigationItems pathname={pathname} mode={mode} orderCount={orderCount} />
         </SidebarMenu>
       </SidebarContent>
 

@@ -10,34 +10,31 @@ const tabs = [
     title: "Prehľad",
     url: "/account",
     icon: User,
-    badge: undefined,
   },
   {
     title: "Objednávky",
     url: "/account/orders",
     icon: Package,
-    badge: "3",
   },
   {
     title: "Adresy",
     url: "/account/addresses",
     icon: MapPin,
-    badge: undefined,
   },
   {
     title: "Nastavenia",
     url: "/account/settings",
     icon: Settings,
-    badge: undefined,
   },
 ]
 
 interface AccountTabsProps {
   mode: 'b2c' | 'b2b'
   variant?: 'horizontal' | 'vertical'
+  orderCount?: number
 }
 
-export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) {
+export function AccountTabs({ mode, variant = 'horizontal', orderCount }: AccountTabsProps) {
   const pathname = usePathname()
   
   const modeAccent = mode === 'b2c' ? 'var(--b2c-accent)' : 'var(--b2b-accent)'
@@ -49,6 +46,7 @@ export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) 
         {tabs.map((tab) => {
           const isActive = pathname === tab.url
           const Icon = tab.icon
+          const badge = tab.title === "Objednávky" ? orderCount : undefined
           return (
             <Link
               key={tab.title}
@@ -63,7 +61,7 @@ export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) 
                 <Icon className="h-5 w-5" />
                 <span>{tab.title}</span>
               </div>
-              {tab.badge && (
+              {badge && badge > 0 && (
                 <span
                   className="rounded-full px-2 py-0.5 text-xs font-semibold"
                   style={{
@@ -71,7 +69,7 @@ export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) 
                     color: isActive ? 'white' : 'var(--muted-foreground)',
                   }}
                 >
-                  {tab.badge}
+                  {badge}
                 </span>
               )}
             </Link>
@@ -88,6 +86,7 @@ export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) 
           {tabs.map((tab) => {
             const isActive = pathname === tab.url
             const Icon = tab.icon
+            const badge = tab.title === "Objednávky" ? orderCount : undefined
             return (
               <Link
                 key={tab.title}
@@ -101,7 +100,7 @@ export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) 
               >
                 <Icon className="h-4 w-4" />
                 <span>{tab.title}</span>
-                {tab.badge && (
+                {badge && badge > 0 && (
                   <span
                     className="rounded-full px-2 py-0.5 text-xs font-semibold"
                     style={{
@@ -109,7 +108,7 @@ export function AccountTabs({ mode, variant = 'horizontal' }: AccountTabsProps) 
                       color: isActive ? 'white' : 'var(--muted-foreground)',
                     }}
                   >
-                    {tab.badge}
+                    {badge}
                   </span>
                 )}
               </Link>

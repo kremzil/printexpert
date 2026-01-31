@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
-import { Package, Download, RotateCcw } from "lucide-react"
+import { Package, CheckCircle, Clock, Cog, XCircle } from "lucide-react"
 
 type OrderStatus = "pending" | "processing" | "delivered" | "cancelled"
 
@@ -26,10 +26,26 @@ interface OrderHistoryProps {
 }
 
 const statusConfig = {
-  pending: { label: "Čaká sa", color: "bg-yellow-100 text-yellow-800" },
-  processing: { label: "V spracovaní", color: "bg-blue-100 text-blue-800" },
-  delivered: { label: "Doručené", color: "bg-green-100 text-green-800" },
-  cancelled: { label: "Zrušené", color: "bg-red-100 text-red-800" },
+  pending: {
+    label: "Čaká sa",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+    icon: Clock,
+  },
+  processing: {
+    label: "Vo výrobe",
+    className: "bg-blue-50 text-blue-700 border-blue-200",
+    icon: Cog,
+  },
+  delivered: {
+    label: "Dokončené",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    icon: CheckCircle,
+  },
+  cancelled: {
+    label: "Zrušené",
+    className: "bg-red-50 text-red-700 border-red-200",
+    icon: XCircle,
+  },
 }
 
 export function OrderHistory({ mode, orders }: OrderHistoryProps) {
@@ -51,92 +67,92 @@ export function OrderHistory({ mode, orders }: OrderHistoryProps) {
 
   return (
     <div className="space-y-4">
-      {orders.map((order) => (
+      {orders.map((order) =>
         (() => {
           const status = statusConfig[order.status] ?? {
             label: "Neznámy stav",
-            color: "bg-muted text-foreground",
+            className: "bg-muted text-foreground border-border",
+            icon: Package,
           }
+          const StatusIcon = status.icon
 
           return (
-        <Card key={order.id} className="overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b bg-muted/30 p-4">
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="mb-1 text-sm text-muted-foreground">Číslo objednávky</div>
-                <div className="font-bold" style={{ color: modeColor }}>
-                  #{order.orderNumber}
-                </div>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <div className="mb-1 text-sm text-muted-foreground">Dátum</div>
-                <div className="font-medium">{order.date}</div>
-              </div>
-            </div>
-
-            <span className={`rounded-full px-3 py-1 text-sm font-medium ${status.color}`}>
-              {status.label}
-            </span>
-          </div>
-
-          <div className="p-4">
-            {/* Order Items */}
-            <div className="mb-4 space-y-2">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-muted-foreground">{item.configuration}</div>
+            <Card key={order.id} className="overflow-hidden rounded-2xl border border-border/60">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b bg-muted/30 p-4">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <div className="mb-1 text-xs text-muted-foreground">Číslo objednávky</div>
+                    <div className="font-semibold" style={{ color: modeColor }}>
+                      #{order.orderNumber}
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">{item.quantity} ks</div>
+                  <div className="h-8 w-px bg-border" />
+                  <div>
+                    <div className="mb-1 text-xs text-muted-foreground">Dátum</div>
+                    <div className="text-sm font-medium">{order.date}</div>
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Estimated Delivery */}
-            {order.estimatedDelivery && order.status !== "cancelled" && order.status !== "delivered" && (
-              <div className="mb-4 rounded-lg bg-muted/50 p-3 text-sm">
-                <span className="text-muted-foreground">Odhadované doručenie: </span>
-                <span className="font-medium">{order.estimatedDelivery}</span>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-4">
-              <div>
-                <div className="mb-1 text-sm text-muted-foreground">Celková suma</div>
-                <div className="text-xl font-bold">{order.total.toFixed(2)} €</div>
-              </div>
-
-              <div className="flex gap-2">
-                <Link
-                  href={`/account/orders/${order.id}`}
-                  className="rounded-lg border-2 px-4 py-2 font-medium transition-all hover:bg-muted"
-                  style={{ borderColor: modeColor, color: modeColor }}
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${status.className}`}
                 >
-                  Detail
-                </Link>
-
-                {mode === "b2b" && order.status !== "pending" && (
-                  <button
-                    className="flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition-all hover:bg-muted"
-                    onClick={() => {
-                      // TODO: Implement invoice download
-                      console.log('Download invoice', order.id)
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                    Faktúra
-                  </button>
-                )}
+                  <StatusIcon className="h-3.5 w-3.5" />
+                  {status.label}
+                </span>
               </div>
-            </div>
-          </div>
-        </Card>
+
+              <div className="p-4">
+                <div className="mb-4 space-y-3">
+                  {order.items.map((item, index) => (
+                    <div key={index} className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-foreground">{item.name}</div>
+                        <div className="text-sm text-muted-foreground">{item.configuration}</div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">{item.quantity} ks</div>
+                    </div>
+                  ))}
+                </div>
+
+                {order.estimatedDelivery && order.status !== "cancelled" && order.status !== "delivered" && (
+                  <div className="mb-4 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">Odhadované doručenie: </span>
+                    <span className="font-medium text-foreground">{order.estimatedDelivery}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-4">
+                  <div>
+                    <div className="mb-1 text-xs text-muted-foreground">Celková suma</div>
+                    <div className="text-2xl font-bold text-foreground">{order.total.toFixed(2)} €</div>
+                    <div className="text-sm text-muted-foreground">s DPH</div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/account/orders/${order.id}`}
+                      className="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all hover:bg-muted"
+                      style={{ borderColor: modeColor, color: modeColor }}
+                    >
+                      Detail
+                    </Link>
+
+                    {order.status === "delivered" && (
+                      <Link
+                        href={`/account/orders/${order.id}?repeat=1`}
+                        className="rounded-lg px-4 py-2 text-sm font-medium text-white"
+                        style={{ backgroundColor: modeColor }}
+                      >
+                        Objednať znova
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
           )
         })()
-      ))}
+      )}
     </div>
   )
 }

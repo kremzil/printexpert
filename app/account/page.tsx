@@ -6,7 +6,6 @@ import { getPrisma } from "@/lib/prisma"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { AccountStats } from "@/components/account/account-stats"
 import { OrderHistory } from "@/components/account/order-history"
-import { AccountManager } from "@/components/account/account-manager"
 
 async function AccountContent() {
   const session = await auth()
@@ -17,7 +16,12 @@ async function AccountContent() {
   const prisma = getPrisma()
   const audienceContext = await resolveAudienceContext()
   
-  const [user, orders] = await Promise.all([
+  const currentYear = new Date().getFullYear()
+  const startOfYear = new Date(currentYear, 0, 1)
+  const startOfNextYear = new Date(currentYear + 1, 0, 1)
+  const startOfLastYear = new Date(currentYear - 1, 0, 1)
+
+  const [user, orders, totalOrders, activeOrders, yearOrders, lastYearOrders] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -48,31 +52,52 @@ async function AccountContent() {
       },
       orderBy: { createdAt: "desc" },
       take: 5,
-    })
+    }),
+    prisma.order.count({
+      where: { userId: session.user.id },
+    }),
+    prisma.order.count({
+      where: {
+        userId: session.user.id,
+        status: { in: ["PENDING", "CONFIRMED", "PROCESSING"] },
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        userId: session.user.id,
+        createdAt: {
+          gte: startOfYear,
+          lt: startOfNextYear,
+        },
+      },
+      select: {
+        total: true,
+      },
+    }),
+    prisma.order.findMany({
+      where: {
+        userId: session.user.id,
+        createdAt: {
+          gte: startOfLastYear,
+          lt: startOfYear,
+        },
+      },
+      select: {
+        total: true,
+      },
+    }),
   ])
 
   if (!user) {
     redirect("/auth")
   }
 
-  // Подсчет статистики
-  const totalOrders = orders.length
-  const activeOrders = orders.filter(o => ["PENDING", "CONFIRMED", "PROCESSING"].includes(o.status)).length
-  
-  // Считаем только заказы текущего года
-  const currentYear = new Date().getFullYear()
-  const allOrders = await prisma.order.findMany({
-    where: { 
-      userId: session.user.id,
-      createdAt: {
-        gte: new Date(currentYear, 0, 1),
-      }
-    },
-    select: {
-      total: true,
-    },
-  })
-  const yearTotal = allOrders.reduce((sum, o) => sum + Number(o.total), 0)
+  const yearTotal = yearOrders.reduce((sum, o) => sum + Number(o.total), 0)
+  const lastYearTotal = lastYearOrders.reduce((sum, o) => sum + Number(o.total), 0)
+  const yearChange = lastYearTotal > 0
+    ? `${yearTotal >= lastYearTotal ? "+" : ""}${(((yearTotal - lastYearTotal) / lastYearTotal) * 100).toFixed(0)}%`
+    : undefined
+  const loyaltyPoints = Math.floor(yearTotal / 2)
 
   // Форматируем заказы для OrderHistory
   const mapOrderStatus = (status: string) => {
@@ -144,7 +169,10 @@ async function AccountContent() {
       configuration: formatItemConfiguration(item),
     })),
     total: Number(order.total),
-    estimatedDelivery: undefined,
+    estimatedDelivery:
+      ["pending", "processing"].includes(mapOrderStatus(order.status))
+        ? new Date(order.createdAt.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("sk-SK")
+        : undefined,
   }))
 
   return (
@@ -152,10 +180,10 @@ async function AccountContent() {
       {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold mb-2">
-          Vitajte späť, {user.name?.split(' ')[0] || 'Užívateľ'}!
+          Vitajte späť, {user.name?.split(" ")[0] || "Užívateľ"}!
         </h1>
         <p className="text-muted-foreground">
-          Tu nájdete prehľad všetkých objednávok a aktivít
+          Tu nájdete prehľad vašich objednávok a aktivít
         </p>
       </div>
 
@@ -165,40 +193,27 @@ async function AccountContent() {
         totalOrders={totalOrders}
         activeOrders={activeOrders}
         yearTotal={`€${yearTotal.toFixed(2)}`}
-        loyaltyPoints={0}
+        yearChange={yearChange}
+        loyaltyPoints={loyaltyPoints}
         unpaidAmount="€0"
       />
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Order History - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Posledné objednávky</h2>
-            <a 
-              href="/account/orders" 
-              className="text-sm font-medium hover:underline"
-              style={{ color: audienceContext.mode === 'b2c' ? 'var(--b2c-primary)' : 'var(--b2b-primary)' }}
-            >
-              Zobraziť všetky objednávky →
-            </a>
-          </div>
-          <OrderHistory
-            mode={audienceContext.mode}
-            orders={formattedOrders}
-          />
+      <div>
+        <div className="mb-4">
+          <h2 className="text-2xl font-bold">Posledné objednávky</h2>
         </div>
-
-        {/* Account Manager Sidebar - Takes 1 column */}
-        <div>
-          <AccountManager
-            mode={audienceContext.mode}
-            manager={{
-              name: "Martina Krajčíková",
-              position: "Account Manager",
-              email: "martina.k@printexpert.sk",
-              phone: "+421 902 123 456",
-            }}
-          />
+        <OrderHistory
+          mode={audienceContext.mode}
+          orders={formattedOrders}
+        />
+        <div className="pt-4 text-center">
+          <a
+            href="/account/orders"
+            className="text-sm font-medium hover:underline"
+            style={{ color: audienceContext.mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)" }}
+          >
+            Zobraziť všetky objednávky →
+          </a>
         </div>
       </div>
     </div>

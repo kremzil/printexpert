@@ -9,10 +9,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 interface AccountMenuProps {
   mode: "b2c" | "b2b"
   userName?: string | null
-  userEmail?: string | null
+  orderCount?: number
 }
 
-export function AccountMenu({ mode, userName, userEmail }: AccountMenuProps) {
+export function AccountMenu({ mode, userName, orderCount }: AccountMenuProps) {
   const initials = userName
     ? userName
         .split(" ")
@@ -29,10 +29,10 @@ export function AccountMenu({ mode, userName, userEmail }: AccountMenuProps) {
   return (
     <ScrollArea className="max-h-[70vh]">
       <div className="space-y-4 p-3">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border bg-card p-4">
           <div className="flex items-center gap-3">
             <div
-              className="flex h-12 w-12 items-center justify-center rounded-full text-base font-semibold text-white"
+              className="flex h-14 w-14 items-center justify-center rounded-full text-base font-semibold text-white"
               style={{
                 backgroundColor: mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)",
               }}
@@ -40,21 +40,20 @@ export function AccountMenu({ mode, userName, userEmail }: AccountMenuProps) {
               {initials}
             </div>
             <div className="min-w-0">
-              <div className="truncate font-semibold">{userName || "Používateľ"}</div>
-              {userEmail && (
-                <div className="truncate text-sm text-muted-foreground">{userEmail}</div>
-              )}
+              <div className="truncate font-semibold text-foreground">
+                {userName || "Používateľ"}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card p-2">
-          <AccountTabs mode={mode} variant="vertical" />
+        <div className="rounded-2xl border bg-card p-2">
+          <AccountTabs mode={mode} variant="vertical" orderCount={orderCount} />
         </div>
 
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-medium text-red-600 transition-all hover:bg-red-100"
+          className="flex w-full items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition-all hover:bg-red-100"
         >
           <LogOut className="h-5 w-5" />
           <span>Odhlásiť sa</span>
