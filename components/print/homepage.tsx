@@ -640,7 +640,7 @@ function TestimonialCard({
       </div>
 
       <p className="mb-6 italic text-muted-foreground">
-        "{testimonial.text}"
+        &ldquo;{testimonial.text}&rdquo;
       </p>
 
       <div className="flex items-center gap-3">
