@@ -17,13 +17,26 @@ export default async function AccountLayout({
   const orderCount = session?.user?.id
     ? await prisma.order.count({ where: { userId: session.user.id } })
     : 0
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, email: true },
+      })
+    : null
+  const userName = user?.name ?? session?.user?.name ?? null
+  const userEmail = user?.email ?? session?.user?.email ?? null
 
   return (
     <>
       {/* Mobile: Sidebar */}
       <div className="lg:hidden">
         <SidebarProvider>
-          <AccountSidebar mode={audienceContext.mode} orderCount={orderCount} />
+          <AccountSidebar
+            mode={audienceContext.mode}
+            userName={userName}
+            userEmail={userEmail}
+            orderCount={orderCount}
+          />
           <SidebarInset>
             <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <SidebarTrigger className="-ml-1" />
@@ -47,7 +60,8 @@ export default async function AccountLayout({
               <div className="sticky top-20">
               <AccountMenu
                 mode={audienceContext.mode}
-                userName={session?.user?.name}
+                userName={userName}
+                userEmail={userEmail}
                 orderCount={orderCount}
               />
               </div>

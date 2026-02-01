@@ -9,12 +9,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 interface AccountMenuProps {
   mode: "b2c" | "b2b"
   userName?: string | null
+  userEmail?: string | null
   orderCount?: number
 }
 
-export function AccountMenu({ mode, userName, orderCount }: AccountMenuProps) {
-  const initials = userName
-    ? userName
+export function AccountMenu({ mode, userName, userEmail, orderCount }: AccountMenuProps) {
+  const displayName = userName || userEmail || "Používateľ"
+  const initials = displayName
+    ? displayName
         .split(" ")
         .filter(Boolean)
         .slice(0, 2)
@@ -41,7 +43,7 @@ export function AccountMenu({ mode, userName, orderCount }: AccountMenuProps) {
             </div>
             <div className="min-w-0">
               <div className="truncate font-semibold text-foreground">
-                {userName || "Používateľ"}
+                {displayName}
               </div>
             </div>
           </div>

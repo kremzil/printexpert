@@ -9,6 +9,7 @@ interface PriceDisplayProps {
   showFrom?: boolean
   oldPrice?: number
   showVAT?: boolean
+  vatRate?: number
 }
 
 export function PriceDisplay({
@@ -18,9 +19,10 @@ export function PriceDisplay({
   showFrom = false,
   oldPrice,
   showVAT = true,
+  vatRate,
 }: PriceDisplayProps) {
-  const vatRate = 0.2
-  const priceWithoutVat = price / (1 + vatRate)
+  const normalizedVatRate = Number.isFinite(vatRate) && vatRate > 0 ? vatRate : 0.2
+  const priceWithoutVat = price / (1 + normalizedVatRate)
   const vatAmount = price - priceWithoutVat
 
   const sizeClasses = {
@@ -70,7 +72,7 @@ export function PriceDisplay({
           <span
             className={`text-muted-foreground line-through ${classes.detail}`}
           >
-            {(oldPrice / (1 + vatRate)).toFixed(2)} €
+              {(oldPrice / (1 + normalizedVatRate)).toFixed(2)} €
           </span>
         )}
         <span

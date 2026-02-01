@@ -5,6 +5,7 @@ import { CartContent } from "@/components/cart/cart-content";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { EmptyCart } from "@/components/print/empty-cart";
+import { getShopVatRate } from "@/lib/shop-settings";
 
 export const metadata = {
   title: "Košík",
@@ -17,6 +18,7 @@ async function CartItems() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get("cart_session_id")?.value;
   const cart = await getCart(sessionId);
+  const vatRate = await getShopVatRate();
 
   if (!cart || cart.items.length === 0) {
     return <EmptyCart mode={mode} />;
@@ -32,7 +34,7 @@ async function CartItems() {
     })),
   };
 
-  return <CartContent cart={serializedCart} mode={mode} />;
+  return <CartContent cart={serializedCart} mode={mode} vatRate={vatRate} />;
 }
 
 export default function CartPage() {

@@ -101,6 +101,7 @@ function RealConfiguratorSection({
     minHeight,
     dimUnit,
     hasAreaSizing,
+    useQuantitySelect,
     visibleMatrices,
     total,
     hasUnavailable,
@@ -132,6 +133,8 @@ function RealConfiguratorSection({
                   value={quantity}
                   onChange={setQuantity}
                   presets={quantityPresets}
+                  usePresetsSelect={useQuantitySelect}
+                  min={minQuantity}
                 />
                 {quantity < minQuantity && (
                   <p className="mt-2 text-xs text-destructive">
@@ -223,7 +226,7 @@ function RealConfiguratorSection({
 
         <Tabs defaultValue="specs" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="specs">Špecifikácie</TabsTrigger>
+            <TabsTrigger value="specs">Popis produktu</TabsTrigger>
             <TabsTrigger value="reviews">Recenzie (247)</TabsTrigger>
             <TabsTrigger value="faq">Časté otázky</TabsTrigger>
           </TabsList>
@@ -233,54 +236,8 @@ function RealConfiguratorSection({
               <StaticBadge />
             </div>
             <Card className="p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <h4 className="mb-3 font-semibold">Technické parametre</h4>
-                  <dl className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Formát:</dt>
-                      <dd className="font-medium">85 × 55 mm</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Gramáž:</dt>
-                      <dd className="font-medium">350g/m²</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Tlač:</dt>
-                      <dd className="font-medium">Ofset CMYK</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Spadávka:</dt>
-                      <dd className="font-medium">3 mm</dd>
-                    </div>
-                  </dl>
-                </div>
-                <div>
-                  <h4 className="mb-3 font-semibold">Výroba a dodanie</h4>
-                  <dl className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Výroba:</dt>
-                      <dd className="font-medium">2-3 prac. dni</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Doprava:</dt>
-                      <dd className="font-medium">Kuriér/Osobný odber</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Min. množstvo:</dt>
-                      <dd className="font-medium">100 ks</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Balenie:</dt>
-                      <dd className="font-medium">Krabička</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-
               {product.descriptionHtml ? (
-                <div className="mt-6 border-t border-border pt-6">
-                  <h4 className="mb-3 font-semibold">Popis produktu</h4>
+                <div>
                   <div
                     className="prose prose-neutral max-w-none text-sm [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-md [&_iframe]:border-0 [&_video]:w-full [&_video]:rounded-md"
                     dangerouslySetInnerHTML={{
@@ -430,7 +387,7 @@ export function ProductPageClient({
     material: "standard",
     printType: "double",
     finishing: "none",
-    quantity: 500,
+    quantity: 1,
   })
   const [fileStatus, setFileStatus] = useState<"idle" | "success">("idle")
   const [fileStatusMessage, setFileStatusMessage] = useState<string | undefined>(
@@ -527,131 +484,17 @@ export function ProductPageClient({
                 </div>
 
                 <div className="space-y-6">
-                  <ConfiguratorOption
-                    mode={mode}
-                    label="Formát vizitiek"
-                    selected={config.format}
-                    onSelect={(value) => handleConfigChange("format", value)}
-                    helpText="Štandardný formát 85 × 55 mm je najpoužívanejší a najvýhodnejší."
-                    options={[
-                      {
-                        id: "standard",
-                        label: "85 × 55 mm (štandard)",
-                        description: "Najpoužívanejší formát",
-                        recommended: true,
-                      },
-                      {
-                        id: "euro",
-                        label: "85 × 54 mm (Európsky)",
-                        description: "Európsky štandard",
-                      },
-                      {
-                        id: "square",
-                        label: "55 × 55 mm (štvorec)",
-                        description: "Moderný dizajn",
-                      },
-                      {
-                        id: "custom",
-                        label: "Vlastný rozmer",
-                        description: "Zadajte vlastné rozmery",
-                        price: 8,
-                      },
-                    ]}
-                  />
-
-                  <ConfiguratorOption
-                    mode={mode}
-                    label="Materiál a gramáž"
-                    selected={config.material}
-                    onSelect={(value) => handleConfigChange("material", value)}
-                    helpText="Vyššia gramáž znamená tvrdší a prémiový pocit. Odporúčame min. 350g/m²."
-                    options={[
-                      {
-                        id: "standard",
-                        label: "Štandardný papier 350g/m²",
-                        description: "Najlepší pomer cena/kvalita",
-                        recommended: true,
-                      },
-                      {
-                        id: "premium",
-                        label: "Prémium papier 400g/m²",
-                        description: "Extra pevné, luxusný pocit",
-                        price: 8,
-                      },
-                      {
-                        id: "matte",
-                        label: "Matný papier 350g/m²",
-                        description: "Elegantný matný povrch",
-                        price: 15,
-                      },
-                      {
-                        id: "glossy",
-                        label: "Lesklý papier 350g/m²",
-                        description: "Lesk a živé farby",
-                        price: 15,
-                      },
-                    ]}
-                  />
-
-                  <ConfiguratorOption
-                    mode={mode}
-                    label="Typ tlače"
-                    selected={config.printType}
-                    onSelect={(value) => handleConfigChange("printType", value)}
-                    options={[
-                      {
-                        id: "single",
-                        label: "Jednostranná tlač",
-                        description: "Tlač len na prednej strane",
-                      },
-                      {
-                        id: "double",
-                        label: "Obojstranná tlač",
-                        description: "Tlač na oboch stranách",
-                        price: 5,
-                        recommended: true,
-                      },
-                    ]}
-                  />
-
-                  <ConfiguratorOption
-                    mode={mode}
-                    label="Povrchová úprava"
-                    selected={config.finishing}
-                    onSelect={(value) => handleConfigChange("finishing", value)}
-                    helpText="Laminácia chráni vizitky pred poškodením a dodáva im prémiový vzhľad."
-                    options={[
-                      {
-                        id: "none",
-                        label: "Bez úpravy",
-                        description: "Štandardné vizitky bez laminácie",
-                      },
-                      {
-                        id: "matte-lamination",
-                        label: "Matná laminácia",
-                        description: "Ochrana + elegantný matný povrch",
-                        price: 12,
-                      },
-                      {
-                        id: "glossy-lamination",
-                        label: "Lesklá laminácia",
-                        description: "Ochrana + lesk",
-                        price: 12,
-                      },
-                      {
-                        id: "rounded-corners",
-                        label: "Zaoblené rohy",
-                        description: "Moderný vzhľad so zaoblenými rohmi",
-                        price: 3,
-                      },
-                    ]}
-                  />
-
-                  <QuantitySelector
-                    mode={mode}
-                    value={config.quantity}
-                    onChange={(value) => handleConfigChange("quantity", value)}
-                  />
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">
+                      Množstvo
+                    </label>
+                    <QuantitySelector
+                      mode={mode}
+                      value={config.quantity}
+                      onChange={(value) => handleConfigChange("quantity", value)}
+                      min={1}
+                    />
+                  </div>
                 </div>
               </Card>
 
@@ -669,7 +512,7 @@ export function ProductPageClient({
 
             <Tabs defaultValue="specs" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="specs">Špecifikácie</TabsTrigger>
+                <TabsTrigger value="specs">Popis produktu</TabsTrigger>
                 <TabsTrigger value="reviews">Recenzie (247)</TabsTrigger>
                 <TabsTrigger value="faq">Časté otázky</TabsTrigger>
               </TabsList>
@@ -679,56 +522,8 @@ export function ProductPageClient({
                   <StaticBadge />
                 </div>
                 <Card className="p-6">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <h4 className="mb-3 font-semibold">Technické parametre</h4>
-                      <dl className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Formát:</dt>
-                          <dd className="font-medium">85 × 55 mm</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Gramáž:</dt>
-                          <dd className="font-medium">350g/m²</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Tlač:</dt>
-                          <dd className="font-medium">Ofset CMYK</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Spadávka:</dt>
-                          <dd className="font-medium">3 mm</dd>
-                        </div>
-                      </dl>
-                    </div>
-                    <div>
-                      <h4 className="mb-3 font-semibold">Výroba a dodanie</h4>
-                      <dl className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Výroba:</dt>
-                          <dd className="font-medium">2-3 prac. dni</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Doprava:</dt>
-                          <dd className="font-medium">Kuriér/Osobný odber</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">
-                            Min. množstvo:
-                          </dt>
-                          <dd className="font-medium">100 ks</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Balenie:</dt>
-                          <dd className="font-medium">Krabička</dd>
-                        </div>
-                      </dl>
-                    </div>
-                  </div>
-
                   {product.descriptionHtml ? (
-                    <div className="mt-6 border-t border-border pt-6">
-                      <h4 className="mb-3 font-semibold">Popis produktu</h4>
+                    <div>
                       <div
                         className="prose prose-neutral max-w-none text-sm [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-md [&_iframe]:border-0 [&_video]:w-full [&_video]:rounded-md"
                         dangerouslySetInnerHTML={{
@@ -859,6 +654,7 @@ export function ProductPageClient({
                 mode={mode}
                 config={config}
                 basePrice={basePrice}
+                simple
                 onAddToCart={() => alert("Pridané do košíka!")}
               />
           </div>
@@ -866,8 +662,7 @@ export function ProductPageClient({
         )}
         <div className="my-12">
           <div className="mb-4 flex justify-end">
-            <StaticBadge />
-          </div>
+                  </div>
           <TrustBlock mode={mode} variant="detailed" />
         </div>
 

@@ -15,7 +15,7 @@ export function CartButton() {
         const response = await fetch("/api/cart");
         if (response.ok) {
           const cart = await response.json();
-          const count = cart.items?.reduce((sum: number, item: {quantity: number}) => sum + item.quantity, 0) || 0;
+          const count = cart.items?.length || 0;
           setItemCount(count);
         }
       } catch (error) {

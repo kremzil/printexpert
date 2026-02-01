@@ -113,12 +113,17 @@ function NavigationItems({
 
 export function AccountSidebar({
   mode,
+  userName,
+  userEmail,
   orderCount,
 }: {
   mode: "b2c" | "b2b"
+  userName?: string | null
+  userEmail?: string | null
   orderCount?: number
 }) {
   const pathname = usePathname()
+  const displayName = userName || userEmail || "Používateľ"
 
   const handleLogout = () => {
     signOut({ callbackUrl: "/" })
@@ -128,7 +133,7 @@ export function AccountSidebar({
     <Sidebar>
       <SidebarHeader className="border-b p-4 lg:p-6">
         <div>
-          <h2 className="text-lg font-semibold">Používateľ</h2>
+          <h2 className="text-lg font-semibold">{displayName}</h2>
           <p className="text-sm text-muted-foreground">Môj účet</p>
         </div>
       </SidebarHeader>

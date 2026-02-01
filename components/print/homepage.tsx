@@ -74,6 +74,7 @@ type Testimonial = {
 export function Homepage({ mode, categories, featuredProducts }: HomepageProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
+  const mutedSectionBg = "bg-[rgba(236,236,240,0.3)]"
 
   const steps: ProcessStep[] =
     mode === "b2c"
@@ -178,7 +179,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
 
   return (
     <div className="w-full">
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <HeroSection mode={mode} modeColor={modeColor} modeAccent={modeAccent} />
 
         <section className="container-main py-16">
@@ -215,7 +216,9 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           </Carousel>
         </section>
 
-        <section className="bg-muted/30 py-16">
+        <section
+          className={`relative left-1/2 right-1/2 w-screen -translate-x-1/2 ${mutedSectionBg} py-16`}
+        >
           <div className="container-main">
             <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
@@ -261,7 +264,9 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           <ProcessSteps modeColor={modeColor} modeAccent={modeAccent} steps={steps} />
         </section>
 
-        <section className="bg-muted/30 py-16">
+        <section
+          className={`relative left-1/2 right-1/2 w-screen -translate-x-1/2 ${mutedSectionBg} py-16`}
+        >
           <div className="container-main">
             <div className="mb-12 text-center">
               <h2 className="mb-3 text-3xl font-bold md:text-4xl">
@@ -389,7 +394,7 @@ function HeroSection({
 
   return (
     <section
-      className={`relative overflow-hidden py-16 md:py-24 ${
+      className={`relative left-1/2 right-1/2 w-screen -translate-x-1/2 overflow-hidden py-16 md:py-24 ${
         isB2C
           ? "bg-gradient-to-br from-red-50 via-orange-50 to-white"
           : "bg-gradient-to-br from-blue-50 via-indigo-50 to-white"
@@ -526,22 +531,22 @@ function CategoryCard({
   return (
     <Link
       href={`/catalog?cat=${category.slug}`}
-      className="group relative overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-muted-foreground hover:shadow-lg"
+      className="group relative block overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-muted-foreground hover:shadow-lg"
     >
-      <div className="relative h-48 overflow-hidden bg-muted">
+      <div className="relative h-48 overflow-hidden bg-muted ">
         <img
           src={category.image}
           alt={category.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
         <div className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg">
           <FileText className="h-6 w-6" style={{ color: modeColor }} />
         </div>
       </div>
 
-      <div className="p-5">
+      <div className="bg-card p-5">
         <h3 className="mb-2 text-lg font-semibold">{category.name}</h3>
         <p className="mb-3 text-sm text-muted-foreground">
           {category.description ?? "Profesionálne tlačové produkty na mieru"}

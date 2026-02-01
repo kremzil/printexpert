@@ -35,7 +35,7 @@ export function RealConfiguratorPanel({
   const leadTime = "2-3 pracovné dni"
 
   return (
-    <div className="sticky top-4 space-y-4">
+    <div className="sticky top-25 space-y-4">
       <Card className="p-6">
         <div className="space-y-4">
           <div>

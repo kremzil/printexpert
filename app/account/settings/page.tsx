@@ -6,6 +6,16 @@ import { getPrisma } from "@/lib/prisma"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { ProfileSection } from "@/components/account/profile-section"
 
+function splitFullName(fullName: string | null | undefined) {
+  const normalized = (fullName ?? "").trim()
+  if (!normalized) {
+    return { firstName: "", lastName: "" }
+  }
+  const parts = normalized.split(/\s+/)
+  const [firstName, ...rest] = parts
+  return { firstName, lastName: rest.join(" ") }
+}
+
 async function ProfileContent() {
   const session = await auth()
   if (!session?.user?.id) {
@@ -29,6 +39,8 @@ async function ProfileContent() {
     redirect("/auth")
   }
 
+  const { firstName, lastName } = splitFullName(user.name)
+
   const handleSaveProfile = async (data: any) => {
     "use server"
     const prisma = getPrisma()
@@ -41,7 +53,7 @@ async function ProfileContent() {
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        name: data.name,
+        name: `${data.firstName} ${data.lastName}`.trim(),
         email: data.email,
       },
     })
@@ -59,8 +71,8 @@ async function ProfileContent() {
       <ProfileSection
         mode={audienceContext.mode}
         initialData={{
-          firstName: "",
-          lastName: "",
+          firstName,
+          lastName,
           email: user.email || "",
           phone: "",
           companyName: "",

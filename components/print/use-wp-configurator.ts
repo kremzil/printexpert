@@ -620,6 +620,7 @@ export function useWpConfigurator({
     minHeight,
     dimUnit,
     hasAreaSizing,
+    useQuantitySelect,
     visibleMatrices,
     total,
     hasUnavailable,

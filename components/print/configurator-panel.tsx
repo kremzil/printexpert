@@ -26,6 +26,7 @@ interface ConfiguratorPanelProps {
   mode: CustomerMode
   config: ConfiguratorState
   basePrice: number
+  simple?: boolean
   onAddToCart?: () => void
   onRequestQuote?: () => void
 }
@@ -83,10 +84,11 @@ export function ConfiguratorPanel({
   mode,
   config,
   basePrice,
+  simple = false,
   onAddToCart,
   onRequestQuote,
 }: ConfiguratorPanelProps) {
-  const finalPrice = calculatePrice(config, basePrice)
+  const finalPrice = simple ? basePrice : calculatePrice(config, basePrice)
   const leadTime = getLeadTime(config)
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
@@ -124,39 +126,48 @@ export function ConfiguratorPanel({
           <div>
             <h3 className="mb-1 font-semibold">Vaša konfigurácia</h3>
             <p className="text-sm text-muted-foreground">
-              {config.quantity} ks vizitiek
+              {config.quantity} ks
             </p>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Formát:</span>
-              <span className="font-medium">
-                {formatLabels[config.format]}
-              </span>
+          {!simple ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Formát:</span>
+                <span className="font-medium">
+                  {formatLabels[config.format]}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Materiál:</span>
+                <span className="font-medium">
+                  {materialLabels[config.material]}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tlač:</span>
+                <span className="font-medium">
+                  {printLabels[config.printType]}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Úprava:</span>
+                <span className="font-medium">
+                  {finishingLabels[config.finishing]}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Materiál:</span>
-              <span className="font-medium">
-                {materialLabels[config.material]}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tlač:</span>
-              <span className="font-medium">{printLabels[config.printType]}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Úprava:</span>
-              <span className="font-medium">
-                {finishingLabels[config.finishing]}
-              </span>
-            </div>
-          </div>
+          ) : null}
 
           <div className="border-t border-border pt-4">
-            <PriceDisplay price={finalPrice} mode={mode} size="xl" />
+            <PriceDisplay
+              price={finalPrice}
+              mode={mode}
+              size="xl"
+              showFrom={simple}
+            />
 
-            {config.quantity > 100 && (
+            {!simple && config.quantity > 100 && (
               <div
                 className="mt-2 rounded-lg p-2 text-xs"
                 style={{ backgroundColor: modeAccent, color: modeColor }}
@@ -232,39 +243,41 @@ export function ConfiguratorPanel({
         </div>
       </Card>
 
-      <Card className="p-4">
-        <h4 className="mb-3 text-sm font-semibold">Objemové zľavy</h4>
-        <div className="space-y-1 text-xs">
-          {[
-            { qty: 100, discount: 0 },
-            { qty: 250, discount: 15 },
-            { qty: 500, discount: 30 },
-            { qty: 1000, discount: 45 },
-            { qty: 2500, discount: 55 },
-          ].map(({ qty, discount }) => {
-            const price = calculatePrice({ ...config, quantity: qty }, basePrice)
-            const isSelected = config.quantity === qty
-            return (
-              <div
-                key={qty}
-                className={`flex justify-between rounded px-2 py-1 ${isSelected ? "font-medium" : ""}`}
-                style={{
-                  backgroundColor: isSelected ? modeAccent : "transparent",
-                  color: isSelected ? modeColor : undefined,
-                }}
-              >
-                <span>{qty} ks</span>
-                <span className="flex items-center gap-1">
-                  {discount > 0 && (
-                    <span className="text-muted-foreground">-{discount}%</span>
-                  )}
-                  <span>{price.toFixed(2)} €</span>
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+      {!simple ? (
+        <Card className="p-4">
+          <h4 className="mb-3 text-sm font-semibold">Objemové zľavy</h4>
+          <div className="space-y-1 text-xs">
+            {[
+              { qty: 100, discount: 0 },
+              { qty: 250, discount: 15 },
+              { qty: 500, discount: 30 },
+              { qty: 1000, discount: 45 },
+              { qty: 2500, discount: 55 },
+            ].map(({ qty, discount }) => {
+              const price = calculatePrice({ ...config, quantity: qty }, basePrice)
+              const isSelected = config.quantity === qty
+              return (
+                <div
+                  key={qty}
+                  className={`flex justify-between rounded px-2 py-1 ${isSelected ? "font-medium" : ""}`}
+                  style={{
+                    backgroundColor: isSelected ? modeAccent : "transparent",
+                    color: isSelected ? modeColor : undefined,
+                  }}
+                >
+                  <span>{qty} ks</span>
+                  <span className="flex items-center gap-1">
+                    {discount > 0 && (
+                      <span className="text-muted-foreground">-{discount}%</span>
+                    )}
+                    <span>{price.toFixed(2)} €</span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      ) : null}
 
       {mode === "b2b" && (
         <Card className="p-4" style={{ backgroundColor: modeAccent }}>

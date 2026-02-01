@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import type { CustomerMode } from "@/components/print/types"
 import { Card } from "@/components/ui/card"
 import { User, Mail, Phone, Building2, Hash } from "lucide-react"
@@ -27,6 +28,7 @@ export function ProfileSection({ mode, initialData, onSave }: ProfileSectionProp
   const [data, setData] = useState<ProfileData>(initialData)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const router = useRouter()
 
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
 
@@ -39,6 +41,7 @@ export function ProfileSection({ mode, initialData, onSave }: ProfileSectionProp
     try {
       await onSave(data)
       setIsEditing(false)
+      router.refresh()
     } catch (error) {
       console.error("Failed to save profile:", error)
     } finally {
