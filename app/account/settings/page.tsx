@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { getPrisma } from "@/lib/prisma"
 import { resolveAudienceContext } from "@/lib/audience-context"
-import { ProfileSection } from "@/components/account/profile-section"
+import { ProfileSection, type ProfileData } from "@/components/account/profile-section"
 
 function splitFullName(fullName: string | null | undefined) {
   const normalized = (fullName ?? "").trim()
@@ -41,7 +41,7 @@ async function ProfileContent() {
 
   const { firstName, lastName } = splitFullName(user.name)
 
-  const handleSaveProfile = async (data: any) => {
+  const handleSaveProfile = async (data: ProfileData) => {
     "use server"
     const prisma = getPrisma()
     const session = await auth()

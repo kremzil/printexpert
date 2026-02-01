@@ -6,7 +6,7 @@ import type { CustomerMode } from "@/components/print/types"
 import { Card } from "@/components/ui/card"
 import { User, Mail, Phone, Building2, Hash } from "lucide-react"
 
-interface ProfileData {
+export interface ProfileData {
   firstName: string
   lastName: string
   email: string

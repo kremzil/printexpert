@@ -1,7 +1,7 @@
 # Статус проекта
 
-Дата: 2026-01-27
-Версия: 0.2.3
+Дата: 2026-02-01
+Версия: 0.2.4
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
@@ -17,6 +17,7 @@
   - `20260125222322_add_cart_and_orders` — корзина и заказы
   - `20260126_add_top_products` — Top produkty для главной страницы
   - `20260126_add_order_assets_notifications` — ассеты заказов и лог уведомлений
+  - `20260201184836_add_pdf_generation` — настройки генерации PDF-счетов
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
@@ -224,6 +225,12 @@
 - `GET /api/orders/[orderId]/assets` — список файлов заказа
 - `GET /api/assets/[assetId]/download` — 302 redirect на presigned GET
 
+### PDF-счета (Faktúry):
+- `GET /api/orders/[orderId]/invoice` — скачивание PDF-счёта
+- `POST /api/orders/[orderId]/invoice/send` — генерация и отправка на email (ADMIN)
+- `GET /api/admin/settings/pdf` — настройки PDF
+- `PUT /api/admin/settings/pdf` — обновление настроек PDF
+
 ### UI Страницы:
 - `/cart` — корзина с управлением количеством и удалением
 - `/checkout` — форма оформления заказа
@@ -238,7 +245,21 @@
 - `orders-list.tsx` — список заказов
 - `order-detail.tsx` — детали заказа
 - `admin-orders-list.tsx` — список заказов в админке
-- `admin-order-detail.tsx` — детали заказа с изменением статуса
+- `admin-order-detail.tsx` — детали заказа с изменением статуса и отправкой счетов
+
+## Генерация PDF-счетов (Faktúry)
+- Технология: `@react-pdf/renderer`
+- Настройки хранятся в `ShopSettings.pdfSettings` (JSON)
+- Модуль: `lib/pdf/` (template, generate, settings, types)
+- Функции:
+  - Автоматическая генерация при смене статуса заказа
+  - Ручная генерация и отправка администратором
+  - Скачивание клиентом в личном кабинете
+- Хранение: S3 (через `OrderAsset` с `kind: INVOICE`)
+- Отправка email: Nodemailer с PDF-вложением
+- UI настроек: `/admin/settings` → таб "PDF / Faktúry"
+- Шаблон: словацкий формат, данные компании, банковские реквизиты, подпись
+- Документация: `docs/PDF_INVOICES.md`
 
 ### Интеграция с товарами:
 - Страница товара `/product/[slug]`: обе кнопки калькулятора добавляют товар в корзину
@@ -268,3 +289,4 @@
 - Интеграция платежных систем
 - История изменений статуса заказа
 - Фильтры и поиск в списке заказов админки
+- Генерация расчёта стоимости корзины (quote/estimate) в PDF

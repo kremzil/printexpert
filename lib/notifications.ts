@@ -186,3 +186,68 @@ export const NotificationService = {
     });
   },
 };
+
+/**
+ * Send invoice email to customer
+ */
+export async function sendInvoiceEmail(orderId: string): Promise<boolean> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      orderNumber: true,
+      customerEmail: true,
+      customerName: true,
+      total: true,
+    },
+  });
+
+  if (!order?.customerEmail) {
+    return false;
+  }
+
+  // Get invoice asset
+  const invoiceAsset = await prisma.orderAsset.findFirst({
+    where: {
+      orderId,
+      kind: "INVOICE",
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Get invoice PDF
+  let attachments: { filename: string; content: Buffer }[] = [];
+  if (invoiceAsset) {
+    const { getInvoiceFromS3 } = await import("@/lib/s3");
+    try {
+      const pdfBuffer = await getInvoiceFromS3(invoiceAsset.bucket, invoiceAsset.objectKey);
+      attachments = [{
+        filename: invoiceAsset.fileNameOriginal,
+        content: pdfBuffer,
+      }];
+    } catch (error) {
+      console.error("Failed to get invoice from S3:", error);
+    }
+  }
+
+  const total = Number(order.total).toFixed(2);
+  const subject = `Faktúra k objednávke #${order.orderNumber}`;
+  const text = `Dobrý deň ${order.customerName},\n\nv prílohe posielame faktúru k objednávke #${order.orderNumber} v hodnote ${total} €.\n\nĎakujeme za dôveru.\nPrint Expert`;
+  const html = `<p>Dobrý deň ${order.customerName},</p><p>v prílohe posielame faktúru k objednávke <strong>#${order.orderNumber}</strong> v hodnote <strong>${total} €</strong>.</p><p>Ďakujeme za dôveru.<br/>Print Expert</p>`;
+
+  try {
+    const transport = getSmtpTransport();
+    const from = process.env.SMTP_FROM ?? "Print Expert <info@printexpert.sk>";
+    await transport.sendMail({
+      from,
+      to: order.customerEmail,
+      subject,
+      text,
+      html,
+      attachments,
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send invoice email:", error);
+    return false;
+  }
+}

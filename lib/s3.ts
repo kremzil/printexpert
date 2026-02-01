@@ -1,4 +1,4 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 
 let cachedClient: S3Client | null = null;
 
@@ -41,4 +41,57 @@ export function getS3Client(): S3Client {
   });
 
   return cachedClient;
+}
+
+/**
+ * Upload invoice PDF to S3
+ */
+export async function uploadInvoiceToS3(
+  pdfBuffer: Buffer,
+  orderId: string,
+  fileName: string
+): Promise<{ bucket: string; objectKey: string; region: string }> {
+  const client = getS3Client();
+  const { bucket, region } = getS3Config();
+  
+  const objectKey = `invoices/${orderId}/${fileName}`;
+  
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: pdfBuffer,
+      ContentType: "application/pdf",
+    })
+  );
+  
+  return { bucket, objectKey, region };
+}
+
+/**
+ * Get invoice PDF from S3
+ */
+export async function getInvoiceFromS3(
+  bucket: string,
+  objectKey: string
+): Promise<Buffer> {
+  const client = getS3Client();
+  
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+    })
+  );
+  
+  if (!response.Body) {
+    throw new Error("Empty response body from S3");
+  }
+  
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+    chunks.push(chunk);
+  }
+  
+  return Buffer.concat(chunks);
 }

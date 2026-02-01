@@ -11,13 +11,14 @@
 - `/admin/products` — список товаров.
 - `/admin/products/[id]` — карточка товара + матрицы цен.
 - `/admin/orders` — список заказов.
-- `/admin/orders/[orderId]` — детали заказа.
+- `/admin/orders/[orderId]` — детали заказа + счёт (faktúra).
 - `/admin/kategorie` — настройки категорий.
 - `/admin/vlastnosti` — свойства (атрибуты) из WP-таблиц.
 - `/admin/vlastnosti/[attributeId]` — значения конкретного свойства.
 - `/admin/top-products` — управление блоком «Top produkty» на главной странице.
+- `/admin/settings` — общие настройки магазина (в т.ч. PDF/Faktúry).
 
-В деталях заказа (`/admin/orders/[orderId]`) отображаются файлы заказа и доступно скачивание через presigned GET.
+В деталях заказа (`/admin/orders/[orderId]`) отображаются файлы заказа, кнопки для скачивания/отправки счёта и доступно скачивание через presigned GET.
 
 > Доступ к админке защищен ролью ADMIN (NextAuth v5).
 
@@ -235,3 +236,46 @@ WP ID задаётся в карточке товара.
 
 - Добавить создание/редактирование комбинаций цен вручную (не только генерация).
 - Добавить возможность изменения порядка товаров в ручном режиме Top produkty.
+
+## Страница /admin/settings — Настройки магазина
+
+Страница общих настроек магазина с вкладками для разных групп параметров.
+
+### Вкладка "PDF / Faktúry"
+
+Настройки генерации PDF-счетов. Компонент: `components/admin/pdf-settings-form.tsx`.
+
+**Секции формы:**
+1. **Údaje o firme** — данные компании:
+   - Názov firmy (название)
+   - Adresa (адрес)
+   - Mesto a PSČ (город и индекс)
+   - IČO, DIČ, IČ DPH
+
+2. **Bankové údaje** — банковские реквизиты:
+   - Názov banky
+   - BIC/SWIFT
+   - Kód banky
+   - IBAN
+
+3. **Číslovanie faktúr** — нумерация:
+   - Prefix čísla faktúry (префикс номера)
+   - Ďalšie číslo faktúry (следующий номер)
+   - Splatnosť faktúry (dni) — дни до оплаты
+
+4. **Automatická generácia** — автогенерация:
+   - Status pre automatickú generáciu — при каком статусе генерировать
+   - Automaticky odoslať e-mailom — отправлять ли на email
+
+5. **Vzhľad faktúry** — оформление:
+   - URL loga
+   - URL podpisu/pečiatky
+   - Text päty faktúry
+
+**API:**
+- `GET /api/admin/settings/pdf` — получение настроек
+- `PUT /api/admin/settings/pdf` — сохранение настроек
+
+**Хранение:** `ShopSettings.pdfSettings` (JSON поле)
+
+**Документация:** см. `docs/PDF_INVOICES.md`

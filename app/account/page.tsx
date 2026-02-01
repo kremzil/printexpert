@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 
 import { auth } from "@/auth"
 import { getPrisma } from "@/lib/prisma"
@@ -207,13 +208,13 @@ async function AccountContent() {
           orders={formattedOrders}
         />
         <div className="pt-4 text-center">
-          <a
+          <Link
             href="/account/orders"
             className="text-sm font-medium hover:underline"
             style={{ color: audienceContext.mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)" }}
           >
             Zobraziť všetky objednávky →
-          </a>
+          </Link>
         </div>
       </div>
     </div>

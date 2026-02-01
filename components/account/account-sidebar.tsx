@@ -5,28 +5,20 @@ import { usePathname } from "next/navigation"
 import {
   User,
   Home,
-  ShoppingCart,
   Settings,
   LogOut,
   Package,
   MapPin,
-  FileText,
-  CreditCard,
-  Bell,
-  Lock,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
 const menuItems = [

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@/lib/generated/prisma";
-import { NotificationService } from "@/lib/notifications";
+import { NotificationService, sendInvoiceEmail } from "@/lib/notifications";
+import { getPdfSettings, generateAndSaveInvoice } from "@/lib/pdf";
 
 export async function PATCH(
   req: NextRequest,
@@ -68,6 +69,22 @@ export async function PATCH(
         status as OrderStatus
       ).catch((error) => {
         console.error("Failed to send status change notification:", error);
+      });
+
+      // Auto-generate and send invoice if configured
+      getPdfSettings().then(async (pdfSettings) => {
+        if (pdfSettings.autoGenerateOnStatus === status) {
+          try {
+            await generateAndSaveInvoice(orderId);
+            if (pdfSettings.autoSendEmail) {
+              await sendInvoiceEmail(orderId);
+            }
+          } catch (error) {
+            console.error("Failed to auto-generate invoice:", error);
+          }
+        }
+      }).catch((error) => {
+        console.error("Failed to get PDF settings:", error);
       });
     }
 

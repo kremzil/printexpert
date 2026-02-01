@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Send, Download } from "lucide-react";
+import { toast } from "sonner";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
 
@@ -129,6 +130,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [assets, setAssets] = useState<OrderAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -210,6 +212,29 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       alert("Chyba pri aktualizácii statusu");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    setIsSendingInvoice(true);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/invoice/send`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Nepodarilo sa odoslať faktúru");
+      }
+
+      const data = await response.json();
+      toast.success(data.message ?? "Faktúra bola odoslaná");
+      fetchAssets();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nepodarilo sa odoslať faktúru";
+      toast.error(message);
+    } finally {
+      setIsSendingInvoice(false);
     }
   };
 
@@ -432,6 +457,43 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Faktúra</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <Button asChild variant="outline" className="w-full">
+                  <a href={`/api/orders/${order.id}/invoice`} target="_blank">
+                    <Download className="mr-2 h-4 w-4" />
+                    Stiahnuť faktúru
+                  </a>
+                </Button>
+                <Button
+                  variant="default"
+                  className="w-full"
+                  onClick={handleSendInvoice}
+                  disabled={isSendingInvoice}
+                >
+                  {isSendingInvoice ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Odosielam...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Odoslať faktúru e-mailom
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Faktúra bude odoslaná na: {order.customerEmail}
+              </p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Status objednávky</CardTitle>

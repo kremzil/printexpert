@@ -286,6 +286,8 @@ return orders.map(order => ({
 - `POST /api/checkout` — создание заказа
 - `GET /api/orders` — список заказов пользователя
 - `GET /api/orders/[orderId]` — детали заказа
+- `GET /api/orders/[orderId]/invoice` — скачивание PDF-счёта
+- `POST /api/orders/[orderId]/invoice/send` — генерация и отправка счёта на email (ADMIN)
 - `POST /api/uploads/presign` — presigned PUT для загрузки файла
 - `POST /api/uploads/confirm` — подтверждение загрузки (HEAD)
 - `GET /api/orders/[orderId]/assets` — список файлов заказа
@@ -315,8 +317,10 @@ return orders.map(order => ({
 
 ### Admin API
 - `PATCH /api/admin/orders/[orderId]/status` — изменение статуса заказа (только ADMIN)
+- `GET /api/admin/settings/pdf` — настройки PDF-счетов
+- `PUT /api/admin/settings/pdf` — обновление настроек PDF
 
-**Тело запроса:**
+**Тело запроса (status):**
 ```json
 {
   "status": "CONFIRMED"
@@ -742,6 +746,37 @@ if (!session?.user || session.user.role !== "ADMIN") {
 - [ ] История изменений статуса
 - [ ] Фильтры в списке заказов админки
 - [ ] Export заказов в CSV/Excel
-- [ ] Печать накладных
+- [x] Печать накладных → реализовано как PDF-счета (faktúry)
 - [ ] Интеграция платежных систем
+- [ ] Генерация расчёта стоимости корзины (quote/estimate)
+
+## PDF-счета (Faktúry)
+
+Система генерации PDF-счетов для заказов.
+
+### Основные возможности
+- **Автоматическая генерация** при смене статуса заказа
+- **Ручная генерация** администратором
+- **Скачивание** клиентом в личном кабинете
+- **Отправка на email** с PDF-вложением
+
+### API
+- `GET /api/orders/[orderId]/invoice` — скачивание PDF
+- `POST /api/orders/[orderId]/invoice/send` — генерация + email (ADMIN)
+
+### Настройки
+Настраиваются в `/admin/settings` → вкладка "PDF / Faktúry":
+- Данные компании (название, адрес, IČO, DIČ, IČ DPH)
+- Банковские реквизиты (IBAN, BIC, код банка)
+- Нумерация счетов (префикс, следующий номер)
+- Автогенерация (при каком статусе, отправлять ли email)
+- Оформление (логотип, подпись, текст päty)
+
+### Хранение
+Сгенерированные счета сохраняются как `OrderAsset` с:
+- `kind: "INVOICE"`
+- Хранение в S3: `invoices/{orderId}/{filename}.pdf`
+
+### Подробная документация
+См. `docs/PDF_INVOICES.md`
 - [ ] Tracking номера доставки

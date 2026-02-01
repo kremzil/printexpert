@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label"
 import { requireAdmin } from "@/lib/auth-helpers"
 import { getShopSettings } from "@/lib/shop-settings"
 import { updateShopVatRate } from "./actions"
+import { PdfSettingsForm } from "@/components/admin/pdf-settings-form"
 
 export default async function AdminSettingsPage() {
   await requireAdmin()
@@ -29,6 +30,7 @@ export default async function AdminSettingsPage() {
           <Tabs defaultValue="vat">
             <TabsList>
               <TabsTrigger value="vat">DPH</TabsTrigger>
+              <TabsTrigger value="pdf">PDF / Faktúry</TabsTrigger>
             </TabsList>
             <TabsContent value="vat">
               <Card>
@@ -79,6 +81,9 @@ export default async function AdminSettingsPage() {
                   </form>
                 </CardContent>
               </Card>
+            </TabsContent>
+            <TabsContent value="pdf">
+              <PdfSettingsForm />
             </TabsContent>
           </Tabs>
         </TabsContent>
