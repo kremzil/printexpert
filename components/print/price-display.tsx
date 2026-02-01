@@ -21,7 +21,8 @@ export function PriceDisplay({
   showVAT = true,
   vatRate,
 }: PriceDisplayProps) {
-  const normalizedVatRate = Number.isFinite(vatRate) && vatRate > 0 ? vatRate : 0.2
+  const safeVatRate = vatRate ?? NaN
+  const normalizedVatRate = Number.isFinite(safeVatRate) && safeVatRate > 0 ? safeVatRate : 0.2
   const priceWithoutVat = price / (1 + normalizedVatRate)
   const vatAmount = price - priceWithoutVat
 
