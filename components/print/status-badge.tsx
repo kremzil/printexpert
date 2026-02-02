@@ -11,10 +11,13 @@ import {
 export type OrderStatus =
   | "pending"
   | "files-uploaded"
+  | "confirmed"
   | "prepress-check"
+  | "processing"
   | "printing"
   | "shipping"
   | "delivered"
+  | "completed"
   | "cancelled"
   | "error"
 
@@ -36,9 +39,21 @@ const statusConfig = {
     color: "var(--status-processing)",
     bg: "var(--status-processing-bg)",
   },
+  confirmed: {
+    label: "Potvrdená",
+    icon: CheckCircle,
+    color: "var(--status-processing)",
+    bg: "var(--status-processing-bg)",
+  },
   "prepress-check": {
     label: "Kontrola súborov",
     icon: AlertCircle,
+    color: "var(--status-processing)",
+    bg: "var(--status-processing-bg)",
+  },
+  processing: {
+    label: "Spracováva sa",
+    icon: Package,
     color: "var(--status-processing)",
     bg: "var(--status-processing-bg)",
   },
@@ -53,6 +68,12 @@ const statusConfig = {
     icon: Truck,
     color: "var(--status-processing)",
     bg: "var(--status-processing-bg)",
+  },
+  completed: {
+    label: "Dokončená",
+    icon: CheckCircle,
+    color: "var(--status-completed)",
+    bg: "var(--status-completed-bg)",
   },
   delivered: {
     label: "Doručené",

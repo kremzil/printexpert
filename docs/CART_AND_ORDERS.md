@@ -1,6 +1,6 @@
 # Система корзины и заказов
 
-Дата создания: 2026-01-26
+Дата обновления: 2026-02-02
 
 ## Общее описание
 
@@ -389,12 +389,15 @@ Mini-cart в хедере:
 
 #### components/cart/checkout-form.tsx
 Форма оформления заказа:
-- Поля: meno, email, telefón, poznámka
+- Multi-step wizard (B2B: 5 шагов, B2C: 4 шага)
+- Поля: контактные данные, адрес доставки, способ оплаты
 - Client-side валидация (required)
-- Submit через fetch к /api/checkout
-- Dispatch "cart-updated" после успеха
-- Redirect на /account/orders/[id]?success=true
-- Если выбран файл в корзине, выполняется upload (presign → PUT → confirm) после создания заказа
+- **Два способа оплаты:**
+  - Platba kartou (Stripe) — встроенная форма ввода карты
+  - Bankový prevod — перевод на счёт
+- **Race condition защита** — `useRef` предотвращает двойные вызовы
+- При успехе → redirect на `/checkout/success?orderId=...`
+- Upload графики после создания заказа (presign → PUT → confirm)
 
 #### components/cart/orders-list.tsx
 Список заказов пользователя:
@@ -723,10 +726,21 @@ if (!session?.user || session.user.role !== "ADMIN") {
 - useTransition для optimistic updates
 - Event-based updates вместо polling
 - Lazy loading компонентов
+- **Stripe SDK** — ленивая загрузка только при выборе оплаты картой
 
 ### Caching
 - PriceSnapshot кэширует расчет для UI
 - НО: всегда пересчитывается при checkout!
+- **Навигация** — `unstable_cache` с TTL 5 минут
+
+### Race condition protection
+- `isPreparingRef` (useRef) предотвращает двойные вызовы `preparePayment`
+- Проверка `orderId` исключает повторное создание заказа при повторных кликах
+
+### Очистка корзины
+- **Старое поведение**: корзина очищалась сразу после создания заказа
+- **Новое поведение**: корзина очищается только на странице `/checkout/success`
+- Это позволяет повторить попытку оплаты при ошибке без потери корзины
 
 ## Troubleshooting
 
@@ -747,8 +761,84 @@ if (!session?.user || session.user.role !== "ADMIN") {
 - [ ] Фильтры в списке заказов админки
 - [ ] Export заказов в CSV/Excel
 - [x] Печать накладных → реализовано как PDF-счета (faktúry)
-- [ ] Интеграция платежных систем
+- [x] Интеграция платежных систем → **реализовано (Stripe)**
 - [ ] Генерация расчёта стоимости корзины (quote/estimate)
+
+## Stripe интеграция
+
+### Архитектура
+Stripe интегрирован через **Payment Intents API** с использованием Stripe Elements для ввода карты.
+
+### Flow оплаты (Stripe)
+1. Пользователь заполняет checkout форму
+2. При выборе "Platba kartou" → `preparePayment()`:
+   - Создаётся заказ через `/api/checkout`
+   - Запрашивается PaymentIntent через `/api/stripe/payment-intent`
+   - Отображается Stripe Elements форма
+3. Пользователь вводит данные карты и подтверждает
+4. Stripe обрабатывает платёж
+5. Webhook `/api/stripe/webhook` получает `payment_intent.succeeded`
+6. Статус заказа меняется на CONFIRMED
+7. Пользователь редиректится на `/checkout/success`
+8. **Корзина очищается только на странице success** (не при создании заказа!)
+
+### Важные особенности
+- **Ленивая загрузка SDK** — Stripe SDK загружается только при выборе оплаты картой
+- **Race condition защита** — `useRef` предотвращает двойные вызовы
+- **Очистка корзины** — происходит в `order-success.tsx` после успешной оплаты
+- **Cookie сессии** — НЕ удаляется при создании заказа (только после оплаты)
+
+### API Routes
+```typescript
+// Создание PaymentIntent
+POST /api/stripe/payment-intent
+Body: { orderId: string, saveCard?: boolean, customerEmail: string }
+Response: { clientSecret: string }
+
+// Webhook (от Stripe)
+POST /api/stripe/webhook
+Headers: { "stripe-signature": string }
+Events: payment_intent.succeeded, payment_intent.payment_failed, checkout.session.*
+```
+
+### Переменные окружения
+```env
+STRIPE_SECRET_KEY=sk_live_... или sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_live_... или pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### Модели данных (Prisma)
+```prisma
+model Order {
+  // ...existing fields...
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentProvider PaymentProvider?
+  stripePaymentIntentId String? @unique
+  stripeCheckoutSessionId String? @unique
+  paidAt DateTime?
+}
+
+model StripeEvent {
+  id        String   @id
+  type      String
+  orderId   String?
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  BANK_TRANSFER
+}
+```
 
 ## PDF-счета (Faktúry)
 

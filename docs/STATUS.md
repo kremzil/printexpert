@@ -1,7 +1,7 @@
 # Статус проекта
 
-Дата: 2026-02-01
-Версия: 0.2.4
+Дата: 2026-02-02
+Версия: 0.2.5
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
@@ -168,6 +168,56 @@
 ## Следующие шаги
 - Роли/права доступа. пока **отложен**.
 
+## Stripe интеграция (платежи)
+- **Payment Intents API** — создание платёжного намерения для каждого заказа
+- **Stripe Elements** — встроенные компоненты для ввода карты (`@stripe/react-stripe-js`)
+- **Ленивая загрузка SDK** — Stripe SDK загружается только при выборе оплаты картой
+- **Webhook-обработка** — `POST /api/stripe/webhook` обрабатывает события:
+  - `payment_intent.succeeded` — оплата прошла
+  - `payment_intent.payment_failed` — ошибка оплаты
+  - `checkout.session.completed` — сессия завершена
+  - `checkout.session.expired` — сессия истекла
+- **Идемпотентность** — события Stripe логируются в `StripeEvent` для защиты от дублей
+- **Автоматическое обновление заказа** — при успешной оплате статус меняется на CONFIRMED
+- **Очистка корзины** — происходит только после подтверждённой оплаты (на странице success)
+
+### API Routes (Stripe):
+- `POST /api/stripe/payment-intent` — создание PaymentIntent для заказа
+- `POST /api/stripe/checkout-session` — альтернативный Checkout Session flow
+- `POST /api/stripe/webhook` — обработка событий от Stripe
+
+### Переменные окружения:
+```env
+STRIPE_SECRET_KEY=sk_...
+STRIPE_PUBLISHABLE_KEY=pk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+## Оптимизации производительности (02.02.2026)
+### Кэширование
+- **Homepage API** — `/api/top-products` кэшируется 60 секунд (`next: { revalidate: 60 }`)
+- **Навигация** — данные категорий и товаров для меню кэшируются через `unstable_cache` (5 минут)
+
+### Изображения
+- Все `<img>` заменены на `<Image>` из `next/image` с оптимизацией
+- Добавлены `sizes` для responsive images
+- Настроены `remotePatterns` для внешних доменов (unsplash)
+
+### Статическая генерация
+- Добавлен `generateStaticParams` для `/product/[slug]` — первые 100 товаров
+- Уменьшение TTFB за счёт ISR
+
+### CSS
+- Удалён тяжёлый SVG noise filter (feTurbulence) из `globals.css`
+
+### Stripe SDK
+- Ленивая загрузка — SDK грузится только при выборе "Platba kartou"
+- Использование `useRef` для предотвращения дублирования инициализации
+
+### Защита от race condition (checkout)
+- `isPreparingRef` предотвращает двойные вызовы `preparePayment`
+- Проверка `orderId` исключает повторное создание заказа
+
 ## Пользователи и аутентификация (NextAuth v5)
 - Модели Prisma: `User` (с role), `Account`, `Session`, `VerificationToken`
 - Провайдеры: Nodemailer (magic links), Credentials (пароли)
@@ -286,7 +336,6 @@
 - В админке `/admin/products/[id]` есть форма для сохранения `WP ID` (обновляет витрину через revalidate).
 
 ## Следующие шаги
-- Интеграция платежных систем
-- История изменений статуса заказа
-- Фильтры и поиск в списке заказов админки
-- Генерация расчёта стоимости корзины (quote/estimate) в PDF
+- [x] Интеграция платежных систем → **реализовано (Stripe)**
+- [ ] Роли/права доступа — пока **отложен**
+- [ ] Генерация расчёта стоимости корзины (quote/estimate) в PDF

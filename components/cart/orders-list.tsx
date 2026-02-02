@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/print/status-badge";
 import type { OrderData } from "@/types/order";
 
 interface OrdersListProps {
@@ -11,12 +11,12 @@ interface OrdersListProps {
 }
 
 const statusMap = {
-  PENDING: { label: "Čaká sa", variant: "secondary" as const },
-  CONFIRMED: { label: "Potvrdená", variant: "default" as const },
-  PROCESSING: { label: "Spracováva sa", variant: "default" as const },
-  COMPLETED: { label: "Dokončená", variant: "default" as const },
-  CANCELLED: { label: "Zrušená", variant: "destructive" as const },
-};
+  PENDING: "pending",
+  CONFIRMED: "confirmed",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+} as const;
 
 export function OrdersList({ orders }: OrdersListProps) {
   const formatPrice = (price: number) => {
@@ -62,7 +62,7 @@ export function OrdersList({ orders }: OrdersListProps) {
                     {formatDate(order.createdAt)}
                   </p>
                 </div>
-                <Badge variant={status.variant}>{status.label}</Badge>
+                <StatusBadge status={status} size="sm" />
               </div>
             </CardHeader>
             <CardContent>

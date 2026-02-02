@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/print/status-badge";
 import {
   Select,
   SelectContent,
@@ -102,13 +103,21 @@ const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, s
   return attributes as Record<string, string>;
 };
 
-const statusMap: Record<OrderStatus, { label: string; variant: "secondary" | "default" | "destructive" }> = {
-  PENDING: { label: "Čaká sa", variant: "secondary" },
-  CONFIRMED: { label: "Potvrdená", variant: "default" },
-  PROCESSING: { label: "Spracováva sa", variant: "default" },
-  COMPLETED: { label: "Dokončená", variant: "default" },
-  CANCELLED: { label: "Zrušená", variant: "destructive" },
+const statusMap: Record<OrderStatus, { label: string }> = {
+  PENDING: { label: "Čaká sa" },
+  CONFIRMED: { label: "Potvrdená" },
+  PROCESSING: { label: "Spracováva sa" },
+  COMPLETED: { label: "Dokončená" },
+  CANCELLED: { label: "Zrušená" },
 };
+
+const statusKeyMap = {
+  PENDING: "pending",
+  CONFIRMED: "confirmed",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+} as const;
 
 const assetStatusMap = {
   PENDING: { label: "Čaká sa", variant: "secondary" as const },
@@ -250,9 +259,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
           <h1 className="text-3xl font-bold">Objednávka #{order.orderNumber}</h1>
           <p className="text-muted-foreground mt-1">{formatDate(order.createdAt)}</p>
         </div>
-        <Badge variant={statusMap[status].variant} className="text-base px-4 py-1">
-          {statusMap[status].label}
-        </Badge>
+        <StatusBadge status={statusKeyMap[status]} size="lg" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

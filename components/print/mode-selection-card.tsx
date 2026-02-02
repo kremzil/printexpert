@@ -4,6 +4,7 @@ import Image from "next/image"
 import { Check, type LucideIcon } from "lucide-react"
 
 import type { CustomerMode } from "@/components/print/types"
+import { ModeButton } from "@/components/print/mode-button"
 
 interface ModeSelectionCardProps {
   mode: CustomerMode
@@ -78,15 +79,16 @@ export function ModeSelectionCard({
             ))}
           </ul>
 
-          <button
+          <ModeButton
             type="button"
+            mode={mode}
+            size="lg"
             onClick={onSelect}
             disabled={isPending}
-            className="w-full rounded-lg py-4 text-center font-semibold transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
-            style={{ backgroundColor: modeColor, color: "white" }}
+            className="w-full py-4 text-center font-semibold hover:shadow-lg"
           >
             Vybrať {title}
-          </button>
+          </ModeButton>
         </div>
       </div>
 

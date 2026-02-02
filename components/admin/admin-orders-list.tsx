@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/print/status-badge";
 import { ExternalLink } from "lucide-react";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
@@ -36,13 +37,13 @@ interface AdminOrdersListProps {
   orders: Order[];
 }
 
-const statusMap: Record<OrderStatus, { label: string; variant: "secondary" | "default" | "destructive" }> = {
-  PENDING: { label: "Čaká sa", variant: "secondary" },
-  CONFIRMED: { label: "Potvrdená", variant: "default" },
-  PROCESSING: { label: "Spracováva sa", variant: "default" },
-  COMPLETED: { label: "Dokončená", variant: "default" },
-  CANCELLED: { label: "Zrušená", variant: "destructive" },
-};
+const statusMap = {
+  PENDING: "pending",
+  CONFIRMED: "confirmed",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+} as const;
 
 const paymentStatusMap: Record<
   PaymentStatus,
@@ -101,7 +102,7 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={paymentStatus.variant}>{paymentStatus.label}</Badge>
-                  <Badge variant={status.variant}>{status.label}</Badge>
+                  <StatusBadge status={status} size="sm" />
                 </div>
               </div>
             </CardHeader>

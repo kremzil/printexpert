@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 
 type Props = {
   /**
@@ -59,15 +59,16 @@ export function AudienceModeCards({ redirectTo }: Props) {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Jednoduchá objednávka, rýchla kalkulácia a hotové produkty.
           </p>
-          <Button
+          <ModeButton
+            mode="b2c"
             size="lg"
-            className="group/btn mt-auto w-full ink-spread shadow-md transition-all hover:bg-primary/90 hover:shadow-xl"
+            className="group/btn mt-auto w-full ink-spread shadow-md transition-all hover:shadow-xl"
             disabled={isPending}
             onClick={() => pick("b2c")}
           >
             Pokračovať ako súkromná osoba
             <span className="ml-2 transition-transform duration-200 group-hover/btn:translate-x-1">→</span>
-          </Button>
+          </ModeButton>
         </div>
       </div>
 
@@ -82,15 +83,15 @@ export function AudienceModeCards({ redirectTo }: Props) {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Individuálny prístup, cenové ponuky a podpora pre firmy.
           </p>
-          <Button
-            variant="default"
+          <ModeButton
+            mode="b2b"
             size="lg"
-            className="mt-auto w-full print-frame bg-foreground text-background shadow-md transition-all hover:bg-foreground/90 hover:shadow-xl"
+            className="mt-auto w-full print-frame shadow-md transition-all hover:shadow-xl"
             disabled={isPending}
             onClick={() => pick("b2b")}
           >
             Pokračovať ako firma
-          </Button>
+          </ModeButton>
         </div>
       </div>
 

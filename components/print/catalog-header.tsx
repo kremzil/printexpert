@@ -3,6 +3,7 @@
 import { LayoutGrid, List, Search, SlidersHorizontal } from "lucide-react"
 
 import type { CustomerMode } from "@/components/print/types"
+import { ModeButton } from "@/components/print/mode-button"
 
 export type ViewMode = "grid" | "list"
 export type SortOption = "relevance" | "popular" | "price-asc" | "price-desc" | "name"
@@ -40,14 +41,17 @@ export function CatalogHeader({
           <span className="font-semibold text-foreground">{totalResults}</span>
         </div>
 
-        <button
+        <ModeButton
           type="button"
+          mode={mode}
+          variant="outline"
+          size="sm"
           onClick={onToggleFilters}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted/50 md:hidden"
+          className="md:hidden"
         >
           <SlidersHorizontal className="h-4 w-4" />
           Filtre
-        </button>
+        </ModeButton>
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

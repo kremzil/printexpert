@@ -210,19 +210,27 @@ export function OrderSuccess({
             Zobraziť moje objednávky
           </ModeButton>
 
-          <button className="flex items-center justify-center gap-2 rounded-lg border-2 border-border bg-card px-6 py-3 font-semibold transition-all hover:bg-muted">
+          <ModeButton
+            mode={mode}
+            variant="outline"
+            size="lg"
+            className="w-full"
+          >
             <Download className="h-5 w-5" />
             Stiahnuť potvrdenie
-          </button>
+          </ModeButton>
         </div>
 
-        <button
+        <ModeButton
+          mode={mode}
+          variant="ghost"
+          size="sm"
           onClick={handleBackToHome}
-          className="flex w-full items-center justify-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="w-full text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Späť na hlavnú stránku
-        </button>
+        </ModeButton>
       </div>
 
       <div className="mt-8 rounded-lg border-2 border-dashed border-border p-6 text-center">

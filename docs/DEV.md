@@ -71,6 +71,17 @@ NEXT_PUBLIC_UPLOAD_MAX_BYTES="100000000"
 > Для AWS `S3_ENDPOINT` оставлять пустым.  
 > В S3 бакете нужен CORS для методов `GET`, `PUT`, `HEAD`.
 
+Stripe (платежи):
+```env
+STRIPE_SECRET_KEY="sk_test_... или sk_live_..."
+STRIPE_PUBLISHABLE_KEY="pk_test_... или pk_live_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+```
+
+> Для тестирования использовать test-ключи.
+> Webhook secret получается при настройке webhook в Stripe Dashboard.
+> Локально можно использовать `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
+
 ### 2.2 Пример `.env.example`
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/shop?schema=public"

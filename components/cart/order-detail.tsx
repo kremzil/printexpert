@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, ArrowLeft, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/print/status-badge";
 import type { OrderData } from "@/types/order";
 
 interface OrderDetailProps {
@@ -47,12 +48,12 @@ const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, s
 };
 
 const statusMap = {
-  PENDING: { label: "Čaká sa", variant: "secondary" as const },
-  CONFIRMED: { label: "Potvrdená", variant: "default" as const },
-  PROCESSING: { label: "Spracováva sa", variant: "default" as const },
-  COMPLETED: { label: "Dokončená", variant: "default" as const },
-  CANCELLED: { label: "Zrušená", variant: "destructive" as const },
-};
+  PENDING: "pending",
+  CONFIRMED: "confirmed",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+} as const;
 
 const assetStatusMap = {
   PENDING: { label: "Čaká sa", variant: "secondary" as const },
@@ -193,9 +194,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <h1 className="text-3xl font-bold">Objednávka #{order.orderNumber}</h1>
           <p className="text-muted-foreground mt-1">{formatDate(order.createdAt)}</p>
         </div>
-        <Badge variant={status.variant} className="text-base px-4 py-1">
-          {status.label}
-        </Badge>
+        <StatusBadge status={status} size="lg" />
       </div>
 
       {isSuccess && (
