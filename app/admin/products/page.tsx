@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import { AdminProductsList } from "@/components/admin/admin-products-list";
+import { AdminProductsImportDialog } from "@/components/admin/admin-products-import-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminProducts } from "@/lib/catalog";
@@ -44,12 +45,15 @@ async function AdminProductsPageContent() {
             Spravujte produkty v systéme ({products.length} produktov)
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/products/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nový produkt
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <AdminProductsImportDialog />
+          <Button asChild>
+            <Link href="/admin/products/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Nový produkt
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

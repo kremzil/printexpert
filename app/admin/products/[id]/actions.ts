@@ -39,6 +39,26 @@ type UpdateProductDetailsInput = {
   productId: string
 }
 
+type AddProductImageInput = {
+  productId: string
+  url: string
+}
+
+type DeleteProductImageInput = {
+  productId: string
+  imageId: string
+}
+
+type SetProductImagePrimaryInput = {
+  productId: string
+  imageId: string
+}
+
+type ReorderProductImagesInput = {
+  productId: string
+  imageIds: string[]
+}
+
 // ...existing code...
 type PhpSerializable =
   | string
@@ -494,7 +514,6 @@ export async function updateProductDetails(
   const name = String(formData.get("name") ?? "").trim()
   const slug = String(formData.get("slug") ?? "").trim()
   const categoryId = String(formData.get("categoryId") ?? "").trim()
-  const imageUrl = String(formData.get("imageUrl") ?? "").trim()
   const excerptInput = String(formData.get("excerpt") ?? "")
   const descriptionInput = String(formData.get("description") ?? "")
   const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
@@ -529,40 +548,6 @@ export async function updateProductDetails(
 
   if (!existing) {
     return
-  }
-
-  if (imageUrl) {
-    // Determine if we should update an existing primary image or create a new one
-    // Strategy: Unset primary for this product, then upsert the new URL as primary
-    await prisma.productImage.updateMany({
-        where: { productId: input.productId },
-        data: { isPrimary: false }
-    })
-    
-    await prisma.productImage.upsert({
-        where: {
-            productId_url: {
-                productId: input.productId,
-                url: imageUrl
-            }
-        },
-        create: {
-            productId: input.productId,
-            url: imageUrl,
-            isPrimary: true,
-            sortOrder: 0
-        },
-        update: {
-            isPrimary: true,
-            sortOrder: 0
-        }
-    })
-  } else if (formData.has("imageUrl") && imageUrl === "") {
-    // If the field was present but empty, user might mean "clear image"
-    // But usually we don't want to delete unless explicit. 
-    // Let's assume emptiness means "no change" or "remove" depends on UI. 
-    // To be safe, if we want to remove, we'd probably have a separate action.
-    // For now, let's just NOT update if empty string, to avoid accidental deletion.
   }
 
   const updated = await prisma.product.update({
@@ -666,4 +651,137 @@ export async function createMatrixPriceRows(input: DeleteMatrixInput) {
 
   updateTag("wp-matrix")
   revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function addProductImage(input: AddProductImageInput) {
+  await requireAdmin()
+  const prisma = getPrisma()
+
+  const product = await prisma.product.findUnique({
+    where: { id: input.productId },
+    select: { slug: true, images: { select: { id: true } } },
+  })
+
+  if (!product) return
+
+  const isFirst = product.images.length === 0
+
+  await prisma.productImage.create({
+    data: {
+      productId: input.productId,
+      url: input.url,
+      isPrimary: isFirst,
+      sortOrder: product.images.length,
+    },
+  })
+
+  updateTag("products")
+  updateTag(`product:${product.slug}`)
+  revalidatePath(`/admin/products/${input.productId}`)
+  revalidatePath(`/product/${product.slug}`)
+}
+
+export async function deleteProductImage(input: DeleteProductImageInput) {
+  await requireAdmin()
+  const prisma = getPrisma()
+
+  const image = await prisma.productImage.findUnique({
+    where: { id: input.imageId },
+    select: { isPrimary: true, productId: true },
+  })
+
+  if (!image || image.productId !== input.productId) return
+
+  const product = await prisma.product.findUnique({
+    where: { id: input.productId },
+    select: { slug: true },
+  })
+
+  await prisma.productImage.delete({
+    where: { id: input.imageId },
+  })
+
+  // If deleted image was primary, make the first remaining image primary
+  if (image.isPrimary) {
+    const firstImage = await prisma.productImage.findFirst({
+      where: { productId: input.productId },
+      orderBy: { sortOrder: "asc" },
+    })
+    if (firstImage) {
+      await prisma.productImage.update({
+        where: { id: firstImage.id },
+        data: { isPrimary: true },
+      })
+    }
+  }
+
+  updateTag("products")
+  if (product) {
+    updateTag(`product:${product.slug}`)
+    revalidatePath(`/product/${product.slug}`)
+  }
+  revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function setProductImagePrimary(input: SetProductImagePrimaryInput) {
+  await requireAdmin()
+  const prisma = getPrisma()
+
+  const image = await prisma.productImage.findUnique({
+    where: { id: input.imageId },
+    select: { productId: true },
+  })
+
+  if (!image || image.productId !== input.productId) return
+
+  const product = await prisma.product.findUnique({
+    where: { id: input.productId },
+    select: { slug: true },
+  })
+
+  // Unset all other images as non-primary
+  await prisma.productImage.updateMany({
+    where: { productId: input.productId },
+    data: { isPrimary: false },
+  })
+
+  // Set selected image as primary
+  await prisma.productImage.update({
+    where: { id: input.imageId },
+    data: { isPrimary: true, sortOrder: 0 },
+  })
+
+  updateTag("products")
+  if (product) {
+    updateTag(`product:${product.slug}`)
+    revalidatePath(`/product/${product.slug}`)
+  }
+  revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function reorderProductImages(input: ReorderProductImagesInput) {
+  await requireAdmin()
+  const prisma = getPrisma()
+
+  const product = await prisma.product.findUnique({
+    where: { id: input.productId },
+    select: { slug: true },
+  })
+
+  if (!product) return
+
+  // Update sortOrder for each image
+  await Promise.all(
+    input.imageIds.map((imageId, index) =>
+      prisma.productImage.update({
+        where: { id: imageId },
+        data: { sortOrder: index },
+      })
+    )
+  )
+
+  updateTag("products")
+  updateTag(`product:${product.slug}`)
+  revalidatePath(`/admin/products/${input.productId}`)
+  revalidatePath(`/product/${product.slug}`)
 }

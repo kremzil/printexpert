@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { MatrixVisibilitySwitch } from "@/components/admin/matrix-visibility-switch"
 import { ProductDescriptionEditor } from "@/components/admin/product-description-editor"
+import { ProductImagesEditor } from "@/components/admin/product-images-editor"
 import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { ProductTitleEditor } from "@/components/admin/product-title-editor"
 import { getAdminProductById } from "@/lib/catalog"
@@ -114,9 +115,6 @@ async function AdminProductDetails({
   if (!product) {
     notFound()
   }
-
-  const primaryImage = product.images.find(img => img.isPrimary) || product.images[0]
-  const primaryImageUrl = primaryImage?.url || ""
 
   const calculatorData = product.wpProductId
     ? await getWpCalculatorData(product.wpProductId, true)
@@ -236,27 +234,14 @@ async function AdminProductDetails({
                         </select>
                      </div>
                 </div>
-
-                <div className="space-y-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="imageUrl">Hlavný obrázok (URL)</Label>
-                        <div className="flex flex-col gap-3">
-                             <Input 
-                                id="imageUrl" 
-                                name="imageUrl" 
-                                defaultValue={primaryImageUrl} 
-                                placeholder="https://example.com/image.jpg" 
-                             />
-                            {primaryImageUrl && (
-                                <div className="relative aspect-video w-32 overflow-hidden rounded-md border bg-muted">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={primaryImageUrl} alt="Preview" className="h-full w-full object-cover" />
-                                </div>
-                            )}
-                        </div>
-                     </div>
-                </div>
             </div>
+
+            <Separator />
+
+            <ProductImagesEditor
+              productId={product.id}
+              images={product.images}
+            />
 
             <Separator />
 
