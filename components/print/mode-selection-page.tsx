@@ -4,7 +4,6 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Briefcase,
-  ChevronDown,
   Clock,
   FileText,
   Headphones,
@@ -28,7 +27,7 @@ export function ModeSelectionPage() {
     "Expresné dodanie do 24 hodín",
     "Ceny s DPH hneď viditeľné",
     "Jednoduché a rýchle objednávanie",
-    "Kontrola súborov zdarma",
+    "Kontrola súborov v cene",
     "Osobný odber alebo kuriér",
   ]
 
@@ -41,18 +40,6 @@ export function ModeSelectionPage() {
     "Flexibilná logistika a splatnosť",
   ]
 
-  const comparisonRows = [
-    { feature: "Zobrazenie cien", b2c: "S DPH", b2b: "Bez DPH" },
-    { feature: "Expresná výroba (24h)", b2c: true, b2b: true },
-    { feature: "Kontrola súborov zadarmo", b2c: true, b2b: true },
-    { feature: "Objemové zľavy", b2c: "Štandardné", b2b: "Až -45%" },
-    { feature: "Osobný manažér", b2c: false, b2b: true },
-    { feature: "Cenové ponuky", b2c: false, b2b: true },
-    { feature: "Fakturácia", b2c: "Len online platba", b2b: "Faktúra + Platba vopred" },
-    { feature: "Archivácia súborov", b2c: false, b2b: true },
-    { feature: "Flexibilná splatnosť", b2c: false, b2b: "Áno (po dohode)" },
-    { feature: "Opakované objednávky", b2c: true, b2b: "Áno (1-click)" },
-  ]
 
   const handleModeSelected = (mode: CustomerMode) => {
     if (isPending) return
@@ -158,29 +145,6 @@ export function ModeSelectionPage() {
             />
           </div>
 
-          <div className="mx-auto mb-16 max-w-5xl">
-            <div className="mb-4 flex flex-col items-center gap-2 text-center">
-              <h2 className="text-2xl font-bold md:text-3xl">
-                Porovnanie režimov
-              </h2>
-              <p className="text-muted-foreground">
-                Detailný prehľad služieb a výhod
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowComparison((prev) => !prev)}
-              className="mx-auto mb-6 flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/50"
-            >
-              {showComparison ? "Skryť porovnanie" : "Zobraziť porovnanie"}
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${showComparison ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {showComparison ? <ComparisonTable rows={comparisonRows} /> : null}
-          </div>
 
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 text-center">
@@ -225,7 +189,7 @@ export function ModeSelectionPage() {
                 </div>
                 <h3 className="mb-2 font-semibold">Kontrola súborov</h3>
                 <p className="text-sm text-muted-foreground">
-                  Profesionálna kontrola podkladov zadarmo
+                  Profesionálna kontrola podkladov v cene
                 </p>
               </div>
 

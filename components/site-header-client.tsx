@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, type ReactNode } from "react"
+import { useEffect, useState, useRef, useCallback, type ReactNode } from "react"
 import { usePathname } from "next/navigation"
 
 type SiteHeaderClientProps = {
@@ -10,73 +10,102 @@ type SiteHeaderClientProps = {
 
 export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
   const pathname = usePathname()
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isScrollingDown, setIsScrollingDown] = useState(false)
+  const [hideNav, setHideNav] = useState(false)
+  const [isAtTop, setIsAtTop] = useState(true)
+  
   const lastScrollYRef = useRef(0)
+  const ticking = useRef(false)
+
+  const updateHeader = useCallback(() => {
+    const currentScrollY = window.scrollY
+    const lastScrollY = lastScrollYRef.current
+
+    // At top of page
+    if (currentScrollY < 10) {
+      setHideNav(false)
+      setIsAtTop(true)
+      lastScrollYRef.current = currentScrollY
+      ticking.current = false
+      return
+    }
+
+    setIsAtTop(false)
+
+    // Calculate scroll direction with threshold
+    const scrollDelta = currentScrollY - lastScrollY
+    
+    if (Math.abs(scrollDelta) > 5) {
+      // Scrolling down - hide nav bar
+      if (scrollDelta > 0 && currentScrollY > 60) {
+        setHideNav(true)
+      }
+      // Scrolling up - show nav bar
+      else if (scrollDelta < 0) {
+        setHideNav(false)
+      }
+      lastScrollYRef.current = currentScrollY
+    }
+
+    ticking.current = false
+  }, [])
 
   useEffect(() => {
-    // Skip scroll listener on admin pages
     if (pathname?.startsWith("/admin")) {
       return
     }
 
     const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      const lastScrollY = lastScrollYRef.current
-      
-      // 1. Logo shrink state (top bar height)
-      const shouldBeScrolled = currentScrollY > 50
-      setIsScrolled(shouldBeScrolled)
-
-      // 2. Nav bar visibility state (based on the provided Alpine.js example)
-      // Always show nav when at the top of the page
-      if (currentScrollY <= 0) {
-        setIsScrollingDown(false)
-        lastScrollYRef.current = 0
-        return
+      if (!ticking.current) {
+        ticking.current = true
+        requestAnimationFrame(updateHeader)
       }
-
-      // Only update visibility if scroll difference is more than a threshold (10px)
-      // This prevents "jiggle" on minor scroll movements
-      if (Math.abs(currentScrollY - lastScrollY) > 10) {
-        // Hide if scrolling down, show if scrolling up
-        setIsScrollingDown(currentScrollY > lastScrollY)
-      }
-
-      // 3. Update last scroll position
-      lastScrollYRef.current = currentScrollY
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [pathname]) 
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [pathname, updateHeader])
 
-  // Don't render header on admin pages
   if (pathname?.startsWith("/admin")) {
     return null
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/30 bg-background/95 backdrop-blur shadow-md supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto w-full max-w-[1920x] flex flex-col">
-        <div 
-          className={`flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 transition-all duration-300 ${
-            isScrolled ? 'h-16' : 'h-20'
-          }`}
-          data-scrolled={isScrolled}
-        >
-          {topBar}
+    <>
+      {/* Top bar - always visible */}
+      <div 
+        className={`
+          sticky top-0 z-50
+          bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60
+          border-b border-border/30
+          transition-shadow duration-300 ease-out
+          ${isAtTop ? 'shadow-none' : 'shadow-sm'}
+        `}
+      >
+        <div className="mx-auto w-full max-w-[1920px]">
+          <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            {topBar}
+          </div>
         </div>
-        <div 
-          className={`hidden md:block border-t border-border/50 transition-all duration-200 ease-in-out ${
-            isScrollingDown ? 'max-h-0 opacity-0 overflow-hidden' : 'max-h-14 opacity-100'
-          }`}
-        >
-          <div className="flex h-14 items-center px-4 sm:px-6 lg:px-8">
+      </div>
+
+      {/* Nav bar - fades out completely */}
+      <div 
+        className={`
+          sticky top-16 z-40
+          hidden md:block
+          bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60
+          border-b border-border/30
+          transition-opacity duration-200 ease-out
+          ${hideNav ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+        `}
+        aria-hidden={hideNav}
+      >
+        <div className="mx-auto w-full max-w-[1920px]">
+          <div className="flex h-12 items-center px-4 sm:px-6 lg:px-8">
             {navBar}
           </div>
         </div>
       </div>
-    </header>
+    </>
   )
 }

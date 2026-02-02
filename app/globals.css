@@ -354,9 +354,9 @@
   }
   
   /* Уменьшение логотипа при скролле */
-  [data-scrolled="true"] .site-header-logo img {
+  /* [data-scrolled="true"] .site-header-logo img {
     transform: scale(0.9);
-  }
+  } */
 
   /* === Унифицированная система контейнеров === */
   /* Основной контейнер с максимальной шириной */

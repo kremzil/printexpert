@@ -30,6 +30,7 @@ import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { CartButton } from "@/components/cart/cart-button"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
+import { auth } from "@/auth"
 import { SiteHeaderClient } from "./site-header-client"
 
 async function AudienceHeaderSwitch() {
@@ -373,49 +374,52 @@ async function MobileMenu() {
 
 import { HeaderSearch } from "@/components/header-search"
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const session = await auth()
   return (
     <SiteHeaderClient
       topBar={
         <>
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-4">
-              <Suspense fallback={null}>
-                <MobileMenu />
-              </Suspense>
-              <Link 
-                href="/" 
-                className="group flex items-center gap-2 transition-transform duration-300 hover:scale-105"
-              >
-                <div className="relative site-header-logo">
-                  <Image
-                    src="/printexpert-logo.svg"
-                    alt="PrintExpert"
-                    width={160}
-                    height={36}
-                    priority
-                    className="transition-transform duration-300 ease-in-out group-hover:opacity-90"
-                  />
-                  <div className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-                </div>
-                <span className="sr-only">PrintExpert</span>
-              </Link>
-            </div>
+          {/* Left: Logo + Search */}
+          <div className="flex items-center gap-6">
+            <Suspense fallback={null}>
+              <MobileMenu />
+            </Suspense>
+            <Link 
+              href="/" 
+              className="group flex items-center gap-2 transition-transform duration-300 hover:scale-105"
+            >
+              <div className="relative site-header-logo">
+                <Image
+                  src="/printexpert-logo.svg"
+                  alt="PrintExpert"
+                  width={180}
+                  height={40}
+                  priority
+                  className="transition-transform duration-300 ease-in-out group-hover:opacity-90"
+                />
+                <div className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+              </div>
+              <span className="sr-only">PrintExpert</span>
+            </Link>
             
             <HeaderSearch />
           </div>
 
+          {/* Right: Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
             <Suspense fallback={null}>
               <AudienceHeaderSwitch />
             </Suspense>
-            
+
             <div className="h-6 w-px bg-border/50 hidden sm:block" />
 
             <div className="hidden items-center gap-2 md:flex">
-              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <Link href="/auth">Registrácia</Link>
-              </Button>
+              {!session?.user && (
+                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <Link href="/auth/register">Registrácia</Link>
+                </Button>
+              )}
               <Button asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
                 <Link href="/account">Môj účet</Link>
               </Button>

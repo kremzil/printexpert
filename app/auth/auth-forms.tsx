@@ -318,20 +318,20 @@ export function AuthForms() {
                 </div>
             </div>
 
-            <Tabs defaultValue="password" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-2">
-                    <TabsTrigger value="password">Heslo</TabsTrigger>
-                    <TabsTrigger value="magic">Magic Link</TabsTrigger>
-                </TabsList>
-                <TabsContent value="magic">
-                    <div className="text-center text-sm text-muted-foreground mb-4 pt-2 px-2">
-                        Pošleme vám odkaz na e-mail. Netreba si pamätať heslo.
-                    </div>
-                    <MagicLinkForm />
-                </TabsContent>
-                <TabsContent value="password">
-                    <PasswordLoginForm />
-                </TabsContent>
+            <Tabs defaultValue="magic" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-2">
+                <TabsTrigger value="magic">Magic Link</TabsTrigger>
+                <TabsTrigger value="password">Heslo</TabsTrigger>
+              </TabsList>
+              <TabsContent value="magic">
+                <div className="text-center text-sm text-muted-foreground mb-4 pt-2 px-2">
+                  Pošleme vám odkaz na e-mail. Netreba si pamätať heslo.
+                </div>
+                <MagicLinkForm />
+              </TabsContent>
+              <TabsContent value="password">
+                <PasswordLoginForm />
+              </TabsContent>
             </Tabs>
         </CardContent>
       </Card>
