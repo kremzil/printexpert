@@ -146,7 +146,7 @@ async function AudienceNavigation() {
                   {category.name}
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
-                  <div className="w-[800px] p-4 md:w-[900px] lg:w-[1000px]">
+                  <div className="w-200 p-4 lg:w-200">
                     <div className="flex items-center justify-between border-b pb-4 mb-4">
                       <div className="space-y-1">
                         <h4 className="text-lg font-medium leading-none">{category.name}</h4>
@@ -303,12 +303,12 @@ async function MobileMenu() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Otvoriť menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[300px] sm:w-[400px] flex flex-col">
+      <SheetContent side="left" className="w-75 sm:w-100 flex flex-col">
         <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
           <SheetDescription>
@@ -414,7 +414,7 @@ export async function SiteHeader() {
 
             <div className="h-6 w-px bg-border/50 hidden sm:block" />
 
-            <div className="hidden items-center gap-2 md:flex">
+            <div className="hidden items-center gap-2 lg:flex">
               {!session?.user && (
                 <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Link href="/auth/register">Registrácia</Link>

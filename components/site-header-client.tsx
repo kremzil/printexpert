@@ -75,14 +75,14 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
       <div 
         className={`
           sticky top-0 z-50
-          bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60
+          bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60
           border-b border-border/30
           transition-shadow duration-300 ease-out
           ${isAtTop ? 'shadow-none' : 'shadow-sm'}
         `}
       >
-        <div className="mx-auto w-full max-w-[1920px]">
-          <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-480">
+          <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
             {topBar}
           </div>
         </div>
@@ -92,16 +92,16 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
       <div 
         className={`
           sticky top-16 z-40
-          hidden md:block
-          bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60
+          hidden lg:block
+          bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60
           border-b border-border/30
           transition-opacity duration-200 ease-out
           ${hideNav ? 'opacity-0 pointer-events-none' : 'opacity-100'}
         `}
         aria-hidden={hideNav}
       >
-        <div className="mx-auto w-full max-w-[1920px]">
-          <div className="flex h-12 items-center px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-480">
+          <div className="flex h-12 items-center px-4 sm:px-6 md:px-8">
             {navBar}
           </div>
         </div>
