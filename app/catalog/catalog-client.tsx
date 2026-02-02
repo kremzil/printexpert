@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ChevronRight, Home, Package } from "lucide-react"
 
 import { CatalogHeader, type SortOption, type ViewMode } from "@/components/print/catalog-header"
@@ -33,98 +33,123 @@ type CatalogClientProps = {
   mode: CustomerMode
   categories: CategoryItem[]
   products: CatalogProduct[]
+  totalResults: number
+  page: number
+  pageSize: number
+  searchQuery: string
+  sortBy: SortOption
+  selectedCategory: string | null
 }
 
-export function CatalogClient({ mode, categories, products }: CatalogClientProps) {
+export function CatalogClient({
+  mode,
+  categories,
+  products,
+  totalResults,
+  page,
+  pageSize,
+  searchQuery: initialSearchQuery,
+  sortBy: initialSortBy,
+  selectedCategory,
+}: CatalogClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const selectedCategorySlug = searchParams.get("cat")
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState<ViewMode>("grid")
-  const [sortBy, setSortBy] = useState<SortOption>("relevance")
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    (searchParams.get("view") as ViewMode) || "grid"
+  )
+  const [sortBy, setSortBy] = useState<SortOption>(initialSortBy)
   const [showMobileCategories, setShowMobileCategories] = useState(false)
 
   const categoryBySlug = useMemo(
     () => new Map(categories.map((category) => [category.slug, category])),
     [categories]
   )
-  const childrenByParentId = useMemo(
-    () =>
-      categories.reduce((map, category) => {
-        if (!category.parentId) return map
-        const list = map.get(category.parentId) ?? []
-        list.push(category)
-        map.set(category.parentId, list)
-        return map
-      }, new Map<string, CategoryItem[]>()),
-    [categories]
+  const activeCategoryLabel = selectedCategory
+    ? categoryBySlug.get(selectedCategory)?.name ?? "Katalóg produktov"
+    : "Katalóg produktov"
+
+  useEffect(() => {
+    setSearchQuery(initialSearchQuery)
+  }, [initialSearchQuery])
+
+  useEffect(() => {
+    setSortBy(initialSortBy)
+  }, [initialSortBy])
+
+  useEffect(() => {
+    const viewParam = (searchParams.get("view") as ViewMode) || "grid"
+    setViewMode(viewParam)
+  }, [searchParams])
+
+  const buildSearchParams = useCallback(
+    (next: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString())
+      Object.entries(next).forEach(([key, value]) => {
+        if (!value) {
+          params.delete(key)
+        } else {
+          params.set(key, value)
+        }
+      })
+      const query = params.toString()
+      return query ? `${pathname}?${query}` : pathname
+    },
+    [pathname, searchParams]
   )
 
-  const selectedCategory = selectedCategorySlug
-    ? categoryBySlug.get(selectedCategorySlug)
-    : null
-  const selectedCategoryIds = selectedCategory
-    ? [
-        selectedCategory.id,
-        ...(childrenByParentId.get(selectedCategory.id) ?? []).map((item) => item.id),
-      ]
-    : null
+  const replaceSearchParams = useCallback(
+    (next: Record<string, string | null>) => {
+      router.replace(buildSearchParams(next))
+    },
+    [buildSearchParams, router]
+  )
 
-  const filteredProducts = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    return products.filter((product) => {
-      if (selectedCategoryIds && !selectedCategoryIds.includes(product.categoryId)) {
-        return false
-      }
-      if (query) {
-        const haystack = `${product.name} ${product.excerpt ?? ""} ${product.description ?? ""}`.toLowerCase()
-        if (!haystack.includes(query)) {
-          return false
-        }
-      }
-      return true
-    })
-  }, [products, searchQuery, selectedCategoryIds])
+  const pushSearchParams = useCallback(
+    (next: Record<string, string | null>) => {
+      router.push(buildSearchParams(next))
+    },
+    [buildSearchParams, router]
+  )
 
-  const sortedProducts = useMemo(() => {
-    const list = [...filteredProducts]
-    const priceValue = (value?: string | null) => {
-      const parsed = value ? Number(value) : Number.NaN
-      return Number.isFinite(parsed) ? parsed : null
-    }
-
-    return list.sort((a, b) => {
-      if (sortBy === "name") {
-        return a.name.localeCompare(b.name)
-      }
-      if (sortBy === "price-asc" || sortBy === "price-desc") {
-        const priceA = priceValue(a.priceFrom)
-        const priceB = priceValue(b.priceFrom)
-        if (priceA === null && priceB === null) return 0
-        if (priceA === null) return 1
-        if (priceB === null) return -1
-        return sortBy === "price-asc" ? priceA - priceB : priceB - priceA
-      }
-      if (sortBy === "popular") {
-        return 0
-      }
-      return 0
-    })
-  }, [filteredProducts, sortBy])
-
-  const activeCategoryLabel = selectedCategory
-    ? selectedCategory.name
-    : "Katalóg produktov"
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const current = searchParams.get("q") ?? ""
+      if (searchQuery === current) return
+      replaceSearchParams({
+        q: searchQuery.trim() || null,
+        page: null,
+      })
+    }, 350)
+    return () => clearTimeout(handle)
+  }, [searchQuery, replaceSearchParams, searchParams])
 
   const handleCategorySelect = (slug: string | null) => {
     setShowMobileCategories(false)
-    if (!slug) {
-      router.push("/catalog")
-      return
-    }
-    router.push(`/catalog?cat=${slug}`)
+    pushSearchParams({
+      cat: slug,
+      page: null,
+    })
   }
+
+  const handleSortChange = (value: SortOption) => {
+    setSortBy(value)
+    pushSearchParams({
+      sort: value === "relevance" ? null : value,
+      page: null,
+    })
+  }
+
+  const handleViewModeChange = (value: ViewMode) => {
+    setViewMode(value)
+    replaceSearchParams({
+      view: value === "grid" ? null : value,
+    })
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize))
 
   return (
     <div className="w-full">
@@ -150,10 +175,10 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={handleViewModeChange}
             sortBy={sortBy}
-            onSortChange={setSortBy}
-            totalResults={sortedProducts.length}
+            onSortChange={handleSortChange}
+            totalResults={totalResults}
             onToggleFilters={() => setShowMobileCategories((prev) => !prev)}
           />
 
@@ -174,14 +199,14 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
                 <CategorySidebar
                   mode={mode}
                   categories={categories}
-                  selectedCategory={selectedCategorySlug}
+                  selectedCategory={selectedCategory}
                   onCategorySelect={handleCategorySelect}
                 />
               </div>
             </div>
 
             <div className="lg:col-span-3">
-              {sortedProducts.length === 0 ? (
+              {products.length === 0 ? (
                 <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-12 text-center">
                   <Package className="mb-4 h-16 w-16 text-muted-foreground" />
                   <h3 className="mb-2 text-xl font-bold">Žiadne produkty</h3>
@@ -192,7 +217,7 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
                     type="button"
                     onClick={() => {
                       setSearchQuery("")
-                      handleCategorySelect(null)
+                      pushSearchParams({ q: null, cat: null, page: null })
                     }}
                     className="rounded-lg border-2 border-border px-6 py-2 font-semibold transition-all hover:bg-muted"
                   >
@@ -203,7 +228,7 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
                 <>
                   {viewMode === "grid" ? (
                     <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                      {sortedProducts.map((product) => (
+                      {products.map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -213,7 +238,7 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {sortedProducts.map((product) => (
+                      {products.map((product) => (
                         <ProductListItem
                           key={product.id}
                           mode={mode}
@@ -227,6 +252,37 @@ export function CatalogClient({ mode, categories, products }: CatalogClientProps
                     </div>
                   )}
                 </>
+              )}
+              {totalPages > 1 && (
+                <div className="mt-8 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      pushSearchParams({
+                        page: String(Math.max(1, page - 1)),
+                      })
+                    }
+                    disabled={page <= 1}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  >
+                    Späť
+                  </button>
+                  <div className="text-sm text-muted-foreground">
+                    Strana {page} z {totalPages}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      pushSearchParams({
+                        page: String(Math.min(totalPages, page + 1)),
+                      })
+                    }
+                    disabled={page >= totalPages}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  >
+                    Ďalej
+                  </button>
+                </div>
               )}
             </div>
           </div>

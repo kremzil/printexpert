@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Briefcase,
@@ -13,14 +13,12 @@ import {
   Users,
 } from "lucide-react"
 
-import { ComparisonTable } from "@/components/print/comparison-table"
 import { ModeSelectionCard } from "@/components/print/mode-selection-card"
 import type { CustomerMode } from "@/components/print/types"
 
 export function ModeSelectionPage() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [showComparison, setShowComparison] = useState(false)
 
   const b2cFeatures = [
     "Online konfigurátor produktov",

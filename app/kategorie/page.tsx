@@ -11,12 +11,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getCategories, getProducts } from "@/lib/catalog"
+import { getCategories, getCategoryProductCounts } from "@/lib/catalog"
 
 export default async function CategoriesPage() {
-  const [categories, products] = await Promise.all([
+  const [categories, productCountByCategoryId] = await Promise.all([
     getCategories(),
-    getProducts({}),
+    getCategoryProductCounts({}),
   ])
   const categorySlugById = new Map(
     categories.map((category) => [category.id, category.slug])
@@ -29,16 +29,13 @@ export default async function CategoriesPage() {
     return map
   }, new Map<string, typeof categories>())
   const rootCategories = childrenByParentId.get("root") ?? []
-  const productCountByCategory = products.reduce((map, product) => {
-    const categorySlug = categorySlugById.get(product.categoryId)
-
-    if (!categorySlug) {
-      return map
-    }
-
-    map.set(categorySlug, (map.get(categorySlug) ?? 0) + 1)
-    return map
-  }, new Map<string, number>())
+  const productCountByCategory = new Map<string, number>()
+  categorySlugById.forEach((slug, categoryId) => {
+    productCountByCategory.set(
+      slug,
+      productCountByCategoryId.get(categoryId) ?? 0
+    )
+  })
 
   return (
     <section className="space-y-6">

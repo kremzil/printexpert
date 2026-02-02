@@ -161,9 +161,8 @@ export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
   };
 
   // Render PDF to buffer
-  const element = InvoiceTemplate({ data: invoiceData });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfBuffer = await renderToBuffer(element as any);
+  const element = InvoiceTemplate({ data: invoiceData }) as ReactElement;
+  const pdfBuffer = await renderToBuffer(element);
 
   return Buffer.from(pdfBuffer);
 }

@@ -34,6 +34,9 @@ import { getPrisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { SiteHeaderClient } from "./site-header-client"
 
+const MAX_PRODUCTS_PER_SUBCATEGORY = 6
+const MAX_PRODUCTS_PER_CATEGORY = 12
+
 // Кэшированный запрос навигационных данных (5 минут)
 const getCachedNavData = unstable_cache(
   async (audience: "b2b" | "b2c" | null) => {
@@ -51,41 +54,77 @@ const getCachedNavData = unstable_cache(
           ? { showInB2c: true }
           : {}
           
-    const [categories, products] = await Promise.all([
-      prisma.category.findMany({
-        where: {
-          isActive: true,
-          ...audienceFilter,
-        },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          parentId: true,
-        },
-      }),
-      prisma.product.findMany({
-        where: {
-          isActive: true,
-          ...productAudienceFilter,
-          category: {
+    const categories = await prisma.category.findMany({
+      where: {
+        isActive: true,
+        ...audienceFilter,
+      },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        parentId: true,
+      },
+    })
+
+    const childrenByParentId = categories.reduce((map, category) => {
+      const key = category.parentId ?? "root"
+      const list = map.get(key) ?? []
+      list.push(category)
+      map.set(key, list)
+      return map
+    }, new Map<string, typeof categories>())
+    const rootCategories = childrenByParentId.get("root") ?? []
+
+    const limitByCategoryId = new Map<string, number>()
+    rootCategories.forEach((category) => {
+      const children = childrenByParentId.get(category.id) ?? []
+      if (children.length > 0) {
+        children.forEach((child) =>
+          limitByCategoryId.set(child.id, MAX_PRODUCTS_PER_SUBCATEGORY)
+        )
+      } else {
+        limitByCategoryId.set(category.id, MAX_PRODUCTS_PER_CATEGORY)
+      }
+    })
+
+    const productBatches = await Promise.all(
+      Array.from(limitByCategoryId.entries()).map(([categoryId, take]) =>
+        prisma.product.findMany({
+          where: {
             isActive: true,
-            ...audienceFilter,
+            ...productAudienceFilter,
+            categoryId,
+            category: {
+              isActive: true,
+              ...audienceFilter,
+            },
           },
-        },
-        orderBy: [{ name: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          categoryId: true,
-          priceFrom: true,
-        },
-      }),
-    ])
-    
-    return { categories, products }
+          orderBy: [{ name: "asc" }],
+          take,
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            categoryId: true,
+            priceFrom: true,
+          },
+        })
+      )
+    )
+
+    const productsByCategoryId: Record<
+      string,
+      typeof productBatches[number][number][]
+    > = {}
+    productBatches.flat().forEach((product) => {
+      const list = productsByCategoryId[product.categoryId] ?? []
+      list.push(product)
+      productsByCategoryId[product.categoryId] = list
+    })
+
+    return { categories, productsByCategoryId }
   },
   ["nav-data"],
   { revalidate: 300, tags: ["nav-data"] }
@@ -101,14 +140,9 @@ async function AudienceHeaderSwitch() {
 
 async function AudienceNavigation() {
   const audienceContext = await resolveAudienceContext()
-  const { categories, products } = await getCachedNavData(audienceContext.audience)
-  
-  const productsByCategoryId = products.reduce((map, product) => {
-    const list = map.get(product.categoryId) ?? []
-    list.push(product)
-    map.set(product.categoryId, list)
-    return map
-  }, new Map<string, typeof products>())
+  const { categories, productsByCategoryId } = await getCachedNavData(
+    audienceContext.audience
+  )
   const childrenByParentId = categories.reduce((map, category) => {
     const key = category.parentId ?? "root"
     const list = map.get(key) ?? []
@@ -144,13 +178,13 @@ async function AudienceNavigation() {
                   id: child.id,
                   name: child.name,
                   slug: child.slug,
-                  products: productsByCategoryId.get(child.id) ?? []
+                  products: productsByCategoryId[child.id] ?? []
                 })).filter(section => section.products.length > 0)
               : [{
                   id: category.id,
                   name: category.name,
                   slug: category.slug,
-                  products: productsByCategoryId.get(category.id) ?? []
+                  products: productsByCategoryId[category.id] ?? []
                 }]
 
             // If no products at all in this branch, maybe skip rendering or show "No products"
@@ -258,55 +292,9 @@ async function AudienceNavigation() {
 
 async function MobileMenu() {
   const audienceContext = await resolveAudienceContext()
-  const prisma = getPrisma()
-  const audienceFilter =
-    audienceContext.audience === "b2b"
-      ? { showInB2b: true }
-      : audienceContext.audience === "b2c"
-        ? { showInB2c: true }
-        : {}
-  const categories = await prisma.category.findMany({
-    where: {
-      isActive: true,
-      ...audienceFilter,
-    },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      parentId: true,
-    },
-  })
-  const productAudienceFilter =
-    audienceContext.audience === "b2b"
-      ? { showInB2b: true }
-      : audienceContext.audience === "b2c"
-        ? { showInB2c: true }
-        : {}
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...productAudienceFilter,
-      category: {
-        isActive: true,
-        ...audienceFilter,
-      },
-    },
-    orderBy: [{ name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      categoryId: true,
-    },
-  })
-  const productsByCategoryId = products.reduce((map, product) => {
-    const list = map.get(product.categoryId) ?? []
-    list.push(product)
-    map.set(product.categoryId, list)
-    return map
-  }, new Map<string, typeof products>())
+  const { categories, productsByCategoryId } = await getCachedNavData(
+    audienceContext.audience
+  )
   const childrenByParentId = categories.reduce((map, category) => {
     const key = category.parentId ?? "root"
     const list = map.get(key) ?? []
@@ -350,7 +338,7 @@ async function MobileMenu() {
               const children = childrenByParentId.get(category.id) ?? []
               const items = children.length > 0 ? children : [category]
               const productItems = items.flatMap((item) =>
-                productsByCategoryId.get(item.id) ?? []
+                productsByCategoryId[item.id] ?? []
               )
 
               return (

@@ -77,6 +77,135 @@ export async function getProducts({
   return products.map(serializeProduct);
 }
 
+export type CatalogSort = "relevance" | "popular" | "price-asc" | "price-desc" | "name";
+
+export async function getCatalogProducts(options: {
+  audience?: string | null;
+  categoryIds?: string[] | null;
+  query?: string | null;
+  sort?: CatalogSort;
+  page?: number;
+  pageSize?: number;
+}) {
+  const prisma = getPrisma();
+  const {
+    audience,
+    categoryIds,
+    query,
+    sort = "relevance",
+    page = 1,
+    pageSize = 24,
+  } = options;
+
+  const audienceFilter = audience
+    ? audience === "b2b"
+      ? { showInB2b: true }
+      : audience === "b2c"
+        ? { showInB2c: true }
+        : {}
+    : {};
+  const categoryAudienceFilter = audienceFilter
+
+  const where = {
+    isActive: true,
+    ...audienceFilter,
+    category: {
+      isActive: true,
+      ...categoryAudienceFilter,
+    },
+    ...(categoryIds && categoryIds.length > 0
+      ? { categoryId: { in: categoryIds } }
+      : {}),
+    ...(query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { excerpt: { contains: query, mode: "insensitive" as const } },
+            { description: { contains: query, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const orderBy =
+    sort === "price-asc"
+      ? [{ priceFrom: "asc" as const }]
+      : sort === "price-desc"
+        ? [{ priceFrom: "desc" as const }]
+        : [{ name: "asc" as const }];
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        excerpt: true,
+        description: true,
+        priceFrom: true,
+        vatRate: true,
+        categoryId: true,
+        images: {
+          take: 1,
+          orderBy: [
+            { isPrimary: "desc" },
+            { sortOrder: "asc" },
+            { id: "asc" },
+          ],
+          select: {
+            url: true,
+            alt: true,
+          },
+        },
+      },
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    products: products.map(serializeProduct),
+    total,
+    page,
+    pageSize,
+  };
+}
+
+export async function getCategoryProductCounts(options: {
+  audience?: string | null;
+}) {
+  const prisma = getPrisma();
+  const { audience } = options;
+  const audienceFilter = audience
+    ? audience === "b2b"
+      ? { showInB2b: true }
+      : audience === "b2c"
+        ? { showInB2c: true }
+      : {}
+    : {};
+  const categoryAudienceFilter = audienceFilter
+
+  const rows = await prisma.product.groupBy({
+    by: ["categoryId"],
+    where: {
+      isActive: true,
+      ...audienceFilter,
+      category: {
+        isActive: true,
+        ...categoryAudienceFilter,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  return new Map(rows.map((row) => [row.categoryId, row._count._all]));
+}
+
 export async function getProductBySlug(slug: string) {
   const prisma = getPrisma();
   const product = await prisma.product.findFirst({

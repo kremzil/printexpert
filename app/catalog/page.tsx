@@ -2,12 +2,20 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 
 import { CatalogClient } from "@/app/catalog/catalog-client"
-import { getCategories, getProducts } from "@/lib/catalog"
+import {
+  getCategories,
+  getCatalogProducts,
+  getCategoryProductCounts,
+  type CatalogSort,
+} from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
 
 type CatalogPageProps = {
   searchParams?: Promise<{
     cat?: string
+    q?: string
+    sort?: string
+    page?: string
   }>
 }
 
@@ -50,6 +58,19 @@ async function CatalogContent({
   const resolvedSearchParams = searchParamsPromise
     ? await searchParamsPromise
     : {}
+  const categorySlug = resolvedSearchParams?.cat ?? null
+  const searchQuery = resolvedSearchParams?.q ?? ""
+  const sortParam = resolvedSearchParams?.sort
+  const sortBy: CatalogSort = ["relevance", "popular", "price-asc", "price-desc", "name"].includes(
+    sortParam ?? ""
+  )
+    ? (sortParam as CatalogSort)
+    : "relevance"
+  const pageParam = resolvedSearchParams?.page
+  const parsedPage = pageParam ? Number(pageParam) : Number.NaN
+  const page = Number.isFinite(parsedPage) ? Math.max(1, parsedPage) : 1
+  const pageSize = 24
+
   const categories = await getCategories()
   const audienceContext = await resolveAudienceContext({
     searchParams: resolvedSearchParams,
@@ -58,13 +79,37 @@ async function CatalogContent({
   const visibleCategories = categories.filter((category) =>
     mode === "b2b" ? category.showInB2b !== false : category.showInB2c !== false
   )
-  const products = await getProducts({
-    audience: audienceContext?.audience,
-  })
-  const productCountByCategoryId = products.reduce((map, product) => {
-    map.set(product.categoryId, (map.get(product.categoryId) ?? 0) + 1)
+  const categoryBySlug = new Map(
+    visibleCategories.map((category) => [category.slug, category])
+  )
+  const childrenByParentId = visibleCategories.reduce((map, category) => {
+    if (!category.parentId) return map
+    const list = map.get(category.parentId) ?? []
+    list.push(category)
+    map.set(category.parentId, list)
     return map
-  }, new Map<string, number>())
+  }, new Map<string, typeof visibleCategories>())
+  const selectedCategory = categorySlug
+    ? categoryBySlug.get(categorySlug)
+    : null
+  const selectedCategoryIds = selectedCategory
+    ? [
+        selectedCategory.id,
+        ...(childrenByParentId.get(selectedCategory.id) ?? []).map((item) => item.id),
+      ]
+    : null
+
+  const [catalogData, productCountByCategoryId] = await Promise.all([
+    getCatalogProducts({
+      audience: audienceContext?.audience,
+      categoryIds: selectedCategoryIds,
+      query: searchQuery,
+      sort: sortBy,
+      page,
+      pageSize,
+    }),
+    getCategoryProductCounts({ audience: audienceContext?.audience }),
+  ])
 
   const catalogCategories = visibleCategories.map((category) => ({
     id: category.id,
@@ -74,7 +119,7 @@ async function CatalogContent({
     count: productCountByCategoryId.get(category.id) ?? 0,
   }))
 
-  const catalogProducts = products.map((product) => ({
+  const catalogProducts = catalogData.products.map((product) => ({
     id: product.id,
     slug: product.slug,
     name: product.name,
@@ -90,6 +135,12 @@ async function CatalogContent({
       mode={mode}
       categories={catalogCategories}
       products={catalogProducts}
+      totalResults={catalogData.total}
+      page={catalogData.page}
+      pageSize={catalogData.pageSize}
+      searchQuery={searchQuery}
+      sortBy={sortBy}
+      selectedCategory={categorySlug}
     />
   )
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import path from "path"
 import fs from "fs/promises"
@@ -381,7 +382,7 @@ export async function POST(request: Request) {
         continue
       }
 
-      const data: Record<string, unknown> = {}
+      const data: Partial<Prisma.ProductUncheckedCreateInput> = {}
 
       if (mappedData.name || defaults.name) data.name = mappedData.name || defaults.name
       if (mappedData.slug || defaults.slug) data.slug = mappedData.slug || defaults.slug
@@ -458,7 +459,7 @@ export async function POST(request: Request) {
 
         if (!dryRun) {
           const created = await prisma.product.create({
-            data: data as any,
+            data: data as Prisma.ProductUncheckedCreateInput,
             select: { id: true },
           })
 
@@ -496,10 +497,10 @@ export async function POST(request: Request) {
       }
 
       if (skipUnchanged) {
-        const keys = Object.keys(data)
+        const keys = Object.keys(data) as Array<keyof typeof data>
         const changed = keys.some((key) => {
-          const current = (existing as any)[key]
-          const next = (data as any)[key]
+          const current = (existing as Record<string, unknown>)[key as string]
+          const next = (data as Record<string, unknown>)[key as string]
           return current !== next
         })
         if (!changed && imageUrls.length === 0) {
@@ -511,7 +512,7 @@ export async function POST(request: Request) {
       if (!dryRun) {
         await prisma.product.update({
           where: { id: existing.id },
-          data: data as any,
+          data: data as Prisma.ProductUncheckedUpdateInput,
         })
 
         if (imageUrls.length > 0) {

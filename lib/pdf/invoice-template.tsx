@@ -236,7 +236,7 @@ export function InvoiceTemplate({ data }: InvoiceTemplateProps) {
         {/* Header with logo and company info */}
         <View style={styles.header}>
           {settings.logoUrl ? (
-            <Image src={settings.logoUrl} style={styles.logo} />
+            <Image src={settings.logoUrl} style={styles.logo} alt="" />
           ) : (
             <View style={styles.logo} />
           )}
@@ -384,7 +384,11 @@ export function InvoiceTemplate({ data }: InvoiceTemplateProps) {
         {/* Signature */}
         {settings.signatureUrl && (
           <View style={styles.signature}>
-            <Image src={settings.signatureUrl} style={styles.signatureImage} />
+            <Image
+              src={settings.signatureUrl}
+              style={styles.signatureImage}
+              alt=""
+            />
           </View>
         )}
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 export type WpConfiguratorData = {
@@ -43,6 +43,8 @@ type PriceResult = {
   gross: number
   currency: "EUR"
 }
+
+const DEFAULT_PRESETS = [100, 250, 500, 1000, 2500]
 
 type MatrixSelectionMap = Record<string, Record<string, string>>
 
@@ -380,16 +382,17 @@ export function useWpConfigurator({
     selections,
   ])
 
-  const calculatePerMatrix = (
-    overrideQuantity?: number,
-    overrideWidth?: number | null,
-    overrideHeight?: number | null
-  ) => {
-    const selectedQuantity = overrideQuantity ?? quantity
-    const selectedWidth = overrideWidth ?? width
-    const selectedHeight = overrideHeight ?? height
+  const calculatePerMatrix = useCallback(
+    (
+      overrideQuantity?: number,
+      overrideWidth?: number | null,
+      overrideHeight?: number | null
+    ) => {
+      const selectedQuantity = overrideQuantity ?? quantity
+      const selectedWidth = overrideWidth ?? width
+      const selectedHeight = overrideHeight ?? height
 
-    return data.matrices.map((matrix) => {
+      return data.matrices.map((matrix) => {
       const ntp = parseNumber(matrix.ntp) ?? 0
       const breakpoints = parseBreakpoints(
         getNumbersEntry(data.globals.numbers_array, matrix.mtid)
@@ -461,10 +464,26 @@ export function useWpConfigurator({
       })
 
       return { matrix, price }
-    })
-  }
+      })
+    },
+    [
+      baseSizeEntry,
+      data.globals.fmatrix,
+      data.globals.numbers_array,
+      data.globals.smatrix,
+      data.matrices,
+      dimUnit,
+      finishingHasSize,
+      hiddenFinishingPair,
+      minQuantity,
+      quantity,
+      selections,
+      width,
+      height,
+    ]
+  )
 
-  const perMatrix = useMemo(() => calculatePerMatrix(), [selections, quantity, width, height])
+  const perMatrix = useMemo(() => calculatePerMatrix(), [calculatePerMatrix])
 
   const total = useMemo(() => {
     if (perMatrix.some((entry) => entry.price === -1 || entry.price === null)) {
@@ -496,12 +515,11 @@ export function useWpConfigurator({
     return items
   }, [selections, visibleMatrices])
 
-  const defaultPresets = [100, 250, 500, 1000, 2500]
   const quantityPresets = useMemo(() => {
     if (baseBreakpoints.length > 0) {
       return baseBreakpoints
     }
-    const filtered = defaultPresets.filter((value) => value >= minQuantity)
+    const filtered = DEFAULT_PRESETS.filter((value) => value >= minQuantity)
     if (filtered[0] !== minQuantity) {
       return [minQuantity, ...filtered]
     }

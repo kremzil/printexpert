@@ -17,6 +17,7 @@ Next.js (App Router) + Prisma + PostgreSQL + Docker Compose
 ## Каталог из БД
 - Категории/товары читаются из Postgres через Prisma (`lib/catalog.ts`).
 - Сиды берутся из `data/*` и выполняются командой `npm run db:seed`.
+- Каталог `/catalog` использует серверные фильтры/поиск/сортировку/пагинацию через query params: `?cat=...&q=...&sort=...&page=...`.
 
 ---
 

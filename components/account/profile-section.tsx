@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import type { CustomerMode } from "@/components/print/types"
 import { Card } from "@/components/ui/card"
-import { User, Mail, Phone, Building2, Hash } from "lucide-react"
+import { User, Mail, Phone, Building2 } from "lucide-react"
 
 export interface ProfileData {
   firstName: string
