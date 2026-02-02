@@ -1,20 +1,23 @@
 "use client"
 
 import type { ButtonHTMLAttributes, ReactNode } from "react"
+import { Slot } from "@radix-ui/react-slot"
 
 import type { CustomerMode } from "@/components/print/types"
 
 interface ModeButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  mode: CustomerMode
+  mode?: CustomerMode
   variant?: "primary" | "secondary" | "outline" | "ghost"
-  size?: "sm" | "md" | "lg"
+  size?: "xs" | "sm" | "md" | "lg" | "icon"
+  asChild?: boolean
   children: ReactNode
 }
 
 export function ModeButton({
-  mode,
+  mode = "b2c",
   variant = "primary",
   size = "md",
+  asChild = false,
   children,
   className = "",
   ...props
@@ -23,9 +26,11 @@ export function ModeButton({
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
 
   const sizeClasses = {
+    xs: "px-2.5 py-1 text-xs",
     sm: "px-3 py-1.5 text-sm",
     md: "px-6 py-2.5 text-base",
     lg: "px-8 py-3.5 text-lg",
+    icon: "h-9 w-9 p-0",
   }
 
   const baseClasses = `
@@ -34,49 +39,51 @@ export function ModeButton({
     ${sizeClasses[size]}
   `
 
+  const Component = asChild ? Slot : "button"
+
   if (variant === "primary") {
     return (
-      <button
+      <Component
         className={`${baseClasses} text-white shadow-sm hover:shadow-md active:scale-[0.98] ${className}`}
         style={{ backgroundColor: modeColor }}
         {...props}
       >
         {children}
-      </button>
+      </Component>
     )
   }
 
   if (variant === "secondary") {
     return (
-      <button
+      <Component
         className={`${baseClasses} shadow-sm hover:shadow active:scale-[0.98] ${className}`}
         style={{ backgroundColor: modeAccent, color: modeColor }}
         {...props}
       >
         {children}
-      </button>
+      </Component>
     )
   }
 
   if (variant === "outline") {
     return (
-      <button
+      <Component
         className={`${baseClasses} border-2 bg-white hover:shadow-sm active:scale-[0.98] ${className}`}
         style={{ borderColor: modeColor, color: modeColor }}
         {...props}
       >
         {children}
-      </button>
+      </Component>
     )
   }
 
   return (
-    <button
+    <Component
       className={`${baseClasses} bg-transparent hover:bg-muted active:scale-[0.98] ${className}`}
       style={{ color: modeColor }}
       {...props}
     >
       {children}
-    </button>
+    </Component>
   )
 }

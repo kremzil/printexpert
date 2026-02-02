@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Loader2, Mail, Lock, ArrowRight } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import {
   Card,
   CardContent,

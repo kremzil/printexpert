@@ -8,7 +8,7 @@ import { Loader2, Mail, CheckCircle2 } from "lucide-react"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import {
   Card,
   CardContent,

@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 
 import { AdminProductsList } from "@/components/admin/admin-products-list";
 import { AdminProductsImportDialog } from "@/components/admin/admin-products-import-dialog";
-import { Button } from "@/components/ui/button";
+import { ModeButton as Button } from "@/components/print/mode-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminProducts } from "@/lib/catalog";
 import { requireAdmin } from "@/lib/auth-helpers";

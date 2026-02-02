@@ -11,7 +11,7 @@ import {
   MapPin,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import {
   Sidebar,
   SidebarContent,
@@ -137,10 +137,10 @@ export function AccountSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">
-        <Button variant="ghost" className="w-full justify-start gap-3" onClick={handleLogout}>
+        <ModeButton mode={mode} variant="ghost" className="w-full justify-start gap-3" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />
           <span>Odhlásiť sa</span>
-        </Button>
+        </ModeButton>
       </SidebarFooter>
     </Sidebar>
   )

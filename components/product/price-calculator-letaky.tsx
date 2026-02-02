@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ShoppingCart } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import {
   Select,
   SelectContent,
@@ -790,7 +790,7 @@ export function PriceCalculatorLetaky({
           <div className="text-sm text-destructive">{serverError}</div>
         ) : null}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
+          <ModeButton
             type="button"
             className="sm:flex-1"
             onClick={handlePickUpload}
@@ -798,8 +798,8 @@ export function PriceCalculatorLetaky({
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
             Nahrať grafiku a objednať
-          </Button>
-          <Button
+          </ModeButton>
+          <ModeButton
             type="button"
             variant="outline"
             className="sm:flex-1"
@@ -808,7 +808,7 @@ export function PriceCalculatorLetaky({
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
             Pridať do košíka
-          </Button>
+          </ModeButton>
         </div>
         <input
           ref={fileInputRef}

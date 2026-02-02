@@ -3,7 +3,7 @@
 import { useOptimistic, useTransition, useState, useRef } from "react"
 import Image from "next/image"
 import { GripVertical, Star, Trash2, Plus, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"

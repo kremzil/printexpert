@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ModeButton } from "@/components/print/mode-button";
 import { StatusBadge } from "@/components/print/status-badge";
 import { ExternalLink } from "lucide-react";
 
@@ -132,12 +132,12 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                   <p className="text-lg font-bold">{formatPrice(order.total)}</p>
                 </div>
                 <div className="flex items-center justify-end">
-                  <Button asChild variant="outline" size="sm">
+                  <ModeButton asChild variant="outline" size="sm">
                     <Link href={`/admin/orders/${order.id}`}>
                       Detail
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </Link>
-                  </Button>
+                  </ModeButton>
                 </div>
               </div>
             </CardContent>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AdminOrdersList } from "@/components/admin/admin-orders-list";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { ModeButton as Button } from "@/components/print/mode-button";
 import { Input } from "@/components/ui/input";
 import { Prisma } from "@/lib/generated/prisma";
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type ComponentProps } from "react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import {
   Dialog,
   DialogClose,

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import {
   AlertDialog,
   AlertDialogAction,

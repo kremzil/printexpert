@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ModeButton } from "@/components/print/mode-button";
 import { Badge } from "@/components/ui/badge";
 
 export function CartButton() {
@@ -35,7 +35,7 @@ export function CartButton() {
   }, []);
 
   return (
-    <Button asChild variant="ghost" size="icon" className="relative">
+    <ModeButton asChild variant="ghost" size="icon" className="relative">
       <Link href="/cart" aria-label="Nákupný košík">
         <ShoppingCart className="h-5 w-5" />
         {itemCount > 0 && (
@@ -47,6 +47,6 @@ export function CartButton() {
           </Badge>
         )}
       </Link>
-    </Button>
+    </ModeButton>
   );
 }

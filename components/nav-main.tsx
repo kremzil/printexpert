@@ -2,7 +2,7 @@
 
 import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -32,14 +32,14 @@ export function NavMain({
               <IconCirclePlusFilled />
               <span>Quick Create</span>
             </SidebarMenuButton>
-            <Button
+            <ModeButton
               size="icon"
               className="size-8 group-data-[collapsible=icon]:opacity-0"
               variant="outline"
             >
               <IconMail />
               <span className="sr-only">Inbox</span>
-            </Button>
+            </ModeButton>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>

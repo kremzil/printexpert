@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import { Input } from "@/components/ui/input"
 
 type ProductTitleEditorProps = {

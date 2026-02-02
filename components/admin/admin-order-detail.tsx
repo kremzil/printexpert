@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ModeButton } from "@/components/print/mode-button";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/print/status-badge";
 import {
@@ -250,11 +250,11 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button asChild variant="ghost" size="icon">
+        <ModeButton asChild variant="ghost" size="icon">
           <Link href="/admin/orders">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-        </Button>
+        </ModeButton>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Objednávka #{order.orderNumber}</h1>
           <p className="text-muted-foreground mt-1">{formatDate(order.createdAt)}</p>
@@ -374,11 +374,11 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                         <Badge variant={assetStatusMap[asset.status].variant}>
                           {assetStatusMap[asset.status].label}
                         </Badge>
-                        <Button asChild size="sm" variant="outline">
+                        <ModeButton asChild size="sm" variant="outline">
                           <a href={`/api/assets/${asset.id}/download`}>
                             Stiahnuť
                           </a>
-                        </Button>
+                        </ModeButton>
                       </div>
                     </div>
                   ))}
@@ -470,14 +470,14 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2">
-                <Button asChild variant="outline" className="w-full">
+                <ModeButton asChild variant="outline" className="w-full">
                   <a href={`/api/orders/${order.id}/invoice`} target="_blank">
                     <Download className="mr-2 h-4 w-4" />
                     Stiahnuť faktúru
                   </a>
-                </Button>
-                <Button
-                  variant="default"
+                </ModeButton>
+                <ModeButton
+                  variant="primary"
                   className="w-full"
                   onClick={handleSendInvoice}
                   disabled={isSendingInvoice}
@@ -493,7 +493,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                       Odoslať faktúru e-mailom
                     </>
                   )}
-                </Button>
+                </ModeButton>
               </div>
               <p className="text-xs text-muted-foreground">
                 Faktúra bude odoslaná na: {order.customerEmail}

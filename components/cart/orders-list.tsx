@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ModeButton } from "@/components/print/mode-button";
 import { StatusBadge } from "@/components/print/status-badge";
 import type { OrderData } from "@/types/order";
 
@@ -38,9 +38,9 @@ export function OrdersList({ orders }: OrdersListProps) {
       <Card>
         <CardContent className="py-16 text-center">
           <p className="text-muted-foreground mb-4">Zatiaľ nemáte žiadne objednávky</p>
-          <Button asChild>
+          <ModeButton asChild>
             <Link href="/catalog">Začať nakupovať</Link>
-          </Button>
+          </ModeButton>
         </CardContent>
       </Card>
     );
@@ -78,11 +78,11 @@ export function OrdersList({ orders }: OrdersListProps) {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button asChild variant="outline" size="sm">
+                  <ModeButton asChild variant="outline" size="sm">
                     <Link href={`/account/orders/${order.id}`}>
                       Zobraziť detail
                     </Link>
-                  </Button>
+                  </ModeButton>
                 </div>
               </div>
             </CardContent>

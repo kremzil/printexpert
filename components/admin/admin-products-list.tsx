@@ -19,7 +19,7 @@ import {
 import { MoreHorizontal, Eye, Edit, Trash, ArrowUpDown, Filter } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import { Input } from "@/components/ui/input"
 import {
   Table,

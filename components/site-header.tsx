@@ -13,7 +13,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import {
   Collapsible,
   CollapsibleContent,
@@ -319,10 +319,10 @@ async function MobileMenu() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden">
+        <ModeButton variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Otvoriť menu</span>
-        </Button>
+        </ModeButton>
       </SheetTrigger>
       <SheetContent side="left" className="w-75 sm:w-100 flex flex-col">
         <SheetHeader>
@@ -432,13 +432,13 @@ export async function SiteHeader() {
 
             <div className="hidden items-center gap-2 lg:flex">
               {!session?.user && (
-                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                <ModeButton asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Link href="/auth/register">Registrácia</Link>
-                </Button>
+                </ModeButton>
               )}
-              <Button asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
+              <ModeButton asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
                 <Link href="/account">Môj účet</Link>
-              </Button>
+              </ModeButton>
             </div>
 
             <CartButton />

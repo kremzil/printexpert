@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, ArrowLeft, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ModeButton } from "@/components/print/mode-button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/print/status-badge";
 import type { OrderData } from "@/types/order";
@@ -346,11 +346,11 @@ export function OrderDetail({ order }: OrderDetailProps) {
                           <Badge variant={assetStatusMap[asset.status].variant}>
                             {assetStatusMap[asset.status].label}
                           </Badge>
-                          <Button asChild size="sm" variant="outline">
+                          <ModeButton asChild size="sm" variant="outline">
                             <a href={`/api/assets/${asset.id}/download`}>
                               Stiahnuť
                             </a>
-                          </Button>
+                          </ModeButton>
                         </div>
                       </div>
                     ))}
@@ -389,12 +389,12 @@ export function OrderDetail({ order }: OrderDetailProps) {
               </div>
 
               <div className="pt-4 border-t">
-                <Button asChild variant="outline" className="w-full">
+                <ModeButton asChild variant="outline" className="w-full">
                   <a href={`/api/orders/${order.id}/invoice`} target="_blank">
                     <FileText className="mr-2 h-4 w-4" />
                     Stiahnuť faktúru
                   </a>
-                </Button>
+                </ModeButton>
               </div>
             </CardContent>
           </Card>
@@ -402,12 +402,12 @@ export function OrderDetail({ order }: OrderDetailProps) {
       </div>
 
       <div className="flex gap-4">
-        <Button asChild variant="outline">
+        <ModeButton asChild variant="outline">
           <Link href="/account/orders">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Späť na objednávky
           </Link>
-        </Button>
+        </ModeButton>
       </div>
     </div>
   );

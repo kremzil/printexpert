@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 type Category = {

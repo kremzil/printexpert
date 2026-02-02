@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Plus, Upload, X } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -176,10 +176,10 @@ export function AdminProductsImportDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <ModeButton variant="outline">
           <Upload className="mr-2 h-4 w-4" />
           Importovať CSV
-        </Button>
+        </ModeButton>
       </DialogTrigger>
       <DialogContent className="flex max-h-[85vh] w-full max-w-[85vw] flex-col overflow-hidden">
         <DialogHeader>
@@ -255,10 +255,10 @@ export function AdminProductsImportDialog() {
                   Zadajte názov stĺpca z CSV a vyberte pole produktu, ktoré sa má aktualizovať.
                 </p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={addRow}>
+              <ModeButton type="button" variant="outline" size="sm" onClick={addRow}>
                 <Plus className="mr-2 h-4 w-4" />
                 Pridať riadok
-              </Button>
+              </ModeButton>
             </div>
 
             <div className="mt-4 space-y-3">
@@ -311,7 +311,7 @@ export function AdminProductsImportDialog() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button
+                  <ModeButton
                     type="button"
                     variant="ghost"
                     size="icon"
@@ -320,7 +320,7 @@ export function AdminProductsImportDialog() {
                     aria-label="Odstrániť riadok"
                   >
                     <X className="h-4 w-4" />
-                  </Button>
+                  </ModeButton>
                 </div>
               ))}
             </div>
@@ -465,12 +465,12 @@ export function AdminProductsImportDialog() {
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="secondary" disabled>
+          <ModeButton variant="secondary" disabled>
             Uložiť profil (čoskoro)
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          </ModeButton>
+          <ModeButton onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Spracúvam…" : dryRun ? "Spustiť kontrolu" : "Spustiť import"}
-          </Button>
+          </ModeButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

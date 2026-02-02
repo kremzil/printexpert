@@ -12,7 +12,7 @@ import TextAlign from "@tiptap/extension-text-align"
 import { TextStyle } from "@tiptap/extension-text-style"
 import { Color } from "@tiptap/extension-color"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import {
   Dialog,
   DialogContent,
@@ -634,22 +634,22 @@ export function RichTextEditor({
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="flex gap-2">
-                      <Button
+                      <ModeButton
                         type="button"
                         size="xs"
                         variant={mediaTab === "image" ? "secondary" : "ghost"}
                         onClick={() => setMediaTab("image")}
                       >
                         Obrázok
-                      </Button>
-                      <Button
+                      </ModeButton>
+                      <ModeButton
                         type="button"
                         size="xs"
                         variant={mediaTab === "video" ? "secondary" : "ghost"}
                         onClick={() => setMediaTab("video")}
                       >
                         Video
-                      </Button>
+                      </ModeButton>
                     </div>
 
                     <div className="space-y-2">
@@ -664,9 +664,9 @@ export function RichTextEditor({
                               : "https://youtube.com/..."
                           }
                         />
-                        <Button type="button" size="sm" onClick={handleInsertMediaUrl}>
+                        <ModeButton type="button" size="sm" onClick={handleInsertMediaUrl}>
                           Vložiť
-                        </Button>
+                        </ModeButton>
                       </div>
                     </div>
 

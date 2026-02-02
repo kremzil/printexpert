@@ -55,7 +55,7 @@ import { z } from "zod"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { ModeButton as Button } from "@/components/print/mode-button"
 import {
   ChartContainer,
   ChartTooltip,
@@ -654,7 +654,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
       <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground w-fit px-0 text-left">
+        <Button variant="ghost" size="xs" className="text-foreground w-fit px-0 text-left hover:underline">
           {item.header}
         </Button>
       </DrawerTrigger>

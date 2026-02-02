@@ -4,7 +4,7 @@ import Link from "next/link"
 import Autoplay from "embla-carousel-autoplay"
 import dynamic from "next/dynamic"
 
-import { Button } from "@/components/ui/button"
+import { ModeButton } from "@/components/print/mode-button"
 import {
   Carousel,
   CarouselContent,
@@ -64,15 +64,15 @@ export function HomeB2C() {
 
         {/* CTA buttons */}
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button asChild size="lg" className="group ink-spread">
+          <ModeButton asChild mode="b2c" size="lg" className="group ink-spread">
             <Link href="/catalog">
               Prejsť do katalógu
               <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
             </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg" className="print-frame">
+          </ModeButton>
+          <ModeButton asChild mode="b2c" variant="outline" size="lg" className="print-frame">
             <Link href="/kontaktujte-nas">Kontaktujte nás</Link>
-          </Button>
+          </ModeButton>
         </div>
       </section>
       
