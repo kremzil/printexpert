@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
         hostname: "printexpert.sk",
         pathname: "/wp-content/uploads/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
 };

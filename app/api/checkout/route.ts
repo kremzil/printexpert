@@ -31,10 +31,7 @@ export async function POST(req: NextRequest) {
       sessionId
     );
 
-    // Удаляем cookie сессии корзины после успешного заказа
-    if (sessionId) {
-      cookieStore.delete("cart_session_id");
-    }
+    // Cookie корзины удаляется на клиенте после успешной оплаты
 
     NotificationService.sendOrderCreated(order.id).catch((error) => {
       console.error("Failed to send order created notification:", error);

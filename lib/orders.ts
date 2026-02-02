@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { calculate } from "@/lib/pricing";
 import { resolveAudienceContext } from "@/lib/audience-context";
-import { getCart, clearCart } from "@/lib/cart";
+import { getCart } from "@/lib/cart";
 import { Prisma } from "@/lib/generated/prisma";
 import type { CheckoutData, OrderData } from "@/types/order";
 
@@ -111,8 +111,7 @@ export async function createOrder(
     },
   });
 
-  // Очищаем корзину после успешного создания заказа
-  await clearCart(sessionId);
+  // Корзина очищается на клиенте после успешной оплаты (order-success)
 
   return order as unknown as OrderData;
 }

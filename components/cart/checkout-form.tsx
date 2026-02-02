@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -44,7 +44,16 @@ declare global {
 const stripePublicKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const stripeMode = (process.env.NEXT_PUBLIC_STRIPE_MODE ?? "").toLowerCase();
 const isStripeTestMode = stripeMode === "test";
-const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
+
+// Lazy load Stripe SDK только когда нужен
+let stripePromiseCache: ReturnType<typeof loadStripe> | null = null;
+const getStripePromise = () => {
+  if (!stripePublicKey) return null;
+  if (!stripePromiseCache) {
+    stripePromiseCache = loadStripe(stripePublicKey);
+  }
+  return stripePromiseCache;
+};
 
 type PaymentFormProps = {
   orderId: string;
@@ -140,6 +149,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"bank" | "stripe">("bank");
+  const isPreparingRef = useRef(false);
   const [billingData, setBillingData] = useState({
     companyName: "",
     ico: "",
@@ -333,7 +343,8 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
     if (paymentMethod !== "stripe") {
       return;
     }
-    if (clientSecret || isSubmitting || isPreparingPayment) {
+    // Защита от дублирования вызовов через ref
+    if (isPreparingRef.current || clientSecret || orderId) {
       return;
     }
     if (!customerName.trim() || !customerEmail.trim()) {
@@ -341,14 +352,17 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
       return;
     }
 
+    isPreparingRef.current = true;
     setIsPreparingPayment(true);
     setIsSubmitting(true);
     setError(null);
 
-    if (!stripePromise) {
+    const stripeInstance = getStripePromise();
+    if (!stripeInstance) {
       setError("Chýba Stripe publishable key.");
       setIsSubmitting(false);
       setIsPreparingPayment(false);
+      isPreparingRef.current = false;
       return;
     }
 
@@ -383,15 +397,16 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
       setClientSecret(checkoutData.clientSecret as string);
       setIsSubmitting(false);
       setIsPreparingPayment(false);
+      // НЕ сбрасываем isPreparingRef - заказ уже создан
     } catch (err) {
       setError(err instanceof Error ? err.message : "Neznáma chyba");
       setIsSubmitting(false);
       setIsPreparingPayment(false);
+      isPreparingRef.current = false;
     }
   }, [
     clientSecret,
-    isSubmitting,
-    isPreparingPayment,
+    orderId,
     customerName,
     customerEmail,
     saveCard,
@@ -797,10 +812,10 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
                       </ModeButton>
                     </div>
                   )}
-                  {clientSecret && orderId && stripePromise && (
+                  {clientSecret && orderId && getStripePromise() && (
                     <>
                       <Elements
-                        stripe={stripePromise}
+                        stripe={getStripePromise()}
                         options={{
                           clientSecret,
                           appearance: { theme: "stripe" },

@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Suspense } from "react"
 import { Menu, ChevronDown } from "lucide-react"
+import { unstable_cache } from "next/cache"
 
 import {
   NavigationMenu,
@@ -33,6 +34,63 @@ import { getPrisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { SiteHeaderClient } from "./site-header-client"
 
+// Кэшированный запрос навигационных данных (5 минут)
+const getCachedNavData = unstable_cache(
+  async (audience: "b2b" | "b2c" | null) => {
+    const prisma = getPrisma()
+    const audienceFilter =
+      audience === "b2b"
+        ? { showInB2b: true }
+        : audience === "b2c"
+          ? { showInB2c: true }
+          : {}
+    const productAudienceFilter =
+      audience === "b2b"
+        ? { showInB2b: true }
+        : audience === "b2c"
+          ? { showInB2c: true }
+          : {}
+          
+    const [categories, products] = await Promise.all([
+      prisma.category.findMany({
+        where: {
+          isActive: true,
+          ...audienceFilter,
+        },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          parentId: true,
+        },
+      }),
+      prisma.product.findMany({
+        where: {
+          isActive: true,
+          ...productAudienceFilter,
+          category: {
+            isActive: true,
+            ...audienceFilter,
+          },
+        },
+        orderBy: [{ name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          categoryId: true,
+          priceFrom: true,
+        },
+      }),
+    ])
+    
+    return { categories, products }
+  },
+  ["nav-data"],
+  { revalidate: 300, tags: ["nav-data"] }
+)
+
 async function AudienceHeaderSwitch() {
   const audienceContext = await resolveAudienceContext()
   if (audienceContext.source === "default") {
@@ -43,50 +101,8 @@ async function AudienceHeaderSwitch() {
 
 async function AudienceNavigation() {
   const audienceContext = await resolveAudienceContext()
-  const prisma = getPrisma()
-  const audienceFilter =
-    audienceContext.audience === "b2b"
-      ? { showInB2b: true }
-      : audienceContext.audience === "b2c"
-        ? { showInB2c: true }
-        : {}
-  const categories = await prisma.category.findMany({
-    where: {
-      isActive: true,
-      ...audienceFilter,
-    },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      parentId: true,
-    },
-  })
-  const productAudienceFilter =
-    audienceContext.audience === "b2b"
-      ? { showInB2b: true }
-      : audienceContext.audience === "b2c"
-        ? { showInB2c: true }
-        : {}
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...productAudienceFilter,
-      category: {
-        isActive: true,
-        ...audienceFilter,
-      },
-    },
-    orderBy: [{ name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      categoryId: true,
-      priceFrom: true,
-    },
-  })
+  const { categories, products } = await getCachedNavData(audienceContext.audience)
+  
   const productsByCategoryId = products.reduce((map, product) => {
     const list = map.get(product.categoryId) ?? []
     list.push(product)

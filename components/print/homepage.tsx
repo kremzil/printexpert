@@ -1,9 +1,8 @@
+import Image from "next/image"
 import Link from "next/link"
 import {
   Award,
-  Briefcase,
   CheckCircle,
-  Clock,
   FileCheck,
   FileText,
   Headphones,
@@ -205,7 +204,6 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
                 >
                   <CategoryCard
                     modeColor={modeColor}
-                    modeAccent={modeAccent}
                     category={category}
                   />
                 </CarouselItem>
@@ -472,14 +470,17 @@ function HeroSection({
 
           <div className="relative">
             <div className="relative aspect-square overflow-hidden rounded-2xl shadow-2xl">
-              <img
+              <Image
                 src={
                   isB2C
                     ? "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&q=80"
                     : "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80"
                 }
                 alt={isB2C ? "Tlačové produkty" : "Firemné tlačové riešenia"}
-                className="h-full w-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+                priority
               />
             </div>
 
@@ -522,11 +523,9 @@ function HeroSection({
 function CategoryCard({
   category,
   modeColor,
-  modeAccent,
 }: {
   category: CategoryCardData
   modeColor: string
-  modeAccent: string
 }) {
   return (
     <Link
@@ -534,10 +533,12 @@ function CategoryCard({
       className="group relative block overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-muted-foreground hover:shadow-lg"
     >
       <div className="relative h-48 overflow-hidden bg-muted ">
-        <img
+        <Image
           src={category.image}
           alt={category.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          fill
+          sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 25vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
@@ -670,7 +671,6 @@ function TestimonialCard({
 function CTASection({
   mode,
   modeColor,
-  modeAccent,
 }: {
   mode: CustomerMode
   modeColor: string

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import type { CustomerMode } from "@/components/print/types"
 import { ModeButton } from "@/components/print/mode-button"
 import { Card } from "@/components/ui/card"
@@ -31,8 +32,19 @@ export function OrderSuccess({
   onBackToHome,
   onViewOrders,
 }: OrderSuccessProps) {
+  const clearedRef = useRef(false)
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
+
+  // Очистка корзины после успешной оплаты
+  useEffect(() => {
+    if (clearedRef.current) return
+    clearedRef.current = true
+
+    fetch("/api/cart/clear", { method: "POST" }).catch((err) => {
+      console.error("Failed to clear cart:", err)
+    })
+  }, [])
 
   const handleViewOrders =
     onViewOrders ?? (() => (window.location.href = "/account/orders"))

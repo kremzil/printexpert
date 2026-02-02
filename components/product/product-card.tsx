@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { MessageSquare, ShoppingCart } from "lucide-react"
 
@@ -44,11 +45,12 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
     <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         {primaryImage?.url ? (
-          <img
+          <Image
             src={primaryImage.url}
             alt={primaryImage.alt ?? product.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { Clock } from "lucide-react"
 
@@ -34,10 +35,12 @@ export function ProductListItem({
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted md:h-36 md:w-56">
         {image ? (
-          <img
+          <Image
             src={image}
             alt={title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 100vw, 224px"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">

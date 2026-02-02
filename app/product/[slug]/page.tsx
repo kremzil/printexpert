@@ -19,6 +19,14 @@ type ProductPageProps = {
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
 
+export async function generateStaticParams() {
+  const { getProducts } = await import("@/lib/catalog")
+  const products = await getProducts({})
+  return products.slice(0, 100).map((product) => ({
+    slug: product.slug,
+  }))
+}
+
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {

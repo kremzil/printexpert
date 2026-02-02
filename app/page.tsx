@@ -34,7 +34,7 @@ async function HomeContent({
     getProducts({ audience: mode }),
     fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/top-products?audience=${mode}&count=8`,
-      { cache: "no-store" }
+      { next: { revalidate: 60 } }
     )
       .then(async (res) => (res.ok ? res.json() : []))
       .catch(() => []),
