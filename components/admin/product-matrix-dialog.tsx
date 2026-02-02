@@ -67,7 +67,7 @@ export function ProductMatrixDialog({
   submitAction,
   triggerLabel = "+ Pridať maticu",
   dialogTitle = "Nová matica",
-  triggerVariant = "default",
+  triggerVariant = "primary",
   triggerSize = "sm",
   initialValues,
 }: ProductMatrixDialogProps) {

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { renderToBuffer } from "@react-pdf/renderer";
+import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import type { ReactElement } from "react";
 import { InvoiceTemplate } from "./invoice-template";
 import { getPdfSettings } from "./settings";
@@ -161,7 +161,7 @@ export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
   };
 
   // Render PDF to buffer
-  const element = InvoiceTemplate({ data: invoiceData }) as ReactElement;
+  const element = InvoiceTemplate({ data: invoiceData }) as ReactElement<DocumentProps>;
   const pdfBuffer = await renderToBuffer(element);
 
   return Buffer.from(pdfBuffer);

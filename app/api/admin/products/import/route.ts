@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { Prisma } from "@prisma/client"
+import type { Prisma, PriceType } from "@/lib/generated/prisma"
 import { revalidatePath } from "next/cache"
 import path from "path"
 import fs from "fs/promises"
@@ -281,11 +281,11 @@ function getHeaderIndex(headers: string[], name: string) {
   return headers.findIndex((header) => normalizeHeader(header) === normalizeHeader(name))
 }
 
-function normalizePriceType(value: string | null | undefined) {
+function normalizePriceType(value: string | null | undefined): PriceType | null {
   if (!value) return null
   const normalized = value.trim().toUpperCase()
   if (["ON_REQUEST", "FIXED", "MATRIX", "AREA"].includes(normalized)) {
-    return normalized
+    return normalized as PriceType
   }
   return null
 }
