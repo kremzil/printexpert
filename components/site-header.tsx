@@ -89,30 +89,45 @@ const getCachedNavData = unstable_cache(
       }
     })
 
-    const productBatches = await Promise.all(
-      Array.from(limitByCategoryId.entries()).map(([categoryId, take]) =>
-        prisma.product.findMany({
-          where: {
-            isActive: true,
-            ...productAudienceFilter,
-            categoryId,
-            category: {
+    const entries = Array.from(limitByCategoryId.entries())
+    const productBatches: Array<
+      Array<{
+        id: string
+        name: string
+        slug: string
+        categoryId: string
+        priceFrom: unknown
+      }>
+    > = []
+    const batchSize = 3
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const slice = entries.slice(i, i + batchSize)
+      const batch = await Promise.all(
+        slice.map(([categoryId, take]) =>
+          prisma.product.findMany({
+            where: {
               isActive: true,
-              ...audienceFilter,
+              ...productAudienceFilter,
+              categoryId,
+              category: {
+                isActive: true,
+                ...audienceFilter,
+              },
             },
-          },
-          orderBy: [{ name: "asc" }],
-          take,
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            categoryId: true,
-            priceFrom: true,
-          },
-        })
+            orderBy: [{ name: "asc" }],
+            take,
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              categoryId: true,
+              priceFrom: true,
+            },
+          })
+        )
       )
-    )
+      productBatches.push(...batch)
+    }
 
     const productsByCategoryId: Record<
       string,
