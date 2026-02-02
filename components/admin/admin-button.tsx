@@ -1,5 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
+import { Slot } from "@radix-ui/react-slot"
 
 interface AdminButtonProps {
   children: ReactNode;
@@ -12,6 +13,7 @@ interface AdminButtonProps {
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
   className?: string;
+  asChild?: boolean;
 }
 
 export function AdminButton({
@@ -25,7 +27,9 @@ export function AdminButton({
   onClick,
   type = 'button',
   className = '',
+  asChild = false,
 }: AdminButtonProps) {
+  const Comp = asChild ? Slot : "button"
   const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2';
 
   const variantClasses = {
@@ -51,6 +55,18 @@ export function AdminButton({
   const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${
     fullWidth ? 'w-full' : ''
   } ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${className}`;
+
+  if (asChild) {
+    return (
+      <Slot
+        onClick={onClick}
+        className={classes}
+        {...(disabled ? { "aria-disabled": true } : {})}
+      >
+        {children}
+      </Slot>
+    )
+  }
 
   return (
     <button

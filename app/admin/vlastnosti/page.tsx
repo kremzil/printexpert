@@ -1,7 +1,7 @@
 
 import Link from "next/link"
 import { Suspense } from "react"
-import { AdminButton as Button } from "@/components/admin/admin-button"
+import { AdminButton } from "@/components/admin/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -97,9 +97,9 @@ async function AdminPropertiesContent() {
                 placeholder="Typ… (napr. select)"
               />
             </div>
-            <Button type="submit" size="sm">
+            <AdminButton type="submit" size="sm">
               Pridať vlastnosť
-            </Button>
+            </AdminButton>
           </form>
           <div className="mb-4 text-sm text-muted-foreground">
             Počet vlastností: {attributes.length}
@@ -133,11 +133,11 @@ async function AdminPropertiesContent() {
                       </td>
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button asChild size="xs" variant="outline">
+                          <AdminButton asChild size="sm" variant="outline">
                             <Link href={`/admin/vlastnosti/${attr.attributeId}`}>
                               Otvoriť
                             </Link>
-                          </Button>
+                          </AdminButton>
                           <ConfirmDeleteForm
                             action={deleteAttribute.bind(null, {
                               attributeId: attr.attributeId,

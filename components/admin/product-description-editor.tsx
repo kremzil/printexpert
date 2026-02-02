@@ -4,7 +4,7 @@ import { useState } from "react"
 
 import { RichTextEditor } from "@/components/RichTextEditor"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 type ProductDescriptionEditorProps = {
   name: string
@@ -23,20 +23,22 @@ export function ProductDescriptionEditor({
   const [mode, setMode] = useState<"wysiwyg" | "html">("wysiwyg")
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label>{label}</Label>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>HTML</span>
-          <Switch
-            checked={mode === "wysiwyg"}
-            className="data-[state=checked]:bg-gray-300 data-[state=unchecked]:bg-gray-200"
-            onCheckedChange={(checked) =>
-              setMode(checked ? "wysiwyg" : "html")
-            }
-          />
-          <span>Vizuálny</span>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4">
+        <Label className="text-base font-medium">{label}</Label>
+        <ToggleGroup 
+          type="single" 
+          value={mode} 
+          onValueChange={(val) => val && setMode(val as "wysiwyg" | "html")}
+          className="bg-muted p-1 rounded-md"
+        >
+          <ToggleGroupItem value="wysiwyg" size="sm" className="data-[state=on]:bg-white data-[state=on]:shadow-sm text-xs">
+            Vizuálny
+          </ToggleGroupItem>
+          <ToggleGroupItem value="html" size="sm" className="data-[state=on]:bg-white data-[state=on]:shadow-sm text-xs">
+            HTML
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
       <RichTextEditor
         value={value}

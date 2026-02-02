@@ -1,11 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AdminBadge } from "@/components/admin/admin-badge";
-import { AdminButton } from "@/components/admin/admin-button";
-import { StatusBadge } from "@/components/print/status-badge";
-import { ExternalLink } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { OrderCard } from "@/components/admin/order-card";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
 type PaymentStatus = "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
@@ -45,25 +41,7 @@ const statusMap = {
   CANCELLED: "cancelled",
 } as const;
 
-const paymentStatusMap: Record<
-  PaymentStatus,
-  { label: string; variant: "success" | "warning" | "danger" | "default" }
-> = {
-  UNPAID: { label: "Nezaplatená", variant: "warning" },
-  PENDING: { label: "Čaká na platbu", variant: "warning" },
-  PAID: { label: "Zaplatená", variant: "success" },
-  FAILED: { label: "Neúspešná", variant: "danger" },
-  REFUNDED: { label: "Refundovaná", variant: "danger" },
-};
-
 export function AdminOrdersList({ orders }: AdminOrdersListProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("sk-SK", {
-      style: "currency",
-      currency: "EUR",
-    }).format(price);
-  };
-
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("sk-SK", {
       dateStyle: "short",
@@ -84,66 +62,25 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {orders.map((order) => {
-        const status = statusMap[order.status];
-        const paymentStatus = paymentStatusMap[order.paymentStatus];
-        return (
-          <Card key={order.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">
-                    Objednávka #{order.orderNumber}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {formatDate(order.createdAt)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <AdminBadge variant={paymentStatus.variant}>{paymentStatus.label}</AdminBadge>
-                  <StatusBadge status={status} size="sm" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Zákazník</p>
-                  <p className="text-sm font-medium">{order.customerName}</p>
-                  <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
-                  {order.user && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Účet: {order.user.email}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Položky</p>
-                  <p className="text-sm font-medium">
-                    {order.items.reduce((sum, item) => sum + item.quantity, 0)} ks
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {order.items.length} {order.items.length === 1 ? "produkt" : "produkty"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Suma</p>
-                  <p className="text-lg font-bold">{formatPrice(order.total)}</p>
-                </div>
-                <div className="flex items-center justify-end">
-                  <AdminButton asChild variant="outline" size="sm">
-                    <Link href={`/admin/orders/${order.id}`}>
-                      Detail
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </Link>
-                  </AdminButton>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {orders.map((order) => (
+        <OrderCard
+          key={order.id}
+          orderId={order.orderNumber}
+          date={formatDate(order.createdAt)}
+          customer={{
+            name: order.customerName,
+            email: order.customerEmail,
+          }}
+          items={order.items.map((item) => ({
+            name: item.productName,
+            quantity: item.quantity,
+          }))}
+          total={order.total}
+          status={statusMap[order.status]}
+          detailHref={`/admin/orders/${order.id}`}
+        />
+      ))}
     </div>
   );
 }
