@@ -43,7 +43,9 @@ export async function proxy(request: NextRequest) {
   const audience = parseAudience(mode)
 
   if (!audience) {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    response.headers.set('x-pathname', nextUrl.pathname)
+    return response
   }
 
   const shouldRedirect = request.method === "GET" || request.method === "HEAD"
@@ -59,6 +61,7 @@ export async function proxy(request: NextRequest) {
     path: "/",
     secure: process.env.NODE_ENV === "production",
   })
+  response.headers.set('x-pathname', nextUrl.pathname)
   return response
 }
 

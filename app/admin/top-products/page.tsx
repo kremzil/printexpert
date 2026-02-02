@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ModeButton as Button } from "@/components/print/mode-button";
+import { AdminButton as Button } from "@/components/admin/admin-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -213,12 +213,17 @@ export default function TopProductsPage() {
   }
 
   if (loading) {
-    return <div className="p-8">Načítavam...</div>;
+    return <div className="p-6">Načítavam...</div>;
   }
 
   return (
-    <div className="p-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">Top produkty</h1>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Top produkty</h1>
+        <p className="text-muted-foreground">
+          Nastavenie zobrazenia top produktov pre B2C a B2B režimy
+        </p>
+      </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "b2c" | "b2b")}>
         <TabsList>

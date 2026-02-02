@@ -18,8 +18,8 @@ import {
 } from "@tanstack/react-table"
 import { MoreHorizontal, Eye, Edit, Trash, ArrowUpDown, Filter } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { ModeButton as Button } from "@/components/print/mode-button"
+import { AdminBadge } from "@/components/admin/admin-badge"
+import { AdminButton } from "@/components/admin/admin-button"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -94,13 +94,13 @@ const columns: ColumnDef<AdminProductItem>[] = [
     accessorKey: "name",
     header: ({ column }) => {
         return (
-          <Button
+          <AdminButton
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             Názov
             <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
+          </AdminButton>
         )
     },
     cell: ({ row }) => (
@@ -122,9 +122,9 @@ const columns: ColumnDef<AdminProductItem>[] = [
     cell: ({ row }) => {
       const category = row.original.category
       return (
-        <Badge variant="outline" className="font-normal">
+        <AdminBadge variant="default" size="sm">
             {category?.name ?? "Bez kategórie"}
-        </Badge>
+        </AdminBadge>
         )
     },
     filterFn: (row, id, value) => {
@@ -150,14 +150,14 @@ const columns: ColumnDef<AdminProductItem>[] = [
       const { isActive, showInB2b, showInB2c } = row.original
       
       if (!isActive) {
-          return <Badge variant="destructive">Neaktívny</Badge>
+          return <AdminBadge variant="inactive">Neaktívny</AdminBadge>
       }
 
       return (
         <div className="flex gap-1 flex-wrap">
-            {showInB2b && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">B2B</Badge>}
-            {showInB2c && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">B2C</Badge>}
-            {!showInB2b && !showInB2c && <Badge variant="outline" className="text-[10px]">Skrytý</Badge>}
+            {showInB2b && <AdminBadge variant="b2b" size="sm">B2B</AdminBadge>}
+            {showInB2c && <AdminBadge variant="b2c" size="sm">B2C</AdminBadge>}
+            {!showInB2b && !showInB2c && <AdminBadge variant="default" size="sm">Skrytý</AdminBadge>}
         </div>
       )
     },
@@ -172,13 +172,13 @@ const columns: ColumnDef<AdminProductItem>[] = [
     accessorKey: "_count.orderItems",
     header: ({ column }) => {
         return (
-          <Button
+          <AdminButton
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             Objednané
             <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
+          </AdminButton>
         )
     },
     cell: ({ row }) => {
@@ -193,10 +193,10 @@ const columns: ColumnDef<AdminProductItem>[] = [
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <AdminButton variant="ghost" className="h-8 w-8 p-0">
               <span className="sr-only">Otvoriť menu</span>
               <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            </AdminButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Akcie</DropdownMenuLabel>
@@ -284,12 +284,12 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
         <div className="flex items-center gap-2">
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="ml-auto h-8 border-dashed">
+                <AdminButton variant="outline" size="sm" className="ml-auto h-8 border-dashed">
                 <Filter className="mr-2 h-4 w-4" />
                 Kategórie
-                </Button>
+                </AdminButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px]">
+            <DropdownMenuContent align="end" className="w-50">
                 <DropdownMenuLabel>Filtrovať podľa kategórie</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
@@ -323,10 +323,10 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
 
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="ml-auto h-8 border-dashed">
+                <AdminButton variant="outline" size="sm" className="ml-auto h-8 border-dashed">
                 <Filter className="mr-2 h-4 w-4" />
                 Stav
-                </Button>
+                </AdminButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filtrovať podľa stavu</DropdownMenuLabel>
@@ -358,10 +358,10 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
             
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="ml-auto h-8">
+                <AdminButton variant="outline" size="sm" className="ml-auto h-8">
                   <Eye className="mr-2 h-4 w-4" />
                   Stĺpce
-                </Button>
+                </AdminButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Zobraziť stĺpce</DropdownMenuLabel>
@@ -450,22 +450,22 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
           {table.getFilteredRowModel().rows.length} produktov celkom.
         </div>
         <div className="space-x-2">
-          <Button
+          <AdminButton
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
             Späť
-          </Button>
-          <Button
+          </AdminButton>
+          <AdminButton
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
             Ďalej
-          </Button>
+          </AdminButton>
         </div>
       </div>
     </div>

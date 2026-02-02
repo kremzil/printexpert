@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Plus, Upload, X } from "lucide-react"
 
-import { ModeButton } from "@/components/print/mode-button"
+import { AdminButton } from "@/components/admin/admin-button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -176,10 +176,10 @@ export function AdminProductsImportDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <ModeButton variant="outline">
+        <AdminButton variant="outline">
           <Upload className="mr-2 h-4 w-4" />
           Importovať CSV
-        </ModeButton>
+        </AdminButton>
       </DialogTrigger>
       <DialogContent className="flex max-h-[85vh] w-full max-w-[85vw] flex-col overflow-hidden">
         <DialogHeader>
@@ -255,10 +255,10 @@ export function AdminProductsImportDialog() {
                   Zadajte názov stĺpca z CSV a vyberte pole produktu, ktoré sa má aktualizovať.
                 </p>
               </div>
-              <ModeButton type="button" variant="outline" size="sm" onClick={addRow}>
+              <AdminButton type="button" variant="outline" size="sm" onClick={addRow}>
                 <Plus className="mr-2 h-4 w-4" />
                 Pridať riadok
-              </ModeButton>
+              </AdminButton>
             </div>
 
             <div className="mt-4 space-y-3">
@@ -311,7 +311,7 @@ export function AdminProductsImportDialog() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <ModeButton
+                  <AdminButton
                     type="button"
                     variant="ghost"
                     size="icon"
@@ -320,7 +320,7 @@ export function AdminProductsImportDialog() {
                     aria-label="Odstrániť riadok"
                   >
                     <X className="h-4 w-4" />
-                  </ModeButton>
+                  </AdminButton>
                 </div>
               ))}
             </div>
@@ -465,12 +465,12 @@ export function AdminProductsImportDialog() {
         </div>
 
         <DialogFooter className="gap-2">
-          <ModeButton variant="secondary" disabled>
+          <AdminButton variant="secondary" disabled>
             Uložiť profil (čoskoro)
-          </ModeButton>
-          <ModeButton onClick={handleSubmit} disabled={isSubmitting}>
+          </AdminButton>
+          <AdminButton onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Spracúvam…" : dryRun ? "Spustiť kontrolu" : "Spustiť import"}
-          </ModeButton>
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

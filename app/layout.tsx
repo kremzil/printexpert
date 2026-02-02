@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Playfair_Display, Work_Sans, Geist_Mono } from "next/font/google"
 import { Suspense } from "react"
+import { headers } from "next/headers"
 
 import { AudienceFooterNote } from "@/components/audience-footer-note"
 import { SiteHeader } from "@/components/site-header"
@@ -29,11 +30,15 @@ export const metadata: Metadata = {
   description: "Tlačové služby a produkty",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const headersList = await headers()
+  const pathname = headersList.get("x-pathname") || ""
+  const isAdminRoute = pathname.startsWith("/admin")
+
   return (
     <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
       <body className="antialiased">
@@ -44,25 +49,33 @@ export default function RootLayout({
           >
             Preskočiť na hlavný obsah
           </a>
-          <Suspense fallback={<div className="h-32 border-b" />}>
-            <SiteHeader />
-          </Suspense>
+          {!isAdminRoute && (
+            <Suspense fallback={<div className="h-32 border-b" />}>
+              <SiteHeader />
+            </Suspense>
+          )}
           <main
             id="main-content"
             className="flex-1 w-full"
           >
-            <div className="container-main py-6 md:py-8 lg:py-10">
-              {children}
-            </div>
+            {isAdminRoute ? (
+              children
+            ) : (
+              <div className="container-main py-6 md:py-8 lg:py-10">
+                {children}
+              </div>
+            )}
           </main>
-          <footer className="border-t bg-muted/30">
-            <div className="container-main flex min-h-16 items-center justify-between gap-4 py-4 text-sm text-muted-foreground">
-              <span className="font-display text-base font-semibold text-foreground">© PrintExpert</span>
-              <Suspense fallback={null}>
-                <AudienceFooterNote />
-              </Suspense>
-            </div>
-          </footer>
+          {!isAdminRoute && (
+            <footer className="border-t bg-muted/30">
+              <div className="container-main flex min-h-16 items-center justify-between gap-4 py-4 text-sm text-muted-foreground">
+                <span className="font-display text-base font-semibold text-foreground">© PrintExpert</span>
+                <Suspense fallback={null}>
+                  <AudienceFooterNote />
+                </Suspense>
+              </div>
+            </footer>
+          )}
         </div>
       </body>
     </html>

@@ -76,7 +76,7 @@ export default async function AdminOrderPage({ params }: AdminOrderPageProps) {
   }
 
   return (
-    <div>
+    <div className="p-6">
       <AdminOrderDetail order={order} />
     </div>
   );

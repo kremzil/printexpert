@@ -105,11 +105,11 @@ async function AdminPropertyDetails({
   }
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
+    <div className="p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
           <div className="text-sm text-muted-foreground">Administrácia</div>
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-3xl font-bold tracking-tight">
             {attribute.attributeLabel || attribute.attributeName}
           </h1>
         </div>
@@ -247,6 +247,6 @@ async function AdminPropertyDetails({
           </div>
         </CardContent>
       </Card>
-    </section>
+    </div>
   )
 }

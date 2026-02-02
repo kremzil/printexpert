@@ -1,7 +1,7 @@
 
 import Link from "next/link"
 import { Suspense } from "react"
-import { ModeButton as Button } from "@/components/print/mode-button"
+import { AdminButton as Button } from "@/components/admin/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,24 +43,28 @@ async function AdminPropertiesContent() {
   const attributes = await getAdminAttributes()
 
   return (
-    <section className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Administrácia</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Vlastnosti</h1>
+        <p className="text-muted-foreground">
           Správa vlastností a ich nastavení.
         </p>
-      </header>
+      </div>
 
-      <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin">Produkty</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/kategorie">Kategórie</Link>
-        </Button>
-        <Button variant="secondary" size="sm">
+      <div className="mb-6 flex items-center gap-2">
+        <Link href="/admin">
+          <AdminButton variant="outline" size="sm">
+            Produkty
+          </AdminButton>
+        </Link>
+        <Link href="/admin/kategorie">
+          <AdminButton variant="outline" size="sm">
+            Kategórie
+          </AdminButton>
+        </Link>
+        <AdminButton variant="secondary" size="sm">
           Vlastnosti
-        </Button>
+        </AdminButton>
       </div>
 
       <Card>
@@ -153,6 +157,6 @@ async function AdminPropertiesContent() {
           )}
         </CardContent>
       </Card>
-    </section>
+    </div>
   )
 }

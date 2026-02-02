@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 
 import { AdminProductsList } from "@/components/admin/admin-products-list";
 import { AdminProductsImportDialog } from "@/components/admin/admin-products-import-dialog";
-import { ModeButton as Button } from "@/components/print/mode-button";
+import { AdminButton } from "@/components/admin/admin-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminProducts } from "@/lib/catalog";
 import { requireAdmin } from "@/lib/auth-helpers";
@@ -37,8 +37,8 @@ async function AdminProductsPageContent() {
   const products = await getAdminProducts();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Produkty</h1>
           <p className="text-muted-foreground">
@@ -47,12 +47,11 @@ async function AdminProductsPageContent() {
         </div>
         <div className="flex items-center gap-2">
           <AdminProductsImportDialog />
-          <Button asChild>
-            <Link href="/admin/products/new">
-              <Plus className="mr-2 h-4 w-4" />
+          <Link href="/admin/products/new">
+            <AdminButton icon={Plus}>
               Nový produkt
-            </Link>
-          </Button>
+            </AdminButton>
+          </Link>
         </div>
       </div>
 

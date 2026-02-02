@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ModeButton as Button } from "@/components/print/mode-button"
+import { AdminButton } from "@/components/admin/admin-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requireAdmin } from "@/lib/auth-helpers"
@@ -14,13 +14,13 @@ export default async function AdminSettingsPage() {
   const settings = await getShopSettings()
 
   return (
-    <section className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Nastavenia</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Nastavenia</h1>
+        <p className="text-muted-foreground">
           Centrálne nastavenia pre obchod a výpočty cien.
         </p>
-      </header>
+      </div>
 
       <Tabs defaultValue="shop">
         <TabsList>
@@ -74,9 +74,9 @@ export default async function AdminSettingsPage() {
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>Nastavenie sa použije pri všetkých výpočtoch.</span>
-                      <Button type="submit" size="sm">
+                      <AdminButton type="submit" size="sm">
                         Uložiť
-                      </Button>
+                      </AdminButton>
                     </div>
                   </form>
                 </CardContent>
@@ -88,6 +88,6 @@ export default async function AdminSettingsPage() {
           </Tabs>
         </TabsContent>
       </Tabs>
-    </section>
+    </div>
   )
 }

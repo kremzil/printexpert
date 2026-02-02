@@ -10,6 +10,8 @@ import { requireAdmin } from "@/lib/auth-helpers"
 import { prisma } from "@/lib/prisma"
 import { formatPrice } from "@/lib/utils"
 import { Overview } from "@/components/admin/overview"
+import { StatCard } from "@/components/admin/stat-card"
+import { ChartCard } from "@/components/admin/chart-card"
 
 export default function AdminPage() {
   return (
@@ -94,94 +96,53 @@ async function AdminPageContent() {
   })
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Prehľad výkonnosti a správa systému.
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          {/* Add DateRangePicker or similar if needed */}
-        </div>
-      </header>
-
+    <div className="p-6">
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Celkové tržby
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatPrice(totalRevenue._sum.total?.toString() || 0)}</div>
-            <p className="text-xs text-muted-foreground">
-              Tento rok (okrem zrušených)
-            </p>
-          </CardContent>
-        </Card>
+      <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Celkové tržby"
+          value={formatPrice(totalRevenue._sum.total?.toString() || 0)}
+          subtitle="Tento rok (okrem zrušených)"
+          icon={DollarSign}
+        />
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Objednávky
-            </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{ordersCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {pendingOrdersCount} čakajúcich na vybavenie
-            </p>
-            <Link href="/admin/orders" className="absolute inset-0" />
-          </CardContent>
-        </Card>
+        <Link href="/admin/orders" className="block">
+          <StatCard
+            title="Objednávky"
+            value={ordersCount}
+            subtitle={`${pendingOrdersCount} čakajúcich na vybavenie`}
+            icon={ShoppingCart}
+          />
+        </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Produkty
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeProductsCount} / {productsCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Aktívne / Celkom
-            </p>
-            <Link href="/admin/products" className="absolute inset-0" />
-          </CardContent>
-        </Card>
+        <Link href="/admin/products" className="block">
+          <StatCard
+            title="Produkty"
+            value={`${activeProductsCount} / ${productsCount}`}
+            subtitle="Aktívne / Celkom"
+            icon={Package}
+          />
+        </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Používatelia
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{usersCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Registrovaní zákazníci
-            </p>
-            <Link href="/admin/users" className="absolute inset-0" />
-          </CardContent>
-        </Card>
+        <Link href="/admin/users" className="block">
+          <StatCard
+            title="Používatelia"
+            value={usersCount}
+            subtitle="Registrovaní zákazníci"
+            icon={Users}
+          />
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Prehľad tržieb ({currentYear})</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
+        <div className="col-span-4">
+          <ChartCard 
+            title={`Prehľad tržieb (${currentYear})`}
+            subtitle="Mesačné tržby za aktuálny rok"
+          >
             <Overview data={graphData} />
-          </CardContent>
-        </Card>
+          </ChartCard>
+        </div>
 
         <Card className="col-span-3">
           <CardHeader>
@@ -198,7 +159,7 @@ async function AdminPageContent() {
                   recentOrders.map((order) => (
                     <div key={order.id} className="flex items-center">
                         <Avatar className="h-9 w-9">
-                        <AvatarImage src={order.user?.image || "/avatars/01.png"} alt="Avatar" />
+                        {order.user?.image && <AvatarImage src={order.user.image} alt="Avatar" />}
                         <AvatarFallback>{order.user?.name?.slice(0, 2).toUpperCase() || "OZ"}</AvatarFallback>
                         </Avatar>
                         <div className="ml-4 space-y-1">

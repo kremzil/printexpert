@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AdminOrdersList } from "@/components/admin/admin-orders-list";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ModeButton as Button } from "@/components/print/mode-button";
+import { AdminButton } from "@/components/admin/admin-button";
 import { Input } from "@/components/ui/input";
 import { Prisma } from "@/lib/generated/prisma";
 
@@ -158,15 +158,15 @@ export default async function AdminOrdersPage({
   const sort = normalizeString(resolvedSearchParams.sort) || "newest";
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="p-6">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Objednávky</h1>
         <p className="text-muted-foreground">
           Spravujte všetky objednávky
         </p>
       </div>
 
-      <form className="grid gap-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm" method="get">
+      <form className="mb-6 grid gap-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm" method="get">
         <div className="grid gap-4 lg:grid-cols-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Vyhľadávanie</label>
@@ -233,10 +233,10 @@ export default async function AdminOrdersPage({
               ))}
             </select>
           </div>
-          <Button type="submit">Filtrovať</Button>
-          <Button asChild variant="outline">
+          <AdminButton type="submit">Filtrovať</AdminButton>
+          <AdminButton asChild variant="outline">
             <Link href="/admin/orders">Vyčistiť filtre</Link>
-          </Button>
+          </AdminButton>
         </div>
       </form>
 

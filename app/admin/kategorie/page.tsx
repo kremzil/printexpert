@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Suspense } from "react"
-import { ModeButton as Button } from "@/components/print/mode-button"
+import { AdminButton as Button } from "@/components/admin/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,24 +36,28 @@ async function AdminCategoriesContent() {
   const categories = await getAdminCategories()
 
   return (
-    <section className="space-y-6">
-      <header className="space-y-2">
+    <section className="p-6">
+      <header className="mb-6">
         <h1 className="text-2xl font-semibold">Administrácia</h1>
         <p className="text-sm text-muted-foreground">
           Nastavenia kategórií a ich štruktúry.
         </p>
       </header>
 
-      <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin">Produkty</Link>
-        </Button>
-        <Button variant="secondary" size="sm">
+      <div className="mb-6 flex items-center gap-2">
+        <Link href="/admin">
+          <AdminButton variant="outline" size="sm">
+            Produkty
+          </AdminButton>
+        </Link>
+        <AdminButton variant="secondary" size="sm">
           Kategórie
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/vlastnosti">Vlastnosti</Link>
-        </Button>
+        </AdminButton>
+        <Link href="/admin/vlastnosti">
+          <AdminButton variant="outline" size="sm">
+            Vlastnosti
+          </AdminButton>
+        </Link>
       </div>
 
       <Card>

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ModeButton } from "@/components/print/mode-button";
+import { AdminBadge } from "@/components/admin/admin-badge";
+import { AdminButton } from "@/components/admin/admin-button";
 import { StatusBadge } from "@/components/print/status-badge";
 import { ExternalLink } from "lucide-react";
 
@@ -47,13 +47,13 @@ const statusMap = {
 
 const paymentStatusMap: Record<
   PaymentStatus,
-  { label: string; variant: "secondary" | "default" | "destructive" }
+  { label: string; variant: "success" | "warning" | "danger" | "default" }
 > = {
-  UNPAID: { label: "Nezaplatená", variant: "secondary" },
-  PENDING: { label: "Čaká na platbu", variant: "secondary" },
-  PAID: { label: "Zaplatená", variant: "default" },
-  FAILED: { label: "Neúspešná", variant: "destructive" },
-  REFUNDED: { label: "Refundovaná", variant: "destructive" },
+  UNPAID: { label: "Nezaplatená", variant: "warning" },
+  PENDING: { label: "Čaká na platbu", variant: "warning" },
+  PAID: { label: "Zaplatená", variant: "success" },
+  FAILED: { label: "Neúspešná", variant: "danger" },
+  REFUNDED: { label: "Refundovaná", variant: "danger" },
 };
 
 export function AdminOrdersList({ orders }: AdminOrdersListProps) {
@@ -101,7 +101,7 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={paymentStatus.variant}>{paymentStatus.label}</Badge>
+                  <AdminBadge variant={paymentStatus.variant}>{paymentStatus.label}</AdminBadge>
                   <StatusBadge status={status} size="sm" />
                 </div>
               </div>
@@ -132,12 +132,12 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                   <p className="text-lg font-bold">{formatPrice(order.total)}</p>
                 </div>
                 <div className="flex items-center justify-end">
-                  <ModeButton asChild variant="outline" size="sm">
+                  <AdminButton asChild variant="outline" size="sm">
                     <Link href={`/admin/orders/${order.id}`}>
                       Detail
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </Link>
-                  </ModeButton>
+                  </AdminButton>
                 </div>
               </div>
             </CardContent>

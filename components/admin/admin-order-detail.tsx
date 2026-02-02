@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ModeButton } from "@/components/print/mode-button";
+import { AdminBadge } from "@/components/admin/admin-badge";
+import { AdminButton } from "@/components/admin/admin-button";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/print/status-badge";
 import {
@@ -120,10 +120,10 @@ const statusKeyMap = {
 } as const;
 
 const assetStatusMap = {
-  PENDING: { label: "Čaká sa", variant: "secondary" as const },
-  UPLOADED: { label: "Nahrané", variant: "default" as const },
-  APPROVED: { label: "Schválené", variant: "default" as const },
-  REJECTED: { label: "Odmietnuté", variant: "destructive" as const },
+  PENDING: { label: "Čaká sa", variant: "warning" as const },
+  UPLOADED: { label: "Nahrané", variant: "success" as const },
+  APPROVED: { label: "Schválené", variant: "success" as const },
+  REJECTED: { label: "Odmietnuté", variant: "danger" as const },
 };
 
 const assetKindLabels = {
@@ -250,11 +250,11 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <ModeButton asChild variant="ghost" size="icon">
+        <AdminButton asChild variant="ghost" size="icon">
           <Link href="/admin/orders">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-        </ModeButton>
+        </AdminButton>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Objednávka #{order.orderNumber}</h1>
           <p className="text-muted-foreground mt-1">{formatDate(order.createdAt)}</p>
@@ -371,14 +371,14 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={assetStatusMap[asset.status].variant}>
+                        <AdminBadge variant={assetStatusMap[asset.status].variant}>
                           {assetStatusMap[asset.status].label}
-                        </Badge>
-                        <ModeButton asChild size="sm" variant="outline">
+                        </AdminBadge>
+                        <AdminButton asChild size="sm" variant="outline">
                           <a href={`/api/assets/${asset.id}/download`}>
                             Stiahnuť
                           </a>
-                        </ModeButton>
+                        </AdminButton>
                       </div>
                     </div>
                   ))}
@@ -470,13 +470,13 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2">
-                <ModeButton asChild variant="outline" className="w-full">
+                <AdminButton asChild variant="outline" className="w-full">
                   <a href={`/api/orders/${order.id}/invoice`} target="_blank">
                     <Download className="mr-2 h-4 w-4" />
                     Stiahnuť faktúru
                   </a>
-                </ModeButton>
-                <ModeButton
+                </AdminButton>
+                <AdminButton
                   variant="primary"
                   className="w-full"
                   onClick={handleSendInvoice}
@@ -493,7 +493,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                       Odoslať faktúru e-mailom
                     </>
                   )}
-                </ModeButton>
+                </AdminButton>
               </div>
               <p className="text-xs text-muted-foreground">
                 Faktúra bude odoslaná na: {order.customerEmail}
