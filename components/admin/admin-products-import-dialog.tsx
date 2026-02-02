@@ -314,8 +314,8 @@ export function AdminProductsImportDialog() {
                   <AdminButton
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground"
+                    size="sm"
+                    className="h-9 w-9 p-0 text-muted-foreground"
                     onClick={() => removeRow(row.id)}
                     aria-label="Odstrániť riadok"
                   >

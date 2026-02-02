@@ -264,7 +264,8 @@ export function ProductMatrixDialog({
                 </TabsList>
                 <Button
                   type="button"
-                  size="xs"
+                  size="sm"
+                  className="h-7 w-7 p-0"
                   variant="outline"
                   onClick={handleAddSlot}
                   disabled={kind === "finishing"}

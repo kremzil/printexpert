@@ -46,17 +46,17 @@ async function AdminCategoriesContent() {
 
       <div className="mb-6 flex items-center gap-2">
         <Link href="/admin">
-          <AdminButton variant="outline" size="sm">
+          <Button variant="outline" size="sm">
             Produkty
-          </AdminButton>
+          </Button>
         </Link>
-        <AdminButton variant="secondary" size="sm">
+        <Button variant="secondary" size="sm">
           Kategórie
-        </AdminButton>
+        </Button>
         <Link href="/admin/vlastnosti">
-          <AdminButton variant="outline" size="sm">
+          <Button variant="outline" size="sm">
             Vlastnosti
-          </AdminButton>
+          </Button>
         </Link>
       </div>
 
@@ -289,7 +289,7 @@ async function AdminCategoriesContent() {
                       </div>
                     </div>
                     <div className="flex items-center justify-end gap-2">
-                      <Button type="submit" size="xs">
+                      <Button type="submit" size="sm">
                         Uložiť
                       </Button>
                       <ConfirmDeleteForm

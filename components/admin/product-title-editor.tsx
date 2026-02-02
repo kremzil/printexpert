@@ -26,8 +26,9 @@ export function ProductTitleEditor({
         <div className="text-2xl font-semibold">{name}</div>
         <Button
           type="button"
-          size="xs"
+          size="sm"
           variant="outline"
+          className="h-7 px-2 text-xs"
           onClick={() => setIsEditingName((prev) => !prev)}
         >
           {isEditingName ? "Hotovo" : "Upraviť názov"}
@@ -51,8 +52,9 @@ export function ProductTitleEditor({
         </Link>
         <Button
           type="button"
-          size="xs"
+          size="sm"
           variant="outline"
+          className="h-7 px-2 text-xs"
           onClick={() => setIsEditingSlug((prev) => !prev)}
         >
           {isEditingSlug ? "Hotovo" : "Upraviť slug"}

@@ -46,7 +46,9 @@ export default function AdminLayout({
               <AdminButton variant="ghost" size="sm" icon={Search}>
                 Hľadať
               </AdminButton>
-              <AdminButton variant="ghost" size="sm" icon={Bell} />
+              <AdminButton variant="ghost" size="sm" icon={Bell}>
+                <span className="sr-only">Notifikácie</span>
+              </AdminButton>
               <Link href="/admin/settings">
                 <AdminButton variant="ghost" size="sm" icon={Settings}>
                   Nastavenia

@@ -33,6 +33,19 @@ export function ConfirmDeleteForm({
   cancelText = "Zrušiť",
 }: ConfirmDeleteFormProps) {
   const formRef = React.useRef<HTMLFormElement>(null)
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <Button size="xs" variant="destructive" type="button">
+        {triggerText}
+      </Button>
+    )
+  }
 
   return (
     <AlertDialog>

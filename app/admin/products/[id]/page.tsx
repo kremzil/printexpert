@@ -468,7 +468,7 @@ async function AdminProductDetails({
                                 mtypeId: Number(matrix.mtid),
                               })}
                             >
-                              <Button size="xs" variant="outline" type="submit">
+                              <Button size="sm" variant="outline" type="submit">
                                 Vygenerovať ceny
                               </Button>
                             </form>
@@ -484,7 +484,7 @@ async function AdminProductDetails({
                               triggerLabel="Upraviť maticu"
                               dialogTitle="Upraviť maticu"
                               triggerVariant="outline"
-                              triggerSize="xs"
+                              triggerSize="sm"
                               initialValues={{
                                 slots: editSlots,
                                 kind: matrix.kind,

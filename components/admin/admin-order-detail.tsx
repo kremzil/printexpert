@@ -250,7 +250,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <AdminButton asChild variant="ghost" size="icon">
+        <AdminButton asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
           <Link href="/admin/orders">
             <ArrowLeft className="h-4 w-4" />
           </Link>

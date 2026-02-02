@@ -32,10 +32,10 @@ export function ProductDescriptionEditor({
           onValueChange={(val) => val && setMode(val as "wysiwyg" | "html")}
           className="bg-muted p-1 rounded-md"
         >
-          <ToggleGroupItem value="wysiwyg" size="sm" className="data-[state=on]:bg-white data-[state=on]:shadow-sm text-xs">
+          <ToggleGroupItem value="wysiwyg" className="data-[state=on]:bg-white data-[state=on]:shadow-sm text-xs">
             Vizuálny
           </ToggleGroupItem>
-          <ToggleGroupItem value="html" size="sm" className="data-[state=on]:bg-white data-[state=on]:shadow-sm text-xs">
+          <ToggleGroupItem value="html" className="data-[state=on]:bg-white data-[state=on]:shadow-sm text-xs">
             HTML
           </ToggleGroupItem>
         </ToggleGroup>
