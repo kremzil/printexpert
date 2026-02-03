@@ -69,10 +69,10 @@ export function AccountPanel({ name, email, hasPassword }: AccountPanelProps) {
   }
 
   const onSubmit = async (values: PasswordValues) => {
-    setPasswordStatus("loading")
-    setPasswordError(null)
+      setPasswordStatus("loading")
+      setPasswordError(null)
     try {
-      const response = await fetch("/api/auth/set-password", {
+      const response = await fetch("/api/account/set-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

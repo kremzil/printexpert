@@ -244,6 +244,10 @@ return orders.map(order => ({
 - `DELETE /api/cart/[itemId]` — удаление товара
 - `POST /api/cart/clear` — очистка корзины
 
+**CSRF (важно):**
+- Для всех unsafe методов (`POST`, `PATCH`, `DELETE`) на `/api/cart/*` и `/api/checkout` требуется заголовок `X-CSRF-Token`, равный cookie `pe_csrf` (double-submit CSRF).
+- Без него вернётся `403 { "error": "Neplatný CSRF token." }`.
+
 **Пример ответа GET /api/cart:**
 ```json
 {
@@ -292,6 +296,10 @@ return orders.map(order => ({
 - `POST /api/uploads/confirm` — подтверждение загрузки (HEAD)
 - `GET /api/orders/[orderId]/assets` — список файлов заказа
 - `GET /api/assets/[assetId]/download` — 302 redirect на presigned GET
+
+**Anti-spam / rate limit (checkout):**
+- `POST /api/checkout` ограничен: 5 запросов за 15 минут на IP.
+- При превышении вернёт `429 { "error": "Príliš veľa objednávok. Skúste to neskôr." }` и заголовок `Retry-After` (секунды).
 
 **Тело POST /api/checkout:**
 ```json
@@ -546,6 +554,9 @@ export interface OrderData {
 - Кнопка “Nahrať grafiku a objednať” позволяет выбрать файл, который отображается в корзине и загружается после оформления заказа.
 ```typescript
 const addToCart = async (uploadNow: boolean) => {
+  // Важно: для state-changing запросов используем CSRF header.
+  // import { getCsrfHeader } from "@/lib/csrf"
+
   // 1. Получаем серверную цену
   const priceResponse = await fetch("/api/price", {
     method: "POST",
@@ -564,7 +575,7 @@ const addToCart = async (uploadNow: boolean) => {
   // 2. Добавляем в корзину с priceSnapshot
   const cartResponse = await fetch("/api/cart/add", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getCsrfHeader() },
     body: JSON.stringify({
       productId: product.id,
       quantity: formData.quantity,

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AdminOrderDetail } from "@/components/admin/admin-order-detail";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 interface AdminOrderPageProps {
   params: Promise<{ orderId: string }>;
@@ -68,6 +69,7 @@ async function getOrder(orderId: string) {
 }
 
 export default async function AdminOrderPage({ params }: AdminOrderPageProps) {
+  await requireAdmin();
   const { orderId } = await params;
   const order = await getOrder(orderId);
 

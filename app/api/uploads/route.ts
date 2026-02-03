@@ -5,6 +5,7 @@ import path from "node:path"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { auth } from "@/auth"
+import { detectMimeTypeFromBuffer, normalizeMimeType } from "@/lib/uploads/config"
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 const allowedImageTypes = new Set([
@@ -15,9 +16,6 @@ const allowedImageTypes = new Set([
 ])
 const allowedVideoTypes = new Set(["video/mp4", "video/webm"])
 
-const sanitizeFileName = (name: string) =>
-  name.replace(/[^a-z0-9._-]/gi, "_").toLowerCase()
-
 const resolveUploadPath = (hash: string, ext: string) => {
   const fileName = `${hash}${ext}`
   return {
@@ -25,6 +23,15 @@ const resolveUploadPath = (hash: string, ext: string) => {
     absolutePath: path.join(process.cwd(), "public", "uploads", fileName),
     publicUrl: `/uploads/${fileName}`,
   }
+}
+
+const extByMime: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
 }
 
 export async function POST(request: Request) {
@@ -55,9 +62,25 @@ export async function POST(request: Request) {
     return response
   }
 
-  const contentType = file.type
-  const isImage = allowedImageTypes.has(contentType)
-  const isVideo = allowedVideoTypes.has(contentType)
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const detectedMime = normalizeMimeType(detectMimeTypeFromBuffer(buffer))
+  if (!detectedMime) {
+    console.warn("POST /api/uploads rejected: unknown magic bytes", {
+      fileName: file.name,
+      size: file.size,
+      kind,
+    })
+    const response = NextResponse.json(
+      { error: "Nepodarilo sa overiť typ súboru." },
+      { status: 400 }
+    )
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
+  }
+
+  const isImage = allowedImageTypes.has(detectedMime)
+  const isVideo = allowedVideoTypes.has(detectedMime)
 
   if ((kind === "image" && !isImage) || (kind === "video" && !isVideo)) {
     const response = NextResponse.json(
@@ -79,9 +102,24 @@ export async function POST(request: Request) {
     return response
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
   const hash = createHash("sha256").update(buffer).digest("hex")
-  const ext = path.extname(sanitizeFileName(file.name)) || ""
+  const ext = extByMime[detectedMime] ?? ""
+
+  if (!ext) {
+    console.warn("POST /api/uploads rejected: unsupported detected mime", {
+      detectedMime,
+      fileName: file.name,
+      size: file.size,
+      kind,
+    })
+    const response = NextResponse.json(
+      { error: "Nepodporovaný typ súboru." },
+      { status: 400 }
+    )
+    response.headers.set("x-audience", audienceContext.audience)
+    response.headers.set("x-audience-source", audienceContext.source)
+    return response
+  }
 
   const { absolutePath, publicUrl } = resolveUploadPath(hash, ext)
   await mkdir(path.dirname(absolutePath), { recursive: true })

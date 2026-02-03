@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import type { CustomerMode } from "@/components/print/types"
 import { ModeButton } from "@/components/print/mode-button"
 import { Card } from "@/components/ui/card"
+import { getCsrfHeader } from "@/lib/csrf"
 import {
   ArrowLeft,
   CheckCircle,
@@ -41,7 +42,7 @@ export function OrderSuccess({
     if (clearedRef.current) return
     clearedRef.current = true
 
-    fetch("/api/cart/clear", { method: "POST" }).catch((err) => {
+    fetch("/api/cart/clear", { method: "POST", headers: { ...getCsrfHeader() } }).catch((err) => {
       console.error("Failed to clear cart:", err)
     })
   }, [])

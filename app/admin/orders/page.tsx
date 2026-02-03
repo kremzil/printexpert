@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { AdminOrdersList } from "@/components/admin/admin-orders-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminButton } from "@/components/admin/admin-button";
@@ -144,6 +145,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requireAdmin();
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orders = await getOrders(resolvedSearchParams);
   const selectedStatuses = normalizeArray(resolvedSearchParams.status).filter((value) =>

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { getCsrfHeader } from "@/lib/csrf"
 
 const PRODUCT_FIELD_OPTIONS = [
   { value: "slug", label: "Slug" },
@@ -149,6 +150,7 @@ export function AdminProductsImportDialog() {
 
       const response = await fetch("/api/admin/products/import", {
         method: "POST",
+        headers: getCsrfHeader(),
         body: formData,
       })
 

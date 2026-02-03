@@ -2,9 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { createOrder } from "@/lib/orders";
 import { cookies } from "next/headers";
 import { NotificationService } from "@/lib/notifications";
+import { consumeRateLimit } from "@/lib/rate-limit";
+
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_MAX = 5;
+
+const getClientIp = (request: Request) => {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+  return request.headers.get("x-real-ip") ?? "unknown";
+};
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rate = await consumeRateLimit(`checkout:${ip}`, {
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      limit: RATE_LIMIT_MAX,
+    });
+    if (!rate.allowed) {
+      const response = NextResponse.json(
+        { error: "Príliš veľa objednávok. Skúste to neskôr." },
+        { status: 429 }
+      );
+      response.headers.set("Retry-After", String(rate.retryAfterSeconds));
+      return response;
+    }
+
     const body = await req.json();
     const { customerName, customerEmail, customerPhone, shippingAddress, billingAddress, notes } =
       body;

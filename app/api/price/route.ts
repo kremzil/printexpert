@@ -6,15 +6,48 @@ import {
   type PriceCalculationParams,
   type PriceResult,
 } from "@/lib/pricing"
+import { consumeRateLimit } from "@/lib/rate-limit"
 
 type PriceRequest = {
   productId?: string
   params?: PriceCalculationParams
 }
 
-export async function POST(request: Request) {
-  let payload: PriceRequest
+const RATE_LIMIT_WINDOW_MS = 60 * 1000
+const RATE_LIMIT_MAX = 60
 
+const getClientIp = (request: Request) => {
+  const forwardedFor = request.headers.get("x-forwarded-for")
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown"
+  }
+  return request.headers.get("x-real-ip") ?? "unknown"
+}
+
+export async function POST(request: Request) {
+  const ip = getClientIp(request)
+  try {
+    const rate = await consumeRateLimit(`price:${ip}`, {
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      limit: RATE_LIMIT_MAX,
+    })
+    if (!rate.allowed) {
+      const response = NextResponse.json(
+        { error: "Príliš veľa požiadaviek. Skúste to neskôr." },
+        { status: 429 }
+      )
+      response.headers.set("Retry-After", String(rate.retryAfterSeconds))
+      return response
+    }
+  } catch (error) {
+    console.error("Price calculation rate limit error:", error)
+    return NextResponse.json(
+      { error: "Interná chyba servera." },
+      { status: 500 }
+    )
+  }
+
+  let payload: PriceRequest
   try {
     payload = (await request.json()) as PriceRequest
   } catch (error) {

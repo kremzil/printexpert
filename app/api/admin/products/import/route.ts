@@ -7,6 +7,7 @@ import sharp from "sharp"
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 
 const MAX_ROWS = 5000
 
@@ -386,8 +387,17 @@ export async function POST(request: Request) {
 
       if (mappedData.name || defaults.name) data.name = mappedData.name || defaults.name
       if (mappedData.slug || defaults.slug) data.slug = mappedData.slug || defaults.slug
-      if (mappedData.excerpt || defaults.excerpt) data.excerpt = mappedData.excerpt || defaults.excerpt
-      if (mappedData.description || defaults.description) data.description = mappedData.description || defaults.description
+      if (mappedData.excerpt || defaults.excerpt) {
+        const rawExcerpt = mappedData.excerpt || defaults.excerpt || ""
+        const sanitizedExcerpt = sanitizeHtml(rawExcerpt).trim()
+        data.excerpt = sanitizedExcerpt.length > 0 ? sanitizedExcerpt : null
+      }
+
+      if (mappedData.description || defaults.description) {
+        const rawDescription = mappedData.description || defaults.description || ""
+        const sanitizedDescription = sanitizeHtml(rawDescription).trim()
+        data.description = sanitizedDescription.length > 0 ? sanitizedDescription : null
+      }
 
       const wpProductId = parseInteger(mappedData.wpProductId || defaults.wpProductId)
       if (wpProductId !== null) data.wpProductId = wpProductId

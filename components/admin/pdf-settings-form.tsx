@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import type { PdfSettings } from "@/lib/pdf/types";
+import { getCsrfHeader } from "@/lib/csrf";
 
 const orderStatuses = [
   { value: "PENDING", label: "Čaká sa" },
@@ -70,7 +71,7 @@ export function PdfSettingsForm() {
     try {
       const response = await fetch("/api/admin/settings/pdf", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify(data),
       });
       

@@ -3,6 +3,7 @@ import nodemailer from "nodemailer"
 import { z } from "zod"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
+import { consumeRateLimit } from "@/lib/rate-limit"
 
 const payloadSchema = z.object({
   name: z.string().min(2),
@@ -13,7 +14,6 @@ const payloadSchema = z.object({
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
 const RATE_LIMIT_MAX = 5
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
 
 const getClientIp = (request: Request) => {
   const forwardedFor = request.headers.get("x-forwarded-for")
@@ -21,20 +21,6 @@ const getClientIp = (request: Request) => {
     return forwardedFor.split(",")[0]?.trim() || "unknown"
   }
   return request.headers.get("x-real-ip") ?? "unknown"
-}
-
-const checkRateLimit = (ip: string) => {
-  const now = Date.now()
-  const entry = rateLimitStore.get(ip)
-  if (!entry || entry.resetAt <= now) {
-    rateLimitStore.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-    return true
-  }
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return false
-  }
-  entry.count += 1
-  return true
 }
 
 export async function POST(request: Request) {
@@ -61,11 +47,16 @@ export async function POST(request: Request) {
     }
 
     const ip = getClientIp(request)
-    if (!checkRateLimit(ip)) {
+    const rate = await consumeRateLimit(`contact:${ip}`, {
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      limit: RATE_LIMIT_MAX,
+    })
+    if (!rate.allowed) {
       const response = NextResponse.json(
-        { error: "Rate limit exceeded" },
+        { error: "Príliš veľa pokusov. Skúste to neskôr." },
         { status: 429 }
       )
+      response.headers.set("Retry-After", String(rate.retryAfterSeconds))
       response.headers.set("x-audience", audienceContext.audience)
       response.headers.set("x-audience-source", audienceContext.source)
       return response

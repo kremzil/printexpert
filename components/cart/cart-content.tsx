@@ -26,6 +26,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { ModeButton } from "@/components/print/mode-button";
 import { PriceDisplay } from "@/components/print/price-display";
+import { getCsrfHeader } from "@/lib/csrf";
 import type { CartData } from "@/types/cart";
 import type { CustomerMode } from "@/components/print/types";
 
@@ -99,7 +100,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
     try {
       const response = await fetch(`/api/cart/${itemId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({ quantity: newQuantity }),
       });
 
@@ -129,6 +130,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
     try {
       const response = await fetch(`/api/cart/${itemId}`, {
         method: "DELETE",
+        headers: { ...getCsrfHeader() },
       });
 
       if (!response.ok) throw new Error("Chyba pri odstraňovaní");

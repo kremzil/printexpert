@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const audience = searchParams.get('audience') || 'b2c';
-    const count = parseInt(searchParams.get('count') || '8', 10);
+    const rawCount = parseInt(searchParams.get('count') || '8', 10);
+    const count = Number.isFinite(rawCount)
+      ? Math.min(Math.max(rawCount, 1), 24)
+      : 8;
 
     let config;
     try {

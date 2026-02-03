@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getPrisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth-helpers"
 import { createTerm, deleteTerm, updateTermOrder } from "./actions"
 
 type AdminPropertyPageProps = {
@@ -75,6 +76,7 @@ async function AdminPropertyDetails({
 }: {
   paramsPromise: AdminPropertyPageProps["params"]
 }) {
+  await requireAdmin()
   const { attributeId } = await paramsPromise
   const { attribute, termTaxonomies, terms, termMeta, taxonomy } =
     await getAttributeDetails(Number(attributeId))

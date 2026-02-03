@@ -16,6 +16,7 @@ import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { ProductTitleEditor } from "@/components/admin/product-title-editor"
 import { getAdminProductById } from "@/lib/catalog"
 import { getPrisma } from "@/lib/prisma"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
 import { requireAdmin } from "@/lib/auth-helpers"
 import {
@@ -253,14 +254,14 @@ async function AdminProductDetails({
               <ProductDescriptionEditor
                 name="excerpt"
                 label="Krátky popis"
-                initialValue={product.excerpt ?? ""}
+                initialValue={product.excerpt ? sanitizeHtml(product.excerpt) : ""}
                 placeholder="Začnite písať krátky popis..."
               />
             </div>
 
             <ProductDescriptionEditor
               name="description"
-              initialValue={product.description ?? ""}
+              initialValue={product.description ? sanitizeHtml(product.description) : ""}
               placeholder="Začnite písať popis..."
             />
 

@@ -80,6 +80,7 @@ export async function updateCategory(
   input: UpdateCategoryInput,
   formData: FormData
 ) {
+  await requireAdmin()
   const prisma = getPrisma()
   const category = await prisma.category.findUnique({
     where: { id: input.categoryId },
@@ -145,6 +146,7 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(input: DeleteCategoryInput) {
+  await requireAdmin()
   const prisma = getPrisma()
   const category = await prisma.category.findUnique({
     where: { id: input.categoryId },

@@ -54,6 +54,7 @@ next-env.d.ts
 
 #data
 /data/wp
+backup_shop.sql
 
 # claude skills
 .claude/

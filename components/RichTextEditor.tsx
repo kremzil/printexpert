@@ -23,6 +23,7 @@ import {
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Input } from "@/components/ui/input"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { getCsrfHeader } from "@/lib/csrf"
 import { cn } from "@/lib/utils"
 import {
   AlignCenterIcon,
@@ -88,7 +89,7 @@ const normalizeVideoUrl = (rawUrl: string) => {
         return `https://player.vimeo.com/video/${id}`
       }
     }
-    return parsed.protocol === "https:" ? parsed.toString() : ""
+    return ""
   } catch {
     return ""
   }
@@ -321,6 +322,7 @@ export function RichTextEditor({
       body.append("kind", mediaTab)
       const response = await fetch("/api/uploads", {
         method: "POST",
+        headers: getCsrfHeader(),
         body,
       })
       if (!response.ok) {

@@ -25,6 +25,7 @@ import { PaymentMethodSelector } from "@/components/print/payment-method-selecto
 import { CheckoutSteps } from "@/components/print/checkout-steps";
 import { AddressForm } from "@/components/print/address-form";
 import { OrderReview } from "@/components/print/order-review";
+import { getCsrfHeader } from "@/lib/csrf";
 
 interface CheckoutFormProps {
   cart: CartData;
@@ -272,7 +273,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
 
     const response = await fetch("/api/checkout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getCsrfHeader() },
       body: JSON.stringify(data),
     });
 
@@ -290,7 +291,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
         const file = pendingUpload.file;
         const presignResponse = await fetch("/api/uploads/presign", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({
             orderId: order.id,
             kind: "ARTWORK",
@@ -319,7 +320,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
 
         const confirmResponse = await fetch("/api/uploads/confirm", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({ assetId: presignData.assetId }),
         });
 

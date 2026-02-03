@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { randomBytes } from "node:crypto"
 import { auth } from "@/auth"
 
 import {
@@ -8,11 +9,105 @@ import {
   parseAudience,
 } from "@/lib/audience-shared"
 
+const CSRF_COOKIE_NAME = "pe_csrf"
+const CSRF_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+
+const createCsrfToken = () => randomBytes(32).toString("base64url")
+
+const getClientIp = (request: NextRequest) => {
+  const forwardedFor = request.headers.get("x-forwarded-for")
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown"
+  }
+  return request.headers.get("x-real-ip") ?? "unknown"
+}
+
+const ensureCsrfCookie = (request: NextRequest, response: NextResponse) => {
+  const existing = request.cookies.get(CSRF_COOKIE_NAME)?.value
+  if (existing) return existing
+
+  const token = createCsrfToken()
+  response.cookies.set(CSRF_COOKIE_NAME, token, {
+    maxAge: CSRF_COOKIE_MAX_AGE_SECONDS,
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+  })
+  return token
+}
+
 export async function proxy(request: NextRequest) {
   // NextAuth authorization check
   const session = await auth()
   const { nextUrl } = request
   
+  const isApiRoute = nextUrl.pathname.startsWith("/api/")
+  const isWebhook = nextUrl.pathname.startsWith("/api/stripe/webhook")
+  const isUnsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(request.method)
+  const needsCsrfToken =
+    isUnsafeMethod &&
+    (nextUrl.pathname.startsWith("/api/admin") ||
+      nextUrl.pathname.startsWith("/api/uploads") ||
+      nextUrl.pathname.startsWith("/api/cart") ||
+      nextUrl.pathname.startsWith("/api/checkout")) &&
+    !isWebhook
+
+  if (isApiRoute && isUnsafeMethod && !isWebhook) {
+    const origin = request.headers.get("origin")
+    if (origin && origin !== nextUrl.origin) {
+      console.warn("proxy blocked request: origin mismatch", {
+        method: request.method,
+        path: nextUrl.pathname,
+        ip: getClientIp(request),
+        origin,
+        expectedOrigin: nextUrl.origin,
+      })
+      return NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+    }
+
+    const referer = request.headers.get("referer")
+    if (referer) {
+      try {
+        const refererOrigin = new URL(referer).origin
+        if (refererOrigin !== nextUrl.origin) {
+          console.warn("proxy blocked request: referer mismatch", {
+            method: request.method,
+            path: nextUrl.pathname,
+            ip: getClientIp(request),
+            refererOrigin,
+            expectedOrigin: nextUrl.origin,
+          })
+          return NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+        }
+      } catch {
+        console.warn("proxy blocked request: invalid referer header", {
+          method: request.method,
+          path: nextUrl.pathname,
+          ip: getClientIp(request),
+        })
+        return NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+      }
+    }
+  }
+
+  if (needsCsrfToken) {
+    const csrfCookie = request.cookies.get(CSRF_COOKIE_NAME)?.value
+    const csrfHeader = request.headers.get("x-csrf-token")
+
+    if (!csrfCookie || !csrfHeader || csrfHeader !== csrfCookie) {
+      console.warn("proxy blocked request: csrf mismatch", {
+        method: request.method,
+        path: nextUrl.pathname,
+        ip: getClientIp(request),
+        userId: session?.user?.id ?? null,
+        hasCookie: Boolean(csrfCookie),
+        hasHeader: Boolean(csrfHeader),
+      })
+      return NextResponse.json({ error: "Neplatný CSRF token." }, { status: 403 })
+    }
+  }
+
   const isLoggedIn = !!session?.user
   const isOnAdmin = nextUrl.pathname.startsWith('/admin')
   const isOnAccount = nextUrl.pathname.startsWith('/account')
@@ -44,6 +139,9 @@ export async function proxy(request: NextRequest) {
 
   if (!audience) {
     const response = NextResponse.next()
+    if (!isApiRoute && (request.method === "GET" || request.method === "HEAD")) {
+      ensureCsrfCookie(request, response)
+    }
     response.headers.set('x-pathname', nextUrl.pathname)
     return response
   }
@@ -54,6 +152,9 @@ export async function proxy(request: NextRequest) {
   const response = shouldRedirect
     ? NextResponse.redirect(redirectUrl)
     : NextResponse.next()
+  if (!isApiRoute && (request.method === "GET" || request.method === "HEAD")) {
+    ensureCsrfCookie(request, response)
+  }
   response.cookies.set(AUDIENCE_COOKIE_NAME, audience, {
     maxAge: AUDIENCE_COOKIE_MAX_AGE_SECONDS,
     httpOnly: true,

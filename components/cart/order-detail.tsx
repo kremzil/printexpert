@@ -11,6 +11,7 @@ import { ModeButton } from "@/components/print/mode-button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/print/status-badge";
 import type { OrderData } from "@/types/order";
+import { getCsrfHeader } from "@/lib/csrf";
 
 interface OrderDetailProps {
   order: OrderData;
@@ -137,7 +138,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
     try {
       const presignResponse = await fetch("/api/uploads/presign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           orderId: order.id,
           kind: "ARTWORK",
@@ -167,7 +168,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
 
       const confirmResponse = await fetch("/api/uploads/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({ assetId: presignData.assetId }),
       });
 

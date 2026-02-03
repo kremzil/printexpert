@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth-helpers"
 
 type CreateTermInput = {
   attributeId: number
@@ -37,6 +38,7 @@ export async function createTerm(
   input: CreateTermInput,
   formData: FormData
 ) {
+  await requireAdmin()
   const prisma = getPrisma()
   const name = String(formData.get("name") ?? "").trim()
   const rawSlug = String(formData.get("slug") ?? "").trim()
@@ -90,6 +92,7 @@ export async function createTerm(
 }
 
 export async function deleteTerm(input: DeleteTermInput) {
+  await requireAdmin()
   const prisma = getPrisma()
 
   await prisma.$transaction(async (tx) => {
@@ -123,6 +126,7 @@ export async function updateTermOrder(
   input: UpdateTermOrderInput,
   formData: FormData
 ) {
+  await requireAdmin()
   const prisma = getPrisma()
   const orderRaw = String(formData.get("order") ?? "").trim()
   const orderValue =

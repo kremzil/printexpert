@@ -62,7 +62,11 @@ export function RegisterForm() {
             })
 
             if (result?.error) {
-                setErrorMessage("Nastala chyba pri odosielaní odkazu.")
+                setErrorMessage(
+                    result.error === "RateLimit"
+                        ? "Príliš veľa pokusov. Skúste to neskôr."
+                        : "Nastala chyba pri odosielaní odkazu."
+                )
                 setStatus("error")
                 return
             }

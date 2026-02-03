@@ -1,0 +1,33 @@
+
+> web@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.0.6.162:3000
+- Environments: .env
+
+✓ Starting...
+✓ Ready in 2s
+ GET /auth 200 in 4.0s (compile: 1967ms, proxy.ts: 511ms, render: 1554ms)
+ GET /auth 200 in 436ms (compile: 6ms, proxy.ts: 22ms, render: 408ms)
+ POST /api/admin/top-products 401 in 509ms (compile: 469ms, proxy.ts: 15ms, render: 24ms)
+ GET / 200 in 561ms (compile: 97ms, proxy.ts: 23ms, render: 441ms)
+ POST /api/uploads/presign 401 in 508ms (compile: 489ms, proxy.ts: 9ms, render: 9ms)
+✓ Compiled in 361ms
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+▲ Next.js 16.1.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.0.6.162:3000
+- Environments: .env
+
+✓ Starting...
+✓ Ready in 2.2s
+ GET / 200 in 3.3s (compile: 1496ms, proxy.ts: 476ms, render: 1330ms)
+✓ Compiled in 261ms
+ GET / 200 in 873ms (compile: 9ms, proxy.ts: 279ms, render: 586ms)
+✓ Compiled in 881ms
+ GET /api/top-products?audience=b2c&count=8 200 in 2.2s (compile: 1083ms, proxy.ts: 707ms, render: 377ms)
+ GET / 200 in 4.2s (compile: 709ms, proxy.ts: 540ms, render: 2.9s)
+ GET /api/cart 200 in 569ms (compile: 392ms, proxy.ts: 38ms, render: 140ms)
+ GET /product/beach-flag-standard-bufet 200 in 1668ms (compile: 1418ms, proxy.ts: 28ms, generate-params: 1168ms, render: 222ms)

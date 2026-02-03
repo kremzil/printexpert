@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
+
 import { auth } from "@/auth"
 import { hashPassword } from "@/lib/auth"
 import { getPrisma } from "@/lib/prisma"
@@ -18,24 +19,18 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)
-    
+
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Skontrolujte zadané údaje." },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Skontrolujte zadané údaje." }, { status: 400 })
     }
 
     if (parsed.data.password !== parsed.data.confirmPassword) {
-      return NextResponse.json(
-        { error: "Heslá sa nezhodujú." },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Heslá sa nezhodujú." }, { status: 400 })
     }
 
     const prisma = getPrisma()
     const passwordHash = await hashPassword(parsed.data.password)
-    
+
     await prisma.user.update({
       where: { id: session.user.id },
       data: { passwordHash },
@@ -50,3 +45,4 @@ export async function POST(request: Request) {
     )
   }
 }
+

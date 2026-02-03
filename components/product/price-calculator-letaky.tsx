@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ShoppingCart } from "lucide-react"
 
 import { ModeButton } from "@/components/print/mode-button"
+import { getCsrfHeader } from "@/lib/csrf"
 import {
   Select,
   SelectContent,
@@ -587,7 +588,7 @@ export function PriceCalculatorLetaky({
       // Добавляем в корзину
       const cartResponse = await fetch("/api/cart/add", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           productId,
           quantity,

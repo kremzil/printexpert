@@ -23,8 +23,59 @@ const allowedTags = new Set([
   "a",
 ])
 
+const allowedIframeHosts = new Set([
+  "www.youtube.com",
+  "youtube.com",
+  "www.youtube-nocookie.com",
+  "youtube-nocookie.com",
+  "player.vimeo.com",
+])
+
 const stripUnsafeTags = (input: string) =>
   input.replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1>/gi, "")
+
+const hasUnsafeAttributeChars = (value: string) =>
+  /["'<>\\\u0000-\u001F\u007F]/.test(value)
+
+const stripUrlHashAndQuery = (value: string) => value.split(/[?#]/)[0] ?? value
+
+const hasSvgExtension = (value: string) => {
+  const path = stripUrlHashAndQuery(value).trim().toLowerCase()
+  return path.endsWith(".svg") || path.endsWith(".svgz")
+}
+
+const parseHttpsUrl = (raw: string) => {
+  if (!raw || hasUnsafeAttributeChars(raw)) return null
+  try {
+    const url = new URL(raw)
+    if (url.protocol !== "https:") return null
+    if (url.username || url.password) return null
+    return url
+  } catch {
+    return null
+  }
+}
+
+const isAllowedIframeUrl = (url: URL) => {
+  const hostname = url.hostname.toLowerCase()
+  if (!allowedIframeHosts.has(hostname)) return false
+
+  // Only allow known embed endpoints.
+  if (
+    hostname === "www.youtube.com" ||
+    hostname === "youtube.com" ||
+    hostname === "www.youtube-nocookie.com" ||
+    hostname === "youtube-nocookie.com"
+  ) {
+    return url.pathname.startsWith("/embed/")
+  }
+
+  if (hostname === "player.vimeo.com") {
+    return url.pathname.startsWith("/video/")
+  }
+
+  return false
+}
 
 const isSafeCssValue = (value: string) => {
   const normalized = value.trim().toLowerCase()
@@ -88,7 +139,19 @@ const sanitizeTag = (fullMatch: string, tagNameRaw: string, attrsRaw: string) =>
       attrsRaw.match(/\stitle\s*=\s*"([^"]*)"/i) ||
       attrsRaw.match(/\stitle\s*=\s*'([^']*)'/i)
     const rawSrc = srcMatch ? srcMatch[1].trim() : ""
-    if (!/^https:\/\//i.test(rawSrc) && !rawSrc.startsWith("/uploads/")) {
+    if (!rawSrc || hasUnsafeAttributeChars(rawSrc)) {
+      return ""
+    }
+
+    if (hasSvgExtension(rawSrc)) {
+      return ""
+    }
+
+    if (rawSrc.startsWith("/uploads/")) {
+      // keep
+    } else if (parseHttpsUrl(rawSrc)) {
+      // keep
+    } else {
       return ""
     }
     const alt = altMatch ? altMatch[1] : ""
@@ -104,7 +167,14 @@ const sanitizeTag = (fullMatch: string, tagNameRaw: string, attrsRaw: string) =>
       attrsRaw.match(/\ssrc\s*=\s*'([^']+)'/i) ||
       attrsRaw.match(/\ssrc\s*=\s*([^\s>]+)/i)
     const rawSrc = srcMatch ? srcMatch[1].trim() : ""
-    if (!/^https:\/\//i.test(rawSrc) && !rawSrc.startsWith("/uploads/")) {
+    if (!rawSrc || hasUnsafeAttributeChars(rawSrc)) {
+      return ""
+    }
+    if (rawSrc.startsWith("/uploads/")) {
+      // keep
+    } else if (parseHttpsUrl(rawSrc)) {
+      // keep
+    } else {
       return ""
     }
     return `<video src="${rawSrc}" controls></video>`
@@ -121,11 +191,13 @@ const sanitizeTag = (fullMatch: string, tagNameRaw: string, attrsRaw: string) =>
     const allowFullscreen =
       /allowfullscreen/i.test(attrsRaw) || /allowFullScreen/i.test(attrsRaw)
     const rawSrc = srcMatch ? srcMatch[1].trim() : ""
-    if (!/^https:\/\//i.test(rawSrc) && !rawSrc.startsWith("/uploads/")) {
+
+    const parsedUrl = parseHttpsUrl(rawSrc)
+    if (!parsedUrl || !isAllowedIframeUrl(parsedUrl)) {
       return ""
     }
     const title = titleMatch ? titleMatch[1] : "Video"
-    return `<iframe src="${rawSrc}" title="${title}"${
+    return `<iframe src="${parsedUrl.toString()}" title="${title}"${
       allowFullscreen ? " allowfullscreen" : ""
     }></iframe>`
   }
@@ -144,11 +216,12 @@ const sanitizeTag = (fullMatch: string, tagNameRaw: string, attrsRaw: string) =>
     attrsRaw.match(/\shref\s*=\s*([^\s>]+)/i)
 
   const rawHref = hrefMatch ? hrefMatch[1].trim() : ""
-  if (!/^https:\/\//i.test(rawHref)) {
+  const parsedHref = parseHttpsUrl(rawHref)
+  if (!parsedHref) {
     return "<a>"
   }
 
-  return `<a href="${rawHref}">`
+  return `<a href="${parsedHref.toString()}">`
 }
 
 // Sanitizujeme HTML pre popis produktu ešte na serveri.

@@ -60,7 +60,11 @@ function MagicLinkForm() {
       })
 
       if (result?.error) {
-        setErrorMessage(result.error ?? "Odoslanie odkazu zlyhalo. Skúste to neskôr.")
+        setErrorMessage(
+          result.error === "RateLimit"
+            ? "Príliš veľa pokusov. Skúste to neskôr."
+            : "Odoslanie odkazu zlyhalo. Skúste to neskôr."
+        )
         setStatus("error")
         return
       }
@@ -165,7 +169,11 @@ function PasswordLoginForm() {
       })
 
       if (result?.error) {
-        setErrorMessage("Nesprávny e-mail alebo heslo.")
+        setErrorMessage(
+          result.error === "RateLimit"
+            ? "Príliš veľa pokusov. Skúste to neskôr."
+            : "Nesprávny e-mail alebo heslo."
+        )
         setStatus("error")
         return
       }

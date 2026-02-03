@@ -227,7 +227,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Модели Prisma: `User` (с role), `Account`, `Session`, `VerificationToken`
 - Провайдеры: Nodemailer (magic links), Credentials (пароли)
 - Magic links: NextAuth `signIn("nodemailer")` с SMTP
-- Пароли: bcrypt hash, установка через `/api/auth/set-password`
+- Пароли: scrypt hash, установка через `/api/account/set-password`
 - JWT сессии с поддержкой `role` в токене
 - Middleware: `proxy.ts` с проверкой `authorized` callback
 - Защита: `requireAuth()` и `requireAdmin()` helpers
@@ -279,6 +279,10 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - `POST /api/uploads/confirm` — подтверждение загрузки (HEAD)
 - `GET /api/orders/[orderId]/assets` — список файлов заказа
 - `GET /api/assets/[assetId]/download` — 302 redirect на presigned GET
+
+### Защита API (корзина/checkout):
+- CSRF: unsafe запросы на `/api/cart/*` и `/api/checkout` требуют `X-CSRF-Token` (cookie `pe_csrf`), проверяется в `proxy.ts`.
+- Anti-spam: `POST /api/checkout` rate limited (5/15мин на IP), 429 + `Retry-After`.
 
 ### PDF-счета (Faktúry):
 - `GET /api/orders/[orderId]/invoice` — скачивание PDF-счёта

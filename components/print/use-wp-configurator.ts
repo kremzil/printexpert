@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { getCsrfHeader } from "@/lib/csrf"
 
 export type WpConfiguratorData = {
   product_id: string
@@ -589,7 +590,7 @@ export function useWpConfigurator({
 
       const cartResponse = await fetch("/api/cart/add", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           productId,
           quantity,

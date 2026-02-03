@@ -20,6 +20,7 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
+import { getCsrfHeader } from "@/lib/csrf";
 
 type Mode = "RANDOM_ALL" | "RANDOM_CATEGORIES" | "MANUAL";
 
@@ -104,7 +105,7 @@ export default function TopProductsPage() {
     try {
       const res = await fetch("/api/admin/top-products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({ audience, ...config }),
       });
 

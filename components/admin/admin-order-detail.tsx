@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Send, Download } from "lucide-react";
 import { toast } from "sonner";
+import { getCsrfHeader } from "@/lib/csrf";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
 
@@ -206,7 +207,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
     try {
       const response = await fetch(`/api/admin/orders/${order.id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({ status: newStatus }),
       });
 

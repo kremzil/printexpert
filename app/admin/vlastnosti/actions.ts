@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth-helpers"
 
 type DeleteAttributeInput = {
   attributeId: number
@@ -23,6 +24,7 @@ const getAudienceTag = async () => {
 }
 
 export async function createAttribute(formData: FormData) {
+  await requireAdmin()
   const prisma = getPrisma()
   const label = String(formData.get("label") ?? "").trim()
   const rawName = String(formData.get("name") ?? "").trim()
@@ -57,6 +59,7 @@ export async function createAttribute(formData: FormData) {
 }
 
 export async function deleteAttribute(input: DeleteAttributeInput) {
+  await requireAdmin()
   const prisma = getPrisma()
   const taxonomy = `pa_${input.attributeName}`
 

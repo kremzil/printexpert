@@ -6,6 +6,16 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getS3Client } from "@/lib/s3";
 
+const sanitizeDispositionFileName = (fileName: string) => {
+  const baseName = fileName.split(/[\\/]/).pop() || "file";
+  const cleaned = baseName
+    .replace(/"/g, "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim();
+  const limited = cleaned.length > 180 ? cleaned.slice(0, 180).trim() : cleaned;
+  return limited.length > 0 ? limited : "file";
+};
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ assetId: string }> }
@@ -40,11 +50,12 @@ export async function GET(
       return NextResponse.json({ error: "Prístup zamietnutý." }, { status: 403 });
     }
 
+    const dispositionName = sanitizeDispositionFileName(asset.fileNameOriginal);
     const client = getS3Client();
     const command = new GetObjectCommand({
       Bucket: asset.bucket,
       Key: asset.objectKey,
-      ResponseContentDisposition: `attachment; filename="${asset.fileNameOriginal}"`,
+      ResponseContentDisposition: `attachment; filename="${dispositionName}"`,
     });
 
     const downloadUrl = await getSignedUrl(client, command, { expiresIn: 600 });

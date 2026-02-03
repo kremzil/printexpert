@@ -504,3 +504,13 @@ model ShopSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model RateLimitEntry {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
