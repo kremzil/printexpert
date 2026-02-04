@@ -1,6 +1,6 @@
 # Система корзины и заказов
 
-Дата обновления: 2026-02-02
+Дата обновления: 2026-02-04
 
 ## Общее описание
 
@@ -307,6 +307,26 @@ return orders.map(order => ({
   "customerName": "Ján Novák",
   "customerEmail": "jan@example.com",
   "customerPhone": "+421901234567",
+  "billingAddress": {
+    "name": "Ján Novák",
+    "companyName": "TechStart s.r.o.",
+    "ico": "12345678",
+    "dic": "1234567890",
+    "icDph": "SK1234567890",
+    "street": "Hlavná 123",
+    "apt": "12B",
+    "postalCode": "81101",
+    "city": "Bratislava",
+    "country": "Slovensko"
+  },
+  "shippingAddress": {
+    "name": "Ján Novák",
+    "street": "Hlavná 123",
+    "apt": "12B",
+    "postalCode": "81101",
+    "city": "Bratislava",
+    "country": "Slovensko"
+  },
   "notes": "Prosím doručiť ráno"
 }
 ```
@@ -347,8 +367,10 @@ return orders.map(order => ({
 - Переход к оформлению
 
 #### /checkout (app/checkout/page.tsx)
-- Форма контактных данных
-- Валидация полей
+- Совмещённый шаг контактных/фактурационных данных + доставки
+- Валидация обязательных полей (контакт/фактурация всегда обязательны)
+- Doručenie раскрывается только при “Doručiť na inú adresu”
+- При наличии сохранённых адресов — выбор из списка
 - Создание заказа через API
 - Redirect на страницу заказа с ?success=true
 
@@ -397,9 +419,11 @@ Mini-cart в хедере:
 
 #### components/cart/checkout-form.tsx
 Форма оформления заказа:
-- Multi-step wizard (B2B: 5 шагов, B2C: 4 шага)
+- Multi-step wizard (B2B: 4 шага, B2C: 3 шага)
 - Поля: контактные данные, адрес доставки, способ оплаты
 - Client-side валидация (required)
+- Если “Doručiť na inú adresu” не выбран — адрес доставки берётся из первой формы и сохраняется в заказ
+- Если есть сохранённые адреса — можно выбрать один, затем при необходимости вручную поправить форму доставки
 - **Два способа оплаты:**
   - Platba kartou (Stripe) — встроенная форма ввода карты
   - Bankový prevod — перевод на счёт
@@ -421,6 +445,7 @@ Mini-cart в хедере:
 - Статус badge
 - Список OrderItem
 - Контактные данные
+- Фактурационные данные и адрес доставки (если сохранены в заказе)
 - Суммы (subtotal, VAT, total)
 - Audience режим
 - Кнопка "Späť na objednávky"
@@ -499,13 +524,21 @@ export interface CheckoutData {
   customerEmail: string;
   customerPhone?: string;
   shippingAddress?: {
+    name?: string;
     street: string;
+    apt?: string;
     city: string;
     postalCode: string;
     country: string;
   };
   billingAddress?: {
+    name?: string;
+    companyName?: string;
+    ico?: string;
+    dic?: string;
+    icDph?: string;
     street: string;
+    apt?: string;
     city: string;
     postalCode: string;
     country: string;

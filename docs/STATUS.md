@@ -1,12 +1,13 @@
 # Статус проекта
 
-Дата: 2026-02-02
+Дата: 2026-02-04
 Версия: 0.2.5
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
 - Prisma schema: `User` (с UserRole), `Account`, `Session`, `VerificationToken` (NextAuth) + каталог `Category`, `Product`, `ProductImage`, enum `PriceType`, а также WP-таблицы для матриц (включая флаг видимости `WpMatrixType.isActive`).
 - E-commerce модели: `Cart`, `CartItem`, `Order`, `OrderItem` с enum `OrderStatus`.
+- Пользовательские данные: `CompanyProfile` (B2B) и `UserAddress` (адреса).
 - Новые модели:
   - `OrderAsset` (файлы к заказу) + enums `OrderAssetKind`, `OrderAssetStatus`, `OrderAssetStorageProvider`.
   - `NotificationLog` + enums `NotificationType`, `NotificationStatus`.

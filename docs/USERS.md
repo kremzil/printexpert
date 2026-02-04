@@ -13,7 +13,20 @@
 - `name` (nullable)
 - `passwordHash` (nullable, scrypt)
 - `role` (USER/ADMIN)
+- связи: `addresses` (UserAddress), `companyProfile` (CompanyProfile)
 - связи: `accounts`, `sessions` (NextAuth), `verificationTokens` (NextAuth)
+
+### CompanyProfile
+Профиль компании для B2B пользователя (1:1).
+- `userId` (unique)
+- `companyName` (required)
+- `ico`, `dic`, `icDph` (nullable)
+
+### UserAddress
+Сохранённые адреса пользователя (1:N).
+- `label`
+- `street`, `apt`, `city`, `zipCode`, `country`
+- `isDefault`
 
 ### Account / Session / VerificationToken
 Таблицы для NextAuth (PrismaAdapter).
@@ -75,4 +88,3 @@ UI использует `signOut()` из `next-auth/react`.
 
 ## 7) Примечания
 - Старые route handlers (`/api/auth/login`, `/api/auth/logout`, `/api/auth/password`, `/api/auth/magic`, `/auth/magic`) удалены, чтобы не было двух параллельных систем сессий.
-
