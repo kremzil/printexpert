@@ -120,6 +120,9 @@ async function AdminProductDetails({
   const calculatorData = product.wpProductId
     ? await getWpCalculatorData(product.wpProductId, true)
     : null
+  const baseMatrix =
+    calculatorData?.matrices.find((matrix) => matrix.kind === "simple") ?? null
+  const baseSelects = baseMatrix?.selects ?? []
   const ntpLabelByValue: Record<string, string> = {
     "0": "Fixná",
     "2": "Plocha (šírka × výška)",
@@ -390,7 +393,19 @@ async function AdminProductDetails({
                   const uniqueBreakpoints = Array.from(
                     new Set(matrix.prices.map((row) => row.breakpoint))
                   ).sort((a, b) => a - b)
-                  const selectLabels = matrix.selects.map((select) => ({
+                  const displaySelects =
+                    matrix.kind === "finishing" && baseSelects.length > 0
+                      ? [
+                          ...baseSelects,
+                          ...matrix.selects.filter(
+                            (select) =>
+                              !baseSelects.some(
+                                (baseSelect) => baseSelect.aid === select.aid
+                              )
+                          ),
+                        ]
+                      : matrix.selects
+                  const selectLabels = displaySelects.map((select) => ({
                     aid: select.aid,
                     label: select.label,
                   }))
@@ -507,7 +522,7 @@ async function AdminProductDetails({
                           </div>
                         </div>
                         <div className="space-y-2">
-                          {matrix.selects.map((select) => (
+                          {displaySelects.map((select) => (
                             <div
                               key={select.aid}
                               className="rounded-md bg-muted/30 px-3 py-2"

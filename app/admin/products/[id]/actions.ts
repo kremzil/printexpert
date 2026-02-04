@@ -185,6 +185,70 @@ const toStringArray = (value: PhpSerializable): string[] => {
   return []
 }
 
+const getBaseMatrixTerms = async (wpProductId: number) => {
+  const prisma = getPrisma()
+  const baseMatrix = await prisma.wpMatrixType.findFirst({
+    where: { productId: wpProductId, mtype: 0 },
+    orderBy: { sorder: "asc" },
+    select: { attributes: true, aterms: true },
+  })
+
+  if (!baseMatrix?.attributes || !baseMatrix.aterms) {
+    return { attributeIds: [] as string[], termsByAttribute: new Map<string, string[]>() }
+  }
+
+  const attributeIds = toStringArray(phpUnserialize(baseMatrix.attributes))
+  const atermsMap = phpUnserialize(baseMatrix.aterms)
+  if (!atermsMap || typeof atermsMap !== "object" || Array.isArray(atermsMap)) {
+    return { attributeIds, termsByAttribute: new Map<string, string[]>() }
+  }
+
+  const termsByAttribute = new Map<string, string[]>()
+  attributeIds.forEach((aid) => {
+    const terms = toStringArray((atermsMap as Record<string, PhpSerializable>)[aid])
+    if (terms.length > 0) {
+      termsByAttribute.set(aid, terms)
+    }
+  })
+
+  return {
+    attributeIds: attributeIds.filter(
+      (aid) => (termsByAttribute.get(aid)?.length ?? 0) > 0
+    ),
+    termsByAttribute,
+  }
+}
+
+const buildCombinedTerms = (
+  baseAttributeIds: string[],
+  baseTermsByAttribute: Map<string, string[]>,
+  attributeIds: string[],
+  termsByAttribute: Map<string, string[]>
+) => {
+  const combinedAttributeIds: string[] = []
+  const combinedTermsByAttribute = new Map<string, string[]>()
+  const addAttribute = (aid: string, terms: string[]) => {
+    if (!terms.length) return
+    if (!combinedTermsByAttribute.has(aid)) {
+      combinedAttributeIds.push(aid)
+      combinedTermsByAttribute.set(aid, terms)
+      return
+    }
+    const existing = new Set(combinedTermsByAttribute.get(aid) ?? [])
+    terms.forEach((term) => existing.add(term))
+    combinedTermsByAttribute.set(aid, Array.from(existing))
+  }
+
+  baseAttributeIds.forEach((aid) => {
+    addAttribute(aid, baseTermsByAttribute.get(aid) ?? [])
+  })
+  attributeIds.forEach((aid) => {
+    addAttribute(aid, termsByAttribute.get(aid) ?? [])
+  })
+
+  return { attributeIds: combinedAttributeIds, termsByAttribute: combinedTermsByAttribute }
+}
+
 export async function updateMatrixPrices(
   input: UpdateMatrixPricesInput,
   formData: FormData
@@ -319,7 +383,7 @@ export async function updateMatrix(
   const prisma = getPrisma()
   const existingMatrix = await prisma.wpMatrixType.findUnique({
     where: { mtypeId: input.mtypeId },
-    select: { attributes: true },
+    select: { attributes: true, productId: true },
   })
   const title = String(formData.get("title") ?? "").trim()
   const kind = String(formData.get("kind") ?? "simple").trim()
@@ -328,12 +392,16 @@ export async function updateMatrix(
   const aUnitRaw = String(formData.get("aUnit") ?? "").trim()
   const numbers = String(formData.get("numbers") ?? "").trim()
   const termsByAttribute = new Map<string, Set<string>>()
+  const attributeOrder: string[] = []
 
   for (const [key, value] of formData.entries()) {
     if (!key.startsWith("terms:")) continue
     const aid = key.slice("terms:".length)
     const termId = String(value ?? "").trim()
     if (!aid || !termId) continue
+    if (!attributeOrder.includes(aid)) {
+      attributeOrder.push(aid)
+    }
     const set = termsByAttribute.get(aid) ?? new Set<string>()
     set.add(termId)
     termsByAttribute.set(aid, set)
@@ -342,7 +410,9 @@ export async function updateMatrix(
   const numType = Number.isNaN(Number(numTypeRaw)) ? 0 : Number(numTypeRaw)
   const numStyle = Number.isNaN(Number(numStyleRaw)) ? 0 : Number(numStyleRaw)
   const aUnit = aUnitRaw === "cm2" || aUnitRaw === "m2" ? aUnitRaw : null
-  const attributes = Array.from(termsByAttribute.keys())
+  const attributes = attributeOrder.length > 0
+    ? attributeOrder
+    : Array.from(termsByAttribute.keys())
   const atermsEntries = attributes.reduce<Record<string, string[]>>(
     (acc, aid) => {
       acc[aid] = Array.from(termsByAttribute.get(aid) ?? [])
@@ -384,9 +454,31 @@ export async function updateMatrix(
     .filter(Boolean)
     .map((value) => Number(value))
     .filter((value) => !Number.isNaN(value))
-  const termLists = attributes.map((aid) => ({
+  const termsByAttributeList = new Map<string, string[]>()
+  attributes.forEach((aid) => {
+    const terms = Array.from(termsByAttribute.get(aid) ?? [])
+    if (terms.length > 0) {
+      termsByAttributeList.set(aid, terms)
+    }
+  })
+
+  let comboAttributes = attributes
+  let comboTermsByAttribute = termsByAttributeList
+  if (kind === "finishing" && existingMatrix?.productId) {
+    const baseData = await getBaseMatrixTerms(existingMatrix.productId)
+    const combined = buildCombinedTerms(
+      baseData.attributeIds,
+      baseData.termsByAttribute,
+      attributes,
+      termsByAttributeList
+    )
+    comboAttributes = combined.attributeIds
+    comboTermsByAttribute = combined.termsByAttribute
+  }
+
+  const termLists = comboAttributes.map((aid) => ({
     aid,
-    terms: Array.from(termsByAttribute.get(aid) ?? []),
+    terms: comboTermsByAttribute.get(aid) ?? [],
   }))
   const combinations: string[] = []
   const buildCombos = (index: number, current: string[]) => {
@@ -613,9 +705,31 @@ export async function createMatrixPriceRows(input: DeleteMatrixInput) {
     return
   }
 
-  const termLists = attributeIds.map((aid) => ({
+  const termsByAttributeList = new Map<string, string[]>()
+  attributeIds.forEach((aid) => {
+    const terms = toStringArray((atermsMap as Record<string, PhpSerializable>)[aid])
+    if (terms.length > 0) {
+      termsByAttributeList.set(aid, terms)
+    }
+  })
+
+  let comboAttributes = attributeIds
+  let comboTermsByAttribute = termsByAttributeList
+  if (matrix.mtype === 1) {
+    const baseData = await getBaseMatrixTerms(matrix.productId)
+    const combined = buildCombinedTerms(
+      baseData.attributeIds,
+      baseData.termsByAttribute,
+      attributeIds,
+      termsByAttributeList
+    )
+    comboAttributes = combined.attributeIds
+    comboTermsByAttribute = combined.termsByAttribute
+  }
+
+  const termLists = comboAttributes.map((aid) => ({
     aid,
-    terms: toStringArray((atermsMap as Record<string, PhpSerializable>)[aid]),
+    terms: comboTermsByAttribute.get(aid) ?? [],
   }))
 
   const combinations: string[] = []
