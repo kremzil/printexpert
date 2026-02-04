@@ -199,6 +199,40 @@ function buildAttrKey(selection: Record<string, string>, selects: MatrixSelect[]
   return entries.join("-")
 }
 
+function buildSelectionKey(
+  selection: Record<string, string>,
+  selects: MatrixSelect[]
+) {
+  const entries: string[] = []
+  for (const select of selects) {
+    const value = selection[select.aid]
+    if (!value) {
+      return null
+    }
+    entries.push(`${select.aid}:${value}`)
+  }
+  return entries.join("-")
+}
+
+function getMatrixPriceWithFallback(
+  priceMap: Record<string, number>,
+  keyBases: Array<string | null>,
+  nmbVal: number,
+  breakpoints: number[],
+  options?: { scaleBelowMin?: boolean; scaleAboveMax?: boolean }
+) {
+  const unique = Array.from(
+    new Set(keyBases.filter((key): key is string => Boolean(key)))
+  )
+  for (const keyBase of unique) {
+    const price = getMatrixPrice(priceMap, keyBase, nmbVal, breakpoints, options)
+    if (price !== -1) {
+      return price
+    }
+  }
+  return -1
+}
+
 function getMatrixPrice(
   priceMap: Record<string, number>,
   keyBase: string,
@@ -357,6 +391,15 @@ export function PriceCalculatorLetaky({
     return value ? `${sizeSelect.aid}:${value}` : null
   }, [data.matrices, selections])
 
+  const baseSelectionKey = useMemo(() => {
+    const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
+    if (!baseMatrix) {
+      return null
+    }
+    const selection = selections[baseMatrix.mtid] ?? {}
+    return buildSelectionKey(selection, baseMatrix.selects)
+  }, [data.matrices, selections])
+
   const finishingHasSize = useMemo(() => {
     if (!baseSizeEntry) {
       return false
@@ -456,14 +499,22 @@ export function PriceCalculatorLetaky({
           if (!hiddenFinishingPair) {
             return { matrix, price: null, nmbVal: rounded }
           }
-          const keyBase =
-            finishingHasSize && baseSizeEntry
-              ? `${baseSizeEntry}-${hiddenFinishingPair}`
-              : hiddenFinishingPair
-          const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
-            scaleBelowMin,
-            scaleAboveMax: true,
-          })
+          const finishingKey = hiddenFinishingPair
+          const price = getMatrixPriceWithFallback(
+            priceMap,
+            [
+              baseSelectionKey
+                ? `${baseSelectionKey}-${finishingKey}`
+                : null,
+              finishingHasSize && baseSizeEntry
+                ? `${baseSizeEntry}-${finishingKey}`
+                : null,
+              finishingKey,
+            ],
+            rounded,
+            breakpoints,
+            { scaleBelowMin, scaleAboveMax: true }
+          )
           return { matrix, price, nmbVal: rounded }
         }
 
@@ -473,14 +524,22 @@ export function PriceCalculatorLetaky({
           if (!selected) {
             return { matrix, price: null, nmbVal: rounded }
           }
-          const keyBase =
-            finishingHasSize && baseSizeEntry
-              ? `${baseSizeEntry}-${select.aid}:${selected}`
-              : `${select.aid}:${selected}`
-          const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
-            scaleBelowMin,
-            scaleAboveMax: true,
-          })
+          const finishingKey = `${select.aid}:${selected}`
+          const price = getMatrixPriceWithFallback(
+            priceMap,
+            [
+              baseSelectionKey
+                ? `${baseSelectionKey}-${finishingKey}`
+                : null,
+              finishingHasSize && baseSizeEntry
+                ? `${baseSizeEntry}-${finishingKey}`
+                : null,
+              finishingKey,
+            ],
+            rounded,
+            breakpoints,
+            { scaleBelowMin, scaleAboveMax: true }
+          )
           if (price === -1) {
             return { matrix, price: -1, nmbVal: rounded }
           }
@@ -506,6 +565,7 @@ export function PriceCalculatorLetaky({
     data.globals.a_unit,
     data.matrices,
     baseSizeEntry,
+    baseSelectionKey,
     finishingHasSize,
     hiddenFinishingPair,
     selections,
@@ -583,7 +643,14 @@ export function PriceCalculatorLetaky({
       })
 
       if (!priceResponse.ok) {
-        throw new Error("Не удалось рассчитать цену")
+        const payload = await priceResponse
+          .json()
+          .catch(() => null)
+        const message =
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "Не удалось рассчитать цену"
+        throw new Error(message)
       }
 
       const priceResult = await priceResponse.json() as PriceResult

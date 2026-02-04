@@ -1,6 +1,5 @@
 import "server-only";
 
-import { Prisma } from "@/lib/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 type ConsumeRateLimitOptions = {
@@ -57,25 +56,19 @@ export async function consumeRateLimit(
     };
   }
 
-  // 2) Create a new entry (first hit in window).
-  try {
-    await prisma.rateLimitEntry.create({
-      data: { key, count: 1, resetAt },
-    });
+  // 2) Create a new entry (first hit in window), ignore concurrent create.
+  const created = await prisma.rateLimitEntry.createMany({
+    data: [{ key, count: 1, resetAt }],
+    skipDuplicates: true,
+  });
+
+  if (created.count > 0) {
     return {
       allowed: true,
       remaining: Math.max(options.limit - 1, 0),
       resetAt,
       retryAfterSeconds: 0,
     };
-  } catch (error) {
-    // Ignore a concurrent create and continue with the update path.
-    if (
-      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-      error.code !== "P2002"
-    ) {
-      throw error;
-    }
   }
 
   // 3) Increment only if we are still below the limit.
@@ -117,4 +110,3 @@ export async function consumeRateLimit(
     retryAfterSeconds,
   };
 }
-

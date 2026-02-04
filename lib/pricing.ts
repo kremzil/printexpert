@@ -219,6 +219,40 @@ const buildAttrKey = (
   return entries.join("-")
 }
 
+const buildSelectionKey = (
+  selection: Record<string, string>,
+  selects: MatrixSelect[]
+) => {
+  const entries: string[] = []
+  for (const select of selects) {
+    const value = selection[select.aid]
+    if (!value) {
+      return null
+    }
+    entries.push(`${select.aid}:${value}`)
+  }
+  return entries.join("-")
+}
+
+const getMatrixPriceWithFallback = (
+  priceMap: Record<string, number>,
+  keyBases: Array<string | null>,
+  nmbVal: number,
+  breakpoints: number[],
+  options?: { scaleBelowMin?: boolean; scaleAboveMax?: boolean }
+) => {
+  const unique = Array.from(
+    new Set(keyBases.filter((key): key is string => Boolean(key)))
+  )
+  for (const keyBase of unique) {
+    const price = getMatrixPrice(priceMap, keyBase, nmbVal, breakpoints, options)
+    if (price !== -1) {
+      return price
+    }
+  }
+  return -1
+}
+
 const getMatrixPrice = (
   priceMap: Record<string, number>,
   keyBase: string,
@@ -310,6 +344,7 @@ const calculateMatrixTotal = (
   const selectionsByMatrix = params.selections ?? {}
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
 
+  const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
   const baseSizeEntry = (() => {
     const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
     if (!baseMatrix) return null
@@ -322,6 +357,13 @@ const calculateMatrixTotal = (
       selectionsByMatrix[baseMatrix.mtid] ?? getDefaultSelection(baseMatrix.selects)
     const value = selection?.[sizeSelect.aid]
     return value ? `${sizeSelect.aid}:${value}` : null
+  })()
+
+  const baseSelectionKey = (() => {
+    if (!baseMatrix) return null
+    const selection =
+      selectionsByMatrix[baseMatrix.mtid] ?? getDefaultSelection(baseMatrix.selects)
+    return buildSelectionKey(selection, baseMatrix.selects)
   })()
 
   const finishingHasSize = (() => {
@@ -416,11 +458,14 @@ const calculateMatrixTotal = (
         if (!hiddenFinishingPair) {
           return { matrix, price: null, nmbVal: rounded }
         }
-        const keyBase =
+        const keyBases = [
+          baseSelectionKey ? `${baseSelectionKey}-${hiddenFinishingPair}` : null,
           finishingHasSize && baseSizeEntry
             ? `${baseSizeEntry}-${hiddenFinishingPair}`
-            : hiddenFinishingPair
-        const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
+            : null,
+          hiddenFinishingPair,
+        ]
+        const price = getMatrixPriceWithFallback(priceMap, keyBases, rounded, breakpoints, {
           scaleBelowMin,
           scaleAboveMax: true,
         })
@@ -435,11 +480,16 @@ const calculateMatrixTotal = (
         if (!selected) {
           return { matrix, price: null, nmbVal: rounded }
         }
-        const keyBase =
+        const keyBases = [
+          baseSelectionKey
+            ? `${baseSelectionKey}-${select.aid}:${selected}`
+            : null,
           finishingHasSize && baseSizeEntry
             ? `${baseSizeEntry}-${select.aid}:${selected}`
-            : `${select.aid}:${selected}`
-        const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
+            : null,
+          `${select.aid}:${selected}`,
+        ]
+        const price = getMatrixPriceWithFallback(priceMap, keyBases, rounded, breakpoints, {
           scaleBelowMin,
           scaleAboveMax: true,
         })

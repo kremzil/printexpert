@@ -170,12 +170,46 @@ function buildAttrKey(selection: Record<string, string>, selects: { aid: string 
   return entries.join("-")
 }
 
+function buildSelectionKey(
+  selection: Record<string, string>,
+  selects: { aid: string }[]
+) {
+  const entries: string[] = []
+  for (const select of selects) {
+    const value = selection[select.aid]
+    if (!value) {
+      return null
+    }
+    entries.push(`${select.aid}:${value}`)
+  }
+  return entries.join("-")
+}
+
+function getMatrixPriceWithFallback(
+  priceMap: Record<string, number>,
+  keyBases: Array<string | null>,
+  nmbVal: number,
+  breakpoints: number[],
+  options?: { scaleBelowMin?: boolean; scaleAboveMax?: boolean }
+) {
+  const unique = Array.from(
+    new Set(keyBases.filter((key): key is string => Boolean(key)))
+  )
+  for (const keyBase of unique) {
+    const price = getMatrixPrice(priceMap, keyBase, nmbVal, breakpoints, options)
+    if (price !== -1) {
+      return price
+    }
+  }
+  return -1
+}
+
 function getMatrixPrice(
   priceMap: Record<string, number>,
   keyBase: string,
   nmbVal: number,
   breakpoints: number[],
-  options?: { scaleBelowMin?: boolean }
+  options?: { scaleBelowMin?: boolean; scaleAboveMax?: boolean }
 ) {
   if (!breakpoints.length) {
     return -1
@@ -193,8 +227,15 @@ function getMatrixPrice(
     return price
   }
   if (nmbVal >= sorted[sorted.length - 1]) {
-    const price = priceMap[`${keyBase}-${sorted[sorted.length - 1]}`]
-    return Number.isFinite(price) ? price : -1
+    const max = sorted[sorted.length - 1]
+    const price = priceMap[`${keyBase}-${max}`]
+    if (!Number.isFinite(price)) {
+      return -1
+    }
+    if (options?.scaleAboveMax && max > 0) {
+      return price * (nmbVal / max)
+    }
+    return price
   }
 
   let lower = sorted[0]
@@ -317,6 +358,15 @@ export function useWpConfigurator({
     return value ? `${sizeSelect.aid}:${value}` : null
   }, [data.matrices, selections])
 
+  const baseSelectionKey = useMemo(() => {
+    const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
+    if (!baseMatrix) {
+      return null
+    }
+    const selection = selections[baseMatrix.mtid] ?? {}
+    return buildSelectionKey(selection, baseMatrix.selects)
+  }, [data.matrices, selections])
+
   const finishingHasSize = useMemo(() => {
     if (!baseSizeEntry) {
       return false
@@ -426,15 +476,24 @@ export function useWpConfigurator({
           if (!hiddenFinishingPair) {
             return { matrix, price: null }
           }
-          const keyBase =
-            finishingHasSize && baseSizeEntry
-              ? `${baseSizeEntry}-${hiddenFinishingPair}`
-              : hiddenFinishingPair
-          const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
-            scaleBelowMin,
-          })
-          return { matrix, price }
-        }
+          const finishingKey = hiddenFinishingPair
+      const price = getMatrixPriceWithFallback(
+        priceMap,
+        [
+          baseSelectionKey
+            ? `${baseSelectionKey}-${finishingKey}`
+            : null,
+          finishingHasSize && baseSizeEntry
+            ? `${baseSizeEntry}-${finishingKey}`
+            : null,
+          finishingKey,
+        ],
+        rounded,
+        breakpoints,
+        { scaleBelowMin, scaleAboveMax: true }
+      )
+      return { matrix, price }
+    }
 
         let totalPrice = 0
         for (const select of matrix.selects) {
@@ -442,13 +501,22 @@ export function useWpConfigurator({
           if (!selected) {
             return { matrix, price: null }
           }
-          const keyBase =
-            finishingHasSize && baseSizeEntry
-              ? `${baseSizeEntry}-${select.aid}:${selected}`
-              : `${select.aid}:${selected}`
-          const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
-            scaleBelowMin,
-          })
+          const finishingKey = `${select.aid}:${selected}`
+          const price = getMatrixPriceWithFallback(
+            priceMap,
+            [
+              baseSelectionKey
+                ? `${baseSelectionKey}-${finishingKey}`
+                : null,
+              finishingHasSize && baseSizeEntry
+                ? `${baseSizeEntry}-${finishingKey}`
+                : null,
+              finishingKey,
+            ],
+            rounded,
+            breakpoints,
+            { scaleBelowMin, scaleAboveMax: true }
+          )
           if (price === -1) {
             return { matrix, price: -1 }
           }
@@ -462,26 +530,28 @@ export function useWpConfigurator({
       const attrKey = buildAttrKey(selection, matrix.selects)
       const price = getMatrixPrice(priceMap, attrKey, rounded, breakpoints, {
         scaleBelowMin,
+        scaleAboveMax: true,
       })
 
       return { matrix, price }
-      })
+    })
     },
     [
       baseSizeEntry,
       data.globals.fmatrix,
       data.globals.numbers_array,
-      data.globals.smatrix,
-      data.matrices,
-      dimUnit,
-      finishingHasSize,
-      hiddenFinishingPair,
-      minQuantity,
-      quantity,
-      selections,
-      width,
-      height,
-    ]
+    data.globals.smatrix,
+    data.matrices,
+    dimUnit,
+    finishingHasSize,
+    hiddenFinishingPair,
+    minQuantity,
+    quantity,
+    selections,
+    width,
+    height,
+    baseSelectionKey,
+  ]
   )
 
   const perMatrix = useMemo(() => calculatePerMatrix(), [calculatePerMatrix])
@@ -576,7 +646,14 @@ export function useWpConfigurator({
       })
 
       if (!priceResponse.ok) {
-        throw new Error("Nepodarilo sa vypočítať cenu")
+        const payload = await priceResponse
+          .json()
+          .catch(() => null)
+        const message =
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "Nepodarilo sa vypočítať cenu"
+        throw new Error(message)
       }
 
       const priceResult = (await priceResponse.json()) as PriceResult

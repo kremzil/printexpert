@@ -1,24 +1,23 @@
 import "dotenv/config"
-import { PrismaClient } from "@prisma/client"
+import { createRequire } from "node:module"
 
-type PhpSerializable =
-  | string
-  | number
-  | null
-  | PhpSerializableArray
-  | PhpSerializableRecord
+const require = createRequire(import.meta.url)
+const { PrismaClient } = require("../lib/generated/prisma")
+const { PrismaPg } = require("@prisma/adapter-pg")
+const { Pool } = require("pg")
 
-type PhpSerializableArray = PhpSerializable[]
-interface PhpSerializableRecord {
-  [key: string]: PhpSerializable
-}
+const prisma = new PrismaClient({
+  adapter: new PrismaPg(
+    new Pool({
+      connectionString: process.env.DATABASE_URL,
+    })
+  ),
+})
 
-const prisma = new PrismaClient()
-
-const phpUnserialize = (input: string): PhpSerializable => {
+const phpUnserialize = (input) => {
   let idx = 0
 
-  const readUntil = (char: string) => {
+  const readUntil = (char) => {
     const start = idx
     const end = input.indexOf(char, idx)
     if (end === -1) {
@@ -28,7 +27,7 @@ const phpUnserialize = (input: string): PhpSerializable => {
     return input.slice(start, end)
   }
 
-  const parseValue = (): PhpSerializable => {
+  const parseValue = () => {
     const type = input[idx]
     idx += 2
 
@@ -65,7 +64,7 @@ const phpUnserialize = (input: string): PhpSerializable => {
         throw new Error("Invalid array start")
       }
       idx += 1
-      const obj: Record<string, PhpSerializable> = {}
+      const obj = {}
       for (let i = 0; i < count; i += 1) {
         const key = parseValue()
         const value = parseValue()
@@ -90,7 +89,7 @@ const phpUnserialize = (input: string): PhpSerializable => {
   return parseValue()
 }
 
-const toStringArray = (value: PhpSerializable): string[] => {
+const toStringArray = (value) => {
   if (!value) return []
   if (Array.isArray(value)) {
     return value.map((item) => String(item))
@@ -101,9 +100,9 @@ const toStringArray = (value: PhpSerializable): string[] => {
   return []
 }
 
-const parseAterms = (aterms: string) => {
+const parseAterms = (aterms) => {
   const parts = aterms.split("-")
-  const map = new Map<string, string>()
+  const map = new Map()
   parts.forEach((part) => {
     const [aid, termId] = part.split(":")
     if (!aid || !termId) return
@@ -112,25 +111,19 @@ const parseAterms = (aterms: string) => {
   return map
 }
 
-const buildAterms = (
-  attributeOrder: string[],
-  termsByAttribute: Map<string, string>
-) =>
+const buildAterms = (attributeOrder, termsByAttribute) =>
   attributeOrder
     .map((aid) => {
       const term = termsByAttribute.get(aid)
       return term ? `${aid}:${term}` : null
     })
-    .filter((value): value is string => Boolean(value))
+    .filter((value) => Boolean(value))
     .join("-")
 
-const buildCombos = (
-  attributes: string[],
-  termsByAttribute: Map<string, string[]>
-) => {
-  const combos: Map<string, string> = new Map()
+const buildCombos = (attributes, termsByAttribute) => {
+  const combos = new Map()
 
-  const walk = (index: number, current: Map<string, string>) => {
+  const walk = (index, current) => {
     if (index >= attributes.length) {
       combos.set(buildAterms(attributes, current), buildAterms(attributes, current))
       return
@@ -151,6 +144,10 @@ const buildCombos = (
   walk(0, new Map())
   return Array.from(combos.keys()).filter(Boolean)
 }
+
+const isDryRun = process.argv.includes("--dry-run")
+const doCleanup = process.argv.includes("--cleanup")
+const zeroOnly = process.argv.includes("--zero-only")
 
 const main = async () => {
   const finishingMatrices = await prisma.wpMatrixType.findMany({
@@ -176,7 +173,7 @@ const main = async () => {
     orderBy: [{ productId: "asc" }, { sorder: "asc" }],
   })
 
-  const baseByProduct = new Map<number, typeof baseMatrices[number]>()
+  const baseByProduct = new Map()
   baseMatrices.forEach((row) => {
     if (!baseByProduct.has(row.productId)) {
       baseByProduct.set(row.productId, row)
@@ -184,6 +181,8 @@ const main = async () => {
   })
 
   let createdTotal = 0
+  let zeroPriceTotal = 0
+  let cleanedTotal = 0
   let touchedMatrices = 0
 
   for (const matrix of finishingMatrices) {
@@ -192,29 +191,59 @@ const main = async () => {
       continue
     }
 
-    const baseAttributeIds = toStringArray(phpUnserialize(base.attributes || ""))
-    const baseAtermsMap = phpUnserialize(base.aterms || "")
-    if (!baseAttributeIds.length || !baseAtermsMap || typeof baseAtermsMap !== "object" || Array.isArray(baseAtermsMap)) {
+    let baseAttributeIds = []
+    let baseAtermsMap = null
+    try {
+      baseAttributeIds = toStringArray(phpUnserialize(base.attributes || ""))
+      baseAtermsMap = phpUnserialize(base.aterms || "")
+    } catch (error) {
+      console.warn(
+        `Skip matrix ${matrix.mtypeId}: failed to parse base matrix data for product ${matrix.productId}.`,
+        error
+      )
+      continue
+    }
+    if (
+      !baseAttributeIds.length ||
+      !baseAtermsMap ||
+      typeof baseAtermsMap !== "object" ||
+      Array.isArray(baseAtermsMap)
+    ) {
       continue
     }
 
-    const baseTermsByAttribute = new Map<string, string[]>()
+    const baseTermsByAttribute = new Map()
     baseAttributeIds.forEach((aid) => {
-      const terms = toStringArray((baseAtermsMap as Record<string, PhpSerializable>)[aid])
+      const terms = toStringArray(baseAtermsMap[aid])
       if (terms.length > 0) {
         baseTermsByAttribute.set(aid, terms)
       }
     })
 
-    const finishingAttributeIds = toStringArray(phpUnserialize(matrix.attributes))
-    const finishingAtermsMap = phpUnserialize(matrix.aterms)
-    if (!finishingAttributeIds.length || !finishingAtermsMap || typeof finishingAtermsMap !== "object" || Array.isArray(finishingAtermsMap)) {
+    let finishingAttributeIds = []
+    let finishingAtermsMap = null
+    try {
+      finishingAttributeIds = toStringArray(phpUnserialize(matrix.attributes))
+      finishingAtermsMap = phpUnserialize(matrix.aterms)
+    } catch (error) {
+      console.warn(
+        `Skip matrix ${matrix.mtypeId}: failed to parse finishing matrix data.`,
+        error
+      )
+      continue
+    }
+    if (
+      !finishingAttributeIds.length ||
+      !finishingAtermsMap ||
+      typeof finishingAtermsMap !== "object" ||
+      Array.isArray(finishingAtermsMap)
+    ) {
       continue
     }
 
-    const finishingTermsByAttribute = new Map<string, string[]>()
+    const finishingTermsByAttribute = new Map()
     finishingAttributeIds.forEach((aid) => {
-      const terms = toStringArray((finishingAtermsMap as Record<string, PhpSerializable>)[aid])
+      const terms = toStringArray(finishingAtermsMap[aid])
       if (terms.length > 0) {
         finishingTermsByAttribute.set(aid, terms)
       }
@@ -243,6 +272,66 @@ const main = async () => {
     })
 
     if (existingPrices.length === 0) {
+      const breakpoints = (matrix.numbers ?? "")
+        .split(/[|,;\s]+/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => Number(value))
+        .filter((value) => !Number.isNaN(value))
+
+      if (breakpoints.length === 0) {
+        console.warn(
+          `Matrix ${matrix.mtypeId}: skipped zero-price generation (no breakpoints).`
+        )
+        continue
+      }
+
+      const combinedTermsByAttribute = new Map()
+      combinedAttributes.forEach((aid) => {
+        const terms = [
+          ...(baseTermsByAttribute.get(aid) ?? []),
+          ...(finishingTermsByAttribute.get(aid) ?? []),
+        ]
+        if (terms.length > 0) {
+          combinedTermsByAttribute.set(aid, Array.from(new Set(terms)))
+        }
+      })
+
+      const combos = buildCombos(combinedAttributes, combinedTermsByAttribute)
+      if (combos.length === 0) {
+        console.warn(
+          `Matrix ${matrix.mtypeId}: skipped zero-price generation (no combinations).`
+        )
+        continue
+      }
+
+      const rowsToCreate = combos.flatMap((aterms) =>
+        breakpoints.map((number) => ({
+          mtypeId: matrix.mtypeId,
+          aterms,
+          number: BigInt(number),
+          price: "0",
+        }))
+      )
+
+      if (!isDryRun) {
+        await prisma.wpMatrixPrice.createMany({
+          data: rowsToCreate,
+          skipDuplicates: true,
+        })
+      }
+
+      zeroPriceTotal += rowsToCreate.length
+      touchedMatrices += 1
+      console.log(
+        `Matrix ${matrix.mtypeId}: ${isDryRun ? "would create" : "created"} ${
+          rowsToCreate.length
+        } zero-price rows.`
+      )
+      continue
+    }
+
+    if (zeroOnly) {
       continue
     }
 
@@ -250,18 +339,23 @@ const main = async () => {
       existingPrices.map((row) => `${row.aterms}|${row.number.toString()}`)
     )
 
-    const rowsToCreate: { mtypeId: number; aterms: string; number: bigint; price: string }[] = []
+    const rowsToCreate = []
+    const rowsToDelete = []
 
     for (const row of existingPrices) {
       const rowTerms = parseAterms(String(row.aterms))
       const hasAllBase = baseAttributeIds.every((aid) => rowTerms.has(aid))
-      if (hasAllBase) {
+      if (!hasAllBase) {
+        if (doCleanup) {
+          rowsToDelete.push({ aterms: String(row.aterms), number: row.number })
+        }
+      } else {
         continue
       }
 
       for (const baseCombo of baseCombos) {
         const baseTerms = parseAterms(baseCombo)
-        const merged = new Map<string, string>()
+        const merged = new Map()
         combinedAttributes.forEach((aid) => {
           const term = rowTerms.get(aid) ?? baseTerms.get(aid)
           if (term) {
@@ -290,20 +384,55 @@ const main = async () => {
     }
 
     if (rowsToCreate.length > 0) {
-      await prisma.wpMatrixPrice.createMany({
-        data: rowsToCreate,
-        skipDuplicates: true,
-      })
+      if (!isDryRun) {
+        await prisma.wpMatrixPrice.createMany({
+          data: rowsToCreate,
+          skipDuplicates: true,
+        })
+      }
       createdTotal += rowsToCreate.length
       touchedMatrices += 1
       console.log(
-        `Matrix ${matrix.mtypeId}: created ${rowsToCreate.length} rows.`
+        `Matrix ${matrix.mtypeId}: ${isDryRun ? "would create" : "created"} ${
+          rowsToCreate.length
+        } rows.`
+      )
+    }
+
+    if (rowsToDelete.length > 0) {
+      if (doCleanup && !isDryRun) {
+        const chunkSize = 1000
+        for (let i = 0; i < rowsToDelete.length; i += chunkSize) {
+          const chunk = rowsToDelete.slice(i, i + chunkSize)
+          await prisma.wpMatrixPrice.deleteMany({
+            where: {
+              mtypeId: matrix.mtypeId,
+              OR: chunk.map((row) => ({
+                aterms: row.aterms,
+                number: row.number,
+              })),
+            },
+          })
+        }
+      }
+      cleanedTotal += rowsToDelete.length
+      touchedMatrices += 1
+      console.log(
+        `Matrix ${matrix.mtypeId}: ${isDryRun ? "would delete" : "deleted"} ${
+          rowsToDelete.length
+        } incomplete rows.`
       )
     }
   }
 
   console.log(
-    `Done. Matrices updated: ${touchedMatrices}. Rows created: ${createdTotal}.`
+    `Done. Matrices ${isDryRun ? "to update" : "updated"}: ${touchedMatrices}. Rows ${
+      isDryRun ? "to create" : "created"
+    }: ${createdTotal}. Zero-price rows ${
+      isDryRun ? "to create" : "created"
+    }: ${zeroPriceTotal}. Rows ${
+      isDryRun ? "to delete" : "deleted"
+    }: ${cleanedTotal}.`
   )
 }
 
