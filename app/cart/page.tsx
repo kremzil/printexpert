@@ -6,6 +6,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { EmptyCart } from "@/components/print/empty-cart";
 import { getShopVatRate } from "@/lib/shop-settings";
+import { getWpCalculatorData } from "@/lib/wp-calculator";
+
+const parseNumber = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseBreakpoints = (value: string | null | undefined) => {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item));
+};
+
+const getNumbersEntry = (
+  numbersArray: Array<string | null> | Record<string, string | null>,
+  mtid: string
+) => {
+  if (Array.isArray(numbersArray)) {
+    return numbersArray[Number(mtid)] ?? null;
+  }
+  return numbersArray[mtid] ?? null;
+};
 
 export const metadata = {
   title: "Košík",
@@ -24,14 +49,52 @@ async function CartItems() {
     return <EmptyCart mode={mode} />;
   }
 
+  const calculatorCache = new Map<number, Awaited<ReturnType<typeof getWpCalculatorData>>>();
+  const getCalculator = async (wpProductId: number) => {
+    if (calculatorCache.has(wpProductId)) {
+      return calculatorCache.get(wpProductId) ?? null;
+    }
+    const data = await getWpCalculatorData(wpProductId, true);
+    calculatorCache.set(wpProductId, data);
+    return data;
+  };
+
   // Serialize Decimal values for client component
   const serializedCart = {
     ...cart,
-    items: cart.items.map((item) => ({
-      ...item,
-      width: item.width ? Number(item.width) : null,
-      height: item.height ? Number(item.height) : null,
-    })),
+    items: await Promise.all(
+      cart.items.map(async (item) => {
+        let quantityPresets: number[] | undefined;
+        const wpProductId = item.product.wpProductId;
+
+        if (typeof wpProductId === "number") {
+          const calculatorData = await getCalculator(wpProductId);
+          if (calculatorData && calculatorData.matrices.length > 0) {
+            const baseMatrix =
+              calculatorData.matrices.find((matrix) => matrix.kind === "simple") ??
+              calculatorData.matrices[0];
+            const baseNumStyle = parseNumber(baseMatrix?.numStyle) ?? 0;
+            const baseNumType = parseNumber(baseMatrix?.ntp) ?? 0;
+            const baseBreakpoints = parseBreakpoints(
+              getNumbersEntry(calculatorData.globals.numbers_array, baseMatrix.mtid)
+            ).sort((a, b) => a - b);
+            const useQuantitySelect =
+              baseNumStyle === 1 && baseNumType === 0 && baseBreakpoints.length > 0;
+
+            if (useQuantitySelect) {
+              quantityPresets = baseBreakpoints;
+            }
+          }
+        }
+
+        return {
+          ...item,
+          width: item.width ? Number(item.width) : null,
+          height: item.height ? Number(item.height) : null,
+          quantityPresets,
+        };
+      })
+    ),
   };
 
   return <CartContent cart={serializedCart} mode={mode} vatRate={vatRate} />;

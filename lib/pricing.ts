@@ -224,7 +224,7 @@ const getMatrixPrice = (
   keyBase: string,
   nmbVal: number,
   breakpoints: number[],
-  options?: { scaleBelowMin?: boolean }
+  options?: { scaleBelowMin?: boolean; scaleAboveMax?: boolean }
 ) => {
   if (!breakpoints.length) {
     return -1
@@ -242,8 +242,15 @@ const getMatrixPrice = (
     return price
   }
   if (nmbVal >= sorted[sorted.length - 1]) {
-    const price = priceMap[`${keyBase}-${sorted[sorted.length - 1]}`]
-    return Number.isFinite(price) ? price : -1
+    const max = sorted[sorted.length - 1]
+    const price = priceMap[`${keyBase}-${max}`]
+    if (!Number.isFinite(price)) {
+      return -1
+    }
+    if (options?.scaleAboveMax && max > 0) {
+      return price * (nmbVal / max)
+    }
+    return price
   }
 
   let lower = sorted[0]
@@ -415,6 +422,7 @@ const calculateMatrixTotal = (
             : hiddenFinishingPair
         const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
           scaleBelowMin,
+          scaleAboveMax: true,
         })
         return { matrix, price, nmbVal: rounded }
       }
@@ -433,6 +441,7 @@ const calculateMatrixTotal = (
             : `${select.aid}:${selected}`
         const price = getMatrixPrice(priceMap, keyBase, rounded, breakpoints, {
           scaleBelowMin,
+          scaleAboveMax: true,
         })
         if (price === -1) {
           return { matrix, price: -1, nmbVal: rounded }
@@ -448,6 +457,7 @@ const calculateMatrixTotal = (
     const attrKey = buildAttrKey(selection, matrix.selects)
     const price = getMatrixPrice(priceMap, attrKey, rounded, breakpoints, {
       scaleBelowMin,
+      scaleAboveMax: true,
     })
 
     return { matrix, price, nmbVal: rounded }

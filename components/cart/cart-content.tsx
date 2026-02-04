@@ -64,6 +64,25 @@ const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, s
   return attributes as Record<string, string>;
 };
 
+const getNextPreset = (presets: number[], current: number) => {
+  for (const value of presets) {
+    if (value > current) {
+      return value;
+    }
+  }
+  return current;
+};
+
+const getPrevPreset = (presets: number[], current: number) => {
+  for (let i = presets.length - 1; i >= 0; i -= 1) {
+    const value = presets[i];
+    if (value < current) {
+      return value;
+    }
+  }
+  return current;
+};
+
 export function CartContent({ cart: initialCart, mode, vatRate }: CartContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -228,6 +247,22 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
               const itemPrice = item.priceSnapshot?.gross || 0;
               const itemTotal = itemPrice * item.quantity;
               const attributes = getSelectedOptionAttributes(item.selectedOptions);
+              const quantityPresets =
+                item.quantityPresets && item.quantityPresets.length > 0
+                  ? item.quantityPresets
+                  : null;
+              const nextQuantity = quantityPresets
+                ? getNextPreset(quantityPresets, item.quantity)
+                : item.quantity + 1;
+              const prevQuantity = quantityPresets
+                ? getPrevPreset(quantityPresets, item.quantity)
+                : item.quantity - 1;
+              const canDecrease = quantityPresets
+                ? prevQuantity !== item.quantity
+                : item.quantity > 1;
+              const canIncrease = quantityPresets
+                ? nextQuantity !== item.quantity
+                : true;
 
               return (
                 <div
@@ -309,8 +344,12 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                            disabled={isUpdating || item.quantity <= 1}
+                            onClick={() => {
+                              if (prevQuantity !== item.quantity) {
+                                handleUpdateQuantity(item.id, prevQuantity);
+                              }
+                            }}
+                            disabled={isUpdating || !canDecrease}
                             className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-black/10 bg-white transition-colors hover:bg-[#f5f5f7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Minus className="h-4 w-4" />
@@ -323,8 +362,12 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                            disabled={isUpdating}
+                            onClick={() => {
+                              if (nextQuantity !== item.quantity) {
+                                handleUpdateQuantity(item.id, nextQuantity);
+                              }
+                            }}
+                            disabled={isUpdating || !canIncrease}
                             className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-black/10 bg-white transition-colors hover:bg-[#f5f5f7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Plus className="h-4 w-4" />

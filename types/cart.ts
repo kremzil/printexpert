@@ -22,11 +22,13 @@ export interface CartItemWithProduct {
   height: number | null;
   selectedOptions: unknown;
   priceSnapshot: PriceSnapshot | null;
+  quantityPresets?: number[];
   product: {
     id: string;
     name: string;
     slug: string;
     priceType: string;
+    wpProductId?: number | null;
     images: Array<{
       url: string;
       alt: string | null;

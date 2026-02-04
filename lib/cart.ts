@@ -25,6 +25,7 @@ export async function getOrCreateCart(sessionId?: string) {
                 name: true,
                 slug: true,
                 priceType: true,
+                wpProductId: true,
                 images: {
                   where: { isPrimary: true },
                   select: { url: true, alt: true },
@@ -49,6 +50,7 @@ export async function getOrCreateCart(sessionId?: string) {
                   name: true,
                   slug: true,
                   priceType: true,
+                  wpProductId: true,
                   images: {
                     where: { isPrimary: true },
                     select: { url: true, alt: true },
