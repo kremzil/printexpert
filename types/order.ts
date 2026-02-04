@@ -6,13 +6,21 @@ export interface CheckoutData {
   customerEmail: string;
   customerPhone?: string;
   shippingAddress?: {
+    name?: string;
     street: string;
+    apt?: string;
     city: string;
     postalCode: string;
     country: string;
   };
   billingAddress?: {
+    name?: string;
+    companyName?: string;
+    ico?: string;
+    dic?: string;
+    icDph?: string;
     street: string;
+    apt?: string;
     city: string;
     postalCode: string;
     country: string;

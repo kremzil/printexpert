@@ -178,12 +178,15 @@ export function ProfileSection({ mode, initialData, onSave }: ProfileSectionProp
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Názov spoločnosti</label>
+              <label className="mb-1.5 block text-sm font-medium">
+                Názov spoločnosti <span className="text-red-600">*</span>
+              </label>
               <input
                 type="text"
                 value={data.companyName || ""}
                 onChange={(e) => handleChange("companyName", e.target.value)}
                 disabled={!isEditing}
+                required
                 className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
               />
             </div>

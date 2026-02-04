@@ -27,6 +27,19 @@ interface OrderAsset {
   createdAt: string;
 }
 
+type Address = {
+  name?: string;
+  companyName?: string;
+  ico?: string;
+  dic?: string;
+  icDph?: string;
+  street?: string;
+  apt?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+};
+
 const allowedFormatsLabel = "PDF, AI, EPS, TIFF, PNG, JPG";
 const uploadMaxBytes = Number(process.env.NEXT_PUBLIC_UPLOAD_MAX_BYTES ?? "") || 100_000_000;
 
@@ -70,6 +83,23 @@ const assetKindLabels = {
   OTHER: "Iné",
 };
 
+const parseAddress = (value: unknown): Address | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  return value as Address;
+};
+
+const formatStreetLine = (address: Address) => {
+  if (!address.street) return "";
+  return address.apt ? `${address.street}, ${address.apt}` : address.street;
+};
+
+const formatCityLine = (address: Address) => {
+  const parts = [address.postalCode, address.city].filter(Boolean);
+  return parts.join(" ");
+};
+
 export function OrderDetail({ order }: OrderDetailProps) {
   const searchParams = useSearchParams();
   const isSuccess = searchParams.get("success") === "true";
@@ -80,6 +110,8 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const billingAddress = parseAddress(order.billingAddress);
+  const shippingAddress = parseAddress(order.shippingAddress);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -294,6 +326,70 @@ export function OrderDetail({ order }: OrderDetailProps) {
               )}
             </CardContent>
           </Card>
+
+          {(billingAddress || shippingAddress) && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Fakturačné údaje</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {billingAddress ? (
+                    <>
+                      {billingAddress.companyName && (
+                        <div className="font-medium">{billingAddress.companyName}</div>
+                      )}
+                      {billingAddress.name && (
+                        <div className={billingAddress.companyName ? "text-muted-foreground" : "font-medium"}>
+                          {billingAddress.name}
+                        </div>
+                      )}
+                      <div className="text-muted-foreground">
+                        {formatStreetLine(billingAddress)}
+                        <br />
+                        {formatCityLine(billingAddress)}
+                        <br />
+                        {billingAddress.country}
+                      </div>
+                      {(billingAddress.ico || billingAddress.dic || billingAddress.icDph) && (
+                        <div className="pt-2 text-xs text-muted-foreground">
+                          {billingAddress.ico && <div>IČO: {billingAddress.ico}</div>}
+                          {billingAddress.dic && <div>DIČ: {billingAddress.dic}</div>}
+                          {billingAddress.icDph && <div>IČ DPH: {billingAddress.icDph}</div>}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-muted-foreground">Bez fakturačných údajov</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Adresa doručenia</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {shippingAddress ? (
+                    <>
+                      {shippingAddress.name && (
+                        <div className="font-medium">{shippingAddress.name}</div>
+                      )}
+                      <div className="text-muted-foreground">
+                        {formatStreetLine(shippingAddress)}
+                        <br />
+                        {formatCityLine(shippingAddress)}
+                        <br />
+                        {shippingAddress.country}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-muted-foreground">Bez adresy doručenia</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <Card>
             <CardHeader>

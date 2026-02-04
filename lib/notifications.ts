@@ -12,6 +12,14 @@ const statusLabels: Record<OrderStatus, string> = {
 
 let cachedTransport: nodemailer.Transporter | null = null;
 
+type Address = {
+  name?: string | null;
+  street?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  country?: string | null;
+};
+
 function getSmtpTransport(): nodemailer.Transporter {
   if (cachedTransport) {
     return cachedTransport;
@@ -34,6 +42,29 @@ function getSmtpTransport(): nodemailer.Transporter {
 
   return cachedTransport;
 }
+
+const parseAddress = (address: unknown): Address | null => {
+  if (!address || typeof address !== "object") {
+    return null;
+  }
+  return address as Address;
+};
+
+const formatAddressLine = (address: Address | null) => {
+  if (!address) return null;
+  const parts = [address.street, address.postalCode, address.city, address.country]
+    .filter(Boolean)
+    .join(", ");
+  return parts || null;
+};
+
+const formatMoney = (value: unknown) => {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount)) {
+    return "0,00 €";
+  }
+  return `${amount.toFixed(2).replace(".", ",")} €`;
+};
 
 async function createLog(type: NotificationType, orderId: string | null, toEmail: string) {
   try {
@@ -106,16 +137,61 @@ export const NotificationService = {
   async sendOrderCreated(orderId: string) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { orderNumber: true, customerEmail: true, customerName: true },
+      select: {
+        orderNumber: true,
+        customerEmail: true,
+        customerName: true,
+        customerPhone: true,
+        shippingAddress: true,
+        billingAddress: true,
+        subtotal: true,
+        vatAmount: true,
+        total: true,
+        items: {
+          select: {
+            productName: true,
+            quantity: true,
+            priceGross: true,
+          },
+        },
+      },
     });
 
     if (!order?.customerEmail) {
       return false;
     }
 
+    const shippingAddress = formatAddressLine(parseAddress(order.shippingAddress));
+    const billingAddress = formatAddressLine(parseAddress(order.billingAddress));
+    const customerPhone = order.customerPhone ?? "";
+    const itemsText = order.items
+      .map((item) => {
+        const lineTotal = Number(item.priceGross) * item.quantity;
+        return `- ${item.productName} × ${item.quantity} — ${formatMoney(lineTotal)}`;
+      })
+      .join("\n");
+    const itemsHtml = order.items
+      .map((item) => {
+        const lineTotal = Number(item.priceGross) * item.quantity;
+        return `<li>${item.productName} × ${item.quantity} — ${formatMoney(lineTotal)}</li>`;
+      })
+      .join("");
+    const shippingText = shippingAddress
+      ? `\n\nAdresa doručenia:\n${shippingAddress}`
+      : "";
+    const shippingHtml = shippingAddress
+      ? `<p><strong>Adresa doručenia:</strong><br/>${shippingAddress}</p>`
+      : "";
+    const billingText = billingAddress
+      ? `\n\nFakturačná adresa:\n${billingAddress}`
+      : "";
+    const billingHtml = billingAddress
+      ? `<p><strong>Fakturačná adresa:</strong><br/>${billingAddress}</p>`
+      : "";
+
     const subject = `Potvrdenie objednávky #${order.orderNumber}`;
-    const text = `Dobrý deň ${order.customerName},\n\nvaša objednávka #${order.orderNumber} bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.\n\nĎakujeme za dôveru.\nPrint Expert`;
-    const html = `<p>Dobrý deň ${order.customerName},</p><p>vaša objednávka <strong>#${order.orderNumber}</strong> bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.</p><p>Ďakujeme za dôveru.<br/>Print Expert</p>`;
+    const text = `Dobrý deň ${order.customerName},\n\nvaša objednávka #${order.orderNumber} bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.\n\nÚdaje zákazníka:\nMeno: ${order.customerName}\nE-mail: ${order.customerEmail}${customerPhone ? `\nTelefón: ${customerPhone}` : ""}${billingText}${shippingText}\n\nPoložky objednávky:\n${itemsText}\n\nMedzisúčet: ${formatMoney(order.subtotal)}\nDPH: ${formatMoney(order.vatAmount)}\nCelkom: ${formatMoney(order.total)}\n\nĎakujeme za dôveru.\nPrint Expert`;
+    const html = `<p>Dobrý deň ${order.customerName},</p><p>vaša objednávka <strong>#${order.orderNumber}</strong> bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.</p><p><strong>Údaje zákazníka:</strong><br/>Meno: ${order.customerName}<br/>E-mail: ${order.customerEmail}${customerPhone ? `<br/>Telefón: ${customerPhone}` : ""}</p>${billingHtml}${shippingHtml}<p><strong>Položky objednávky:</strong></p><ul>${itemsHtml}</ul><p><strong>Medzisúčet:</strong> ${formatMoney(order.subtotal)}<br/><strong>DPH:</strong> ${formatMoney(order.vatAmount)}<br/><strong>Celkom:</strong> ${formatMoney(order.total)}</p><p>Ďakujeme za dôveru.<br/>Print Expert</p>`;
 
     return sendWithLog({
       type: NotificationType.ORDER_CREATED,

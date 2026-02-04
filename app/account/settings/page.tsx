@@ -25,21 +25,28 @@ async function ProfileContent() {
   const prisma = getPrisma()
   const audienceContext = await resolveAudienceContext()
   
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-    },
-  })
+  const [user, companyProfile] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+      },
+    }),
+    prisma.companyProfile.findUnique({
+      where: { userId: session.user.id },
+    }),
+  ])
 
   if (!user) {
     redirect("/auth")
   }
 
   const { firstName, lastName } = splitFullName(user.name)
+
+  const isB2b = audienceContext.mode === "b2b"
 
   const handleSaveProfile = async (data: ProfileData) => {
     "use server"
@@ -57,6 +64,35 @@ async function ProfileContent() {
         email: data.email,
       },
     })
+
+    const normalize = (value?: string | null) => {
+      const trimmed = (value ?? "").trim()
+      return trimmed ? trimmed : null
+    }
+
+    if (isB2b) {
+      const normalizedCompanyName = normalize(data.companyName)
+      if (!normalizedCompanyName) {
+        throw new Error("Názov spoločnosti je povinný.")
+      }
+
+      await prisma.companyProfile.upsert({
+        where: { userId: session.user.id },
+        create: {
+          userId: session.user.id,
+          companyName: normalizedCompanyName,
+          ico: normalize(data.ico),
+          dic: normalize(data.dic),
+          icDph: normalize(data.icDph),
+        },
+        update: {
+          companyName: normalizedCompanyName,
+          ico: normalize(data.ico),
+          dic: normalize(data.dic),
+          icDph: normalize(data.icDph),
+        },
+      })
+    }
   }
 
   return (
@@ -75,10 +111,10 @@ async function ProfileContent() {
           lastName,
           email: user.email || "",
           phone: "",
-          companyName: "",
-          ico: "",
-          dic: "",
-          icDph: "",
+          companyName: companyProfile?.companyName ?? "",
+          ico: companyProfile?.ico ?? "",
+          dic: companyProfile?.dic ?? "",
+          icDph: companyProfile?.icDph ?? "",
           position: "",
         }}
         onSave={handleSaveProfile}

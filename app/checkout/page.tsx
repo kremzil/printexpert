@@ -7,6 +7,8 @@ import { CheckoutForm } from "@/components/cart/checkout-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { ChevronLeft } from "lucide-react";
+import { auth } from "@/auth";
+import { getPrisma } from "@/lib/prisma";
 
 export const metadata = {
   title: "Pokladňa",
@@ -32,7 +34,101 @@ async function CheckoutContent({ mode }: { mode: "b2b" | "b2c" }) {
     })),
   };
 
-  return <CheckoutForm cart={serializedCart} mode={mode} />;
+  const session = await auth();
+  const prisma = getPrisma();
+  let initialBillingData: {
+    companyName: string;
+    ico: string;
+    dic: string;
+    icDph: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    street: string;
+    apt: string;
+    city: string;
+    zipCode: string;
+    country: string;
+  } | null = null;
+  let savedAddresses: Array<{
+    id: string;
+    label: string;
+    street: string;
+    apt: string | null;
+    city: string;
+    zipCode: string;
+    country: string;
+    isDefault: boolean;
+  }> = [];
+
+  if (session?.user?.id) {
+    const splitFullName = (fullName?: string | null) => {
+      const normalized = (fullName ?? "").trim();
+      if (!normalized) {
+        return { firstName: "", lastName: "" };
+      }
+      const parts = normalized.split(/\s+/);
+      const [firstName, ...rest] = parts;
+      return { firstName, lastName: rest.join(" ") };
+    };
+
+    const [user, companyProfile, addresses] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, email: true },
+      }),
+      prisma.companyProfile.findUnique({
+        where: { userId: session.user.id },
+      }),
+      prisma.userAddress.findMany({
+        where: { userId: session.user.id },
+        orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+        select: {
+          id: true,
+          label: true,
+          street: true,
+          apt: true,
+          city: true,
+          zipCode: true,
+          country: true,
+          isDefault: true,
+        },
+      }),
+    ]);
+
+    const { firstName, lastName } = splitFullName(
+      user?.name ?? session.user.name
+    );
+    const defaultAddress = addresses.find((address) => address.isDefault) ?? addresses[0];
+
+    initialBillingData = {
+      companyName: companyProfile?.companyName ?? "",
+      ico: companyProfile?.ico ?? "",
+      dic: companyProfile?.dic ?? "",
+      icDph: companyProfile?.icDph ?? "",
+      firstName,
+      lastName,
+      email: user?.email ?? session.user.email ?? "",
+      phone: "",
+      street: defaultAddress?.street ?? "",
+      apt: defaultAddress?.apt ?? "",
+      city: defaultAddress?.city ?? "",
+      zipCode: defaultAddress?.zipCode ?? "",
+      country: defaultAddress?.country ?? "SK",
+    };
+
+    savedAddresses = addresses;
+  }
+
+  return (
+    <CheckoutForm
+      cart={serializedCart}
+      mode={mode}
+      initialBillingData={initialBillingData}
+      savedAddresses={savedAddresses}
+    />
+  );
 }
 
 export default function CheckoutPage() {

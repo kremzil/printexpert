@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -30,10 +30,39 @@ import { getCsrfHeader } from "@/lib/csrf";
 interface CheckoutFormProps {
   cart: CartData;
   mode: CustomerMode;
+  initialBillingData?: Partial<CheckoutBillingData> | null;
+  savedAddresses?: SavedAddress[];
 }
 
 type PendingOrderUpload = {
   file: File;
+};
+
+type SavedAddress = {
+  id: string;
+  label: string;
+  street: string;
+  apt?: string | null;
+  city: string;
+  zipCode: string;
+  country: string;
+  isDefault?: boolean | null;
+};
+
+type CheckoutBillingData = {
+  companyName: string;
+  ico: string;
+  dic: string;
+  icDph: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  street: string;
+  apt: string;
+  city: string;
+  zipCode: string;
+  country: string;
 };
 
 declare global {
@@ -141,7 +170,33 @@ const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, s
   return attributes as Record<string, string>;
 };
 
-export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
+const formatStreetLine = (street: string, apt?: string) =>
+  apt ? `${street}, ${apt}` : street;
+
+const buildBillingData = (
+  initial?: Partial<CheckoutBillingData> | null
+): CheckoutBillingData => ({
+  companyName: initial?.companyName ?? "",
+  ico: initial?.ico ?? "",
+  dic: initial?.dic ?? "",
+  icDph: initial?.icDph ?? "",
+  firstName: initial?.firstName ?? "",
+  lastName: initial?.lastName ?? "",
+  email: initial?.email ?? "",
+  phone: initial?.phone ?? "",
+  street: initial?.street ?? "",
+  apt: initial?.apt ?? "",
+  city: initial?.city ?? "",
+  zipCode: initial?.zipCode ?? "",
+  country: initial?.country ?? "SK",
+});
+
+export function CheckoutForm({
+  cart,
+  mode,
+  initialBillingData,
+  savedAddresses = [],
+}: CheckoutFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -151,31 +206,38 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"bank" | "stripe">("bank");
   const isPreparingRef = useRef(false);
-  const [billingData, setBillingData] = useState({
-    companyName: "",
-    ico: "",
-    dic: "",
-    icDph: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    street: "",
-    city: "",
-    zipCode: "",
-    country: "SK",
-  });
+  const initialBilling = buildBillingData(initialBillingData);
+  const defaultSavedAddress =
+    savedAddresses.find((address) => address.isDefault) ?? savedAddresses[0];
+  const [billingData, setBillingData] = useState<CheckoutBillingData>(
+    initialBilling
+  );
   const [deliveryDifferent, setDeliveryDifferent] = useState(false);
   const [deliveryData, setDeliveryData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    street: "",
-    city: "",
-    zipCode: "",
-    country: "SK",
+    firstName: initialBilling.firstName,
+    lastName: initialBilling.lastName,
+    email: initialBilling.email,
+    phone: initialBilling.phone,
+    street: defaultSavedAddress?.street ?? "",
+    apt: defaultSavedAddress?.apt ?? "",
+    city: defaultSavedAddress?.city ?? "",
+    zipCode: defaultSavedAddress?.zipCode ?? "",
+    country: defaultSavedAddress?.country ?? initialBilling.country ?? "SK",
   });
+  const [selectedDeliveryAddressId, setSelectedDeliveryAddressId] = useState(
+    defaultSavedAddress?.id ?? ""
+  );
+  const hasSavedAddresses = savedAddresses.length > 0;
+  const hasMultipleSavedAddresses = savedAddresses.length > 1;
+  const formatSavedAddressDetails = (address?: SavedAddress) => {
+    if (!address) return "";
+    const streetLine = address.apt ? `${address.street}, ${address.apt}` : address.street;
+    return `${streetLine}, ${address.zipCode} ${address.city}`;
+  };
+  const formatSavedAddressLabel = (address?: SavedAddress) => {
+    if (!address) return "";
+    return `${address.label} – ${formatSavedAddressDetails(address)}`;
+  };
   const [notes, setNotes] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -190,23 +252,28 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
   const steps =
     mode === "b2c"
       ? [
-          { number: 1, title: "Kontakt", description: "Fakturačné údaje" },
-          { number: 2, title: "Doručenie", description: "Adresa doručenia" },
-          { number: 3, title: "Platba", description: "Spôsob platby" },
-          { number: 4, title: "Dokončenie", description: "Kontrola a potvrdenie" },
+          {
+            number: 1,
+            title: "Kontakt a doručenie",
+            description: "Kontaktné údaje a doručenie",
+          },
+          { number: 2, title: "Platba", description: "Spôsob platby" },
+          { number: 3, title: "Dokončenie", description: "Kontrola a potvrdenie" },
         ]
       : [
           { number: 1, title: "Prezeranie", description: "Kontrola košíka" },
-          { number: 2, title: "Fakturácia", description: "Firemné údaje" },
-          { number: 3, title: "Doručenie", description: "Adresa dodania" },
-          { number: 4, title: "Platba", description: "Spôsob úhrady" },
-          { number: 5, title: "Dokončenie", description: "Potvrdenie" },
+          {
+            number: 2,
+            title: "Fakturácia a doručenie",
+            description: "Firemné údaje a adresa",
+          },
+          { number: 3, title: "Platba", description: "Spôsob úhrady" },
+          { number: 4, title: "Dokončenie", description: "Potvrdenie" },
         ];
 
-  const billingStep = mode === "b2c" ? 1 : 2;
-  const deliveryStep = mode === "b2c" ? 2 : 3;
-  const paymentStep = mode === "b2c" ? 3 : 4;
-  const reviewStep = mode === "b2c" ? 4 : 5;
+  const infoStep = mode === "b2c" ? 1 : 2;
+  const paymentStep = mode === "b2c" ? 2 : 3;
+  const reviewStep = mode === "b2c" ? 3 : 4;
 
   const handleBillingChange = (field: string, value: string) => {
     setBillingData((prev) => ({ ...prev, [field]: value }));
@@ -216,6 +283,36 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
     setDeliveryData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const applySavedAddress = useCallback((address: SavedAddress) => {
+    setDeliveryData((prev) => ({
+      ...prev,
+      street: address.street,
+      apt: address.apt ?? "",
+      city: address.city,
+      zipCode: address.zipCode,
+      country: address.country,
+    }));
+  }, []);
+
+  const handleSelectSavedAddress = (value: string) => {
+    setSelectedDeliveryAddressId(value);
+    const selected = savedAddresses.find((address) => address.id === value);
+    if (selected) {
+      applySavedAddress(selected);
+    }
+  };
+
+  useEffect(() => {
+    if (!deliveryDifferent) return;
+    setDeliveryData((prev) => ({
+      ...prev,
+      firstName: prev.firstName || billingData.firstName,
+      lastName: prev.lastName || billingData.lastName,
+      email: prev.email || billingData.email,
+      phone: prev.phone || billingData.phone,
+    }));
+  }, [billingData, deliveryDifferent]);
+
   const customerName = `${billingData.firstName} ${billingData.lastName}`.trim();
   const customerEmail = billingData.email.trim();
   const customerPhone = billingData.phone.trim();
@@ -224,19 +321,60 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
     billingData.firstName.trim() &&
     billingData.lastName.trim() &&
     billingData.email.trim() &&
+    billingData.phone.trim() &&
     billingData.street.trim() &&
     billingData.city.trim() &&
     billingData.zipCode.trim() &&
+    billingData.country.trim() &&
     (mode === "b2b"
       ? billingData.companyName.trim() && billingData.ico.trim() && billingData.dic.trim()
       : true);
   const canProceedFromDelivery = deliveryDifferent
-    ? deliveryData.street.trim() &&
+    ? deliveryData.firstName.trim() &&
+      deliveryData.lastName.trim() &&
+      deliveryData.email.trim() &&
+      deliveryData.phone.trim() &&
+      deliveryData.street.trim() &&
       deliveryData.city.trim() &&
-      deliveryData.zipCode.trim()
-    : true;
+      deliveryData.zipCode.trim() &&
+      deliveryData.country.trim()
+      : true;
 
   const createOrderAndUpload = useCallback(async () => {
+    const deliverySource = deliveryDifferent
+      ? deliveryData
+      : {
+          firstName: billingData.firstName,
+          lastName: billingData.lastName,
+          email: billingData.email,
+          phone: billingData.phone,
+          street: billingData.street,
+          apt: billingData.apt,
+          city: billingData.city,
+          zipCode: billingData.zipCode,
+          country: billingData.country,
+        };
+
+    const billingAddressPayload = {
+      name: customerName || billingData.companyName,
+      companyName: billingData.companyName || undefined,
+      ico: billingData.ico || undefined,
+      dic: billingData.dic || undefined,
+      icDph: billingData.icDph || undefined,
+      street: formatStreetLine(billingData.street, billingData.apt),
+      postalCode: billingData.zipCode,
+      city: billingData.city,
+      country: billingData.country,
+    };
+
+    const shippingAddressPayload = {
+      name: `${deliverySource.firstName} ${deliverySource.lastName}`.trim(),
+      street: formatStreetLine(deliverySource.street, deliverySource.apt),
+      postalCode: deliverySource.zipCode,
+      city: deliverySource.city,
+      country: deliverySource.country,
+    };
+
     const deliveryDetails = deliveryDifferent
       ? [
           "Adresa doručenia:",
@@ -246,6 +384,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
           deliveryData.email ? `Email: ${deliveryData.email}` : null,
           deliveryData.phone ? `Telefón: ${deliveryData.phone}` : null,
           deliveryData.street ? `Ulica: ${deliveryData.street}` : null,
+          deliveryData.apt ? `Apartmán / byt: ${deliveryData.apt}` : null,
           deliveryData.city ? `Mesto: ${deliveryData.city}` : null,
           deliveryData.zipCode ? `PSČ: ${deliveryData.zipCode}` : null,
           deliveryData.country ? `Krajina: ${deliveryData.country}` : null,
@@ -268,6 +407,8 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
       customerName,
       customerEmail,
       customerPhone,
+      billingAddress: billingAddressPayload,
+      shippingAddress: shippingAddressPayload,
       notes: [notes.trim(), extraNotes].filter(Boolean).join("\n\n"),
     };
 
@@ -518,34 +659,68 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
           </Card>
         )}
 
-        {currentStep === billingStep && (
-          <AddressForm
-            mode={mode}
-            title={mode === "b2c" ? "Kontaktné a fakturačné údaje" : "Fakturačné údaje"}
-            showCompanyFields={mode === "b2b"}
-            values={billingData}
-            onChange={handleBillingChange}
-          />
-        )}
-
-        {currentStep === deliveryStep && (
+        {currentStep === infoStep && (
           <>
+            <AddressForm
+              mode={mode}
+              title={mode === "b2c" ? "Kontaktné a fakturačné údaje" : "Fakturačné údaje"}
+              showCompanyFields={mode === "b2b"}
+              values={billingData}
+              onChange={handleBillingChange}
+            />
+
             <Card className="p-6">
-              <div className="mb-4 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="different-delivery"
                   checked={deliveryDifferent}
-                  onChange={(event) => setDeliveryDifferent(event.target.checked)}
+                  onChange={(event) => {
+                    const nextValue = event.target.checked;
+                    setDeliveryDifferent(nextValue);
+                    if (nextValue && defaultSavedAddress) {
+                      setSelectedDeliveryAddressId(defaultSavedAddress.id);
+                      applySavedAddress(defaultSavedAddress);
+                    }
+                  }}
                   className="h-4 w-4 rounded border-border"
                 />
                 <label htmlFor="different-delivery" className="text-sm font-medium">
-                  {mode === "b2c"
-                    ? "Doručiť na inú adresu"
-                    : "Adresa dodania je iná ako fakturačná"}
+                  Doručiť na inú adresu
                 </label>
               </div>
             </Card>
+
+            {deliveryDifferent && hasSavedAddresses && (
+              <Card className="p-6">
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold">Uložené adresy</div>
+                  {hasMultipleSavedAddresses ? (
+                    <select
+                      value={selectedDeliveryAddressId}
+                      onChange={(event) => handleSelectSavedAddress(event.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {savedAddresses.map((address) => (
+                        <option key={address.id} value={address.id}>
+                          {formatSavedAddressLabel(address)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-sm">
+                      <div className="font-medium">{savedAddresses[0]?.label}</div>
+                      <div className="text-muted-foreground">
+                        {formatSavedAddressDetails(savedAddresses[0])}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Adresu môžete upraviť aj ručne v nasledujúcom formulári.
+                  </p>
+                </div>
+              </Card>
+            )}
 
             {deliveryDifferent && (
               <AddressForm
@@ -622,7 +797,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
               billingAddress={{
                 companyName: billingData.companyName,
                 name: customerName,
-                street: billingData.street,
+                street: formatStreetLine(billingData.street, billingData.apt),
                 city: billingData.city,
                 zipCode: billingData.zipCode,
                 country: billingData.country,
@@ -631,7 +806,7 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
                 deliveryDifferent
                   ? {
                       name: `${deliveryData.firstName} ${deliveryData.lastName}`.trim(),
-                      street: deliveryData.street,
+                      street: formatStreetLine(deliveryData.street, deliveryData.apt),
                       city: deliveryData.city,
                       zipCode: deliveryData.zipCode,
                       country: deliveryData.country,
@@ -640,9 +815,9 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
               }
               onEditStep={handleEditStep}
               editSteps={{
-                items: mode === "b2c" ? billingStep : 1,
-                shipping: deliveryStep,
-                billing: billingStep,
+                items: mode === "b2c" ? infoStep : 1,
+                shipping: infoStep,
+                billing: infoStep,
                 payment: paymentStep,
               }}
             />
@@ -697,11 +872,11 @@ export function CheckoutForm({ cart, mode }: CheckoutFormProps) {
               type="button"
               className="flex-1"
               onClick={() => {
-                if (currentStep === billingStep && !canProceedFromBilling) {
+                if (currentStep === infoStep && !canProceedFromBilling) {
                   setError("Vyplňte povinné údaje.");
                   return;
                 }
-                if (currentStep === deliveryStep && !canProceedFromDelivery) {
+                if (currentStep === infoStep && !canProceedFromDelivery) {
                   setError("Vyplňte adresu doručenia.");
                   return;
                 }

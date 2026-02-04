@@ -17,6 +17,7 @@ interface AddressFormProps {
     email: string
     phone: string
     street: string
+    apt?: string
     city: string
     zipCode: string
     country: string
@@ -174,6 +175,19 @@ export function AddressForm({
             placeholder="Hlavná 123"
             className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">
+            Apartmán / byt
+          </label>
+          <input
+            type="text"
+            value={values.apt || ""}
+            onChange={(event) => onChange("apt", event.target.value)}
+            placeholder="12B"
+            className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
