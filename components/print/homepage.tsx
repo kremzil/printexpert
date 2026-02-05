@@ -92,15 +92,9 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           },
           {
             number: 3,
-            icon: CheckCircle,
-            title: "Kontrola a schválenie",
-            description: "Skontrolujeme vaše súbory zadarmo",
-          },
-          {
-            number: 4,
             icon: Truck,
             title: "Doručenie",
-            description: "Expedícia do 24-48 hodín",
+            description: "Expresná expedícia do 48 hodín",
           },
         ]
       : [
@@ -119,8 +113,8 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           {
             number: 3,
             icon: CheckCircle,
-            title: "Prepress služby",
-            description: "Profesionálna príprava súborov",
+            title: "Príprava podkladov",
+            description: "Profesionálna príprava podkladov",
           },
           {
             number: 4,
@@ -227,7 +221,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
                 <h2 className="text-3xl font-bold md:text-4xl">
                   {mode === "b2c"
                     ? "Bestsellery"
-                    : "Najpredávanejšie B2B produkty"}
+                    : "Najpredávanejšie produkty pre firmy"}
                 </h2>
               </div>
               <Link
@@ -254,7 +248,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
             </h2>
             <p className="mx-auto max-w-2xl text-muted-foreground">
               {mode === "b2c"
-                ? "Jednoduché objednávanie v 4 krokoch - od výberu po doručenie"
+                ? "Jednoduché objednávanie v 3 krokoch - od výberu po doručenie"
                 : "Profesionálny prístup ku každému B2B klientovi"}
             </p>
           </div>
@@ -271,7 +265,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
                 Prečo Printexpert?
               </h2>
               <p className="mx-auto max-w-2xl text-muted-foreground">
-                Kvalita, rýchlosť a spoľahlivosť na ktorú sa môžete spoľahnúť
+                Kvalita, rýchlosť a spoľahlivosť, na ktorú sa môžete spoľahnúť
               </p>
             </div>
 
@@ -296,7 +290,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
                     {
                       icon: FileText,
                       title: "Prémiové materiály",
-                      description: "Len overené dodávatelia",
+                      description: "Len overení dodávatelia",
                     },
                   ]
                 : [
@@ -406,7 +400,7 @@ function HeroSection({
               style={{ backgroundColor: modeAccent, color: modeColor }}
             >
               {isB2C
-                ? "✨ Expresné dodanie do 24 hodín"
+                ? "✨ Expresná výroba do 48 hodín"
                 : "💼 Profesionálne B2B riešenia"}
             </div>
 
@@ -420,7 +414,7 @@ function HeroSection({
             <p className="text-lg text-muted-foreground md:text-xl">
               {isB2C
                 ? "Od vizitiek po veľkoformátové plagáty. Vysoká kvalita, nízke ceny a dodanie už do 24 hodín. Objednajte online za pár kliknutí."
-                : "Komplexné tlačové riešenia pre firmy. Osobný manažér, objemové zľavy, faktúry, archivácia podkladov a flexibilná logistika."}
+                : "Komplexné tlačové riešenia pre firmy. Osobný manažér, objemové zľavy, fakturácia, archivácia podkladov a flexibilná logistika."}
             </p>
 
             <div className="flex flex-wrap gap-4">
@@ -579,8 +573,10 @@ function ProcessSteps({
   modeColor: string
   modeAccent: string
 }) {
+  const gridColsClass = steps.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"
+
   return (
-    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+    <div className={`grid gap-8 md:grid-cols-2 ${gridColsClass}`}>
       {steps.map((step, index) => {
         const Icon = step.icon
         return (
@@ -744,7 +740,7 @@ function CTASection({
 
       <div className="relative text-white">
         <div className="grid items-center gap-12 lg:grid-cols-2">
-          <div>
+          <div className="ml-6">
             <h2 className="mb-4 text-3xl font-bold md:text-4xl lg:text-5xl">
               Potrebujete B2B tlačové riešenie?
             </h2>

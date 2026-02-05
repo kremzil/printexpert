@@ -14,6 +14,7 @@ interface ModeSelectionCardProps {
   features: string[]
   icon: LucideIcon
   image: string
+  ctaLabel?: string
   onSelect: () => void
   isPending?: boolean
 }
@@ -26,6 +27,7 @@ export function ModeSelectionCard({
   features,
   icon: Icon,
   image,
+  ctaLabel,
   onSelect,
   isPending = false,
 }: ModeSelectionCardProps) {
@@ -87,7 +89,7 @@ export function ModeSelectionCard({
             disabled={isPending}
             className="w-full py-4 text-center font-semibold hover:shadow-lg"
           >
-            Vybrať {title}
+            {ctaLabel ?? `Vybrať ${title}`}
           </ModeButton>
         </div>
       </div>

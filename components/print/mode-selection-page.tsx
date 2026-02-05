@@ -22,11 +22,11 @@ export function ModeSelectionPage() {
 
   const b2cFeatures = [
     "Online konfigurátor produktov",
-    "Expresné dodanie do 24 hodín",
     "Ceny s DPH hneď viditeľné",
-    "Jednoduché a rýchle objednávanie",
-    "Kontrola súborov v cene",
-    "Osobný odber alebo kuriér",
+    "Online platba",
+    "Expresná výroba (vybrané produkty do 24 hodín)",
+    "Archivácia podkladov",
+    "Doručenie kuriérom alebo osobný odber",
   ]
 
   const b2bFeatures = [
@@ -37,7 +37,6 @@ export function ModeSelectionPage() {
     "Archivácia podkladov",
     "Flexibilná logistika a splatnosť",
   ]
-
 
   const handleModeSelected = (mode: CustomerMode) => {
     if (isPending) return
@@ -63,15 +62,15 @@ export function ModeSelectionPage() {
 
   return (
     <div className="w-full">
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-        <div className="container-main py-12 md:py-20">
+      <div className="min-h-screen ">
+        <div className="container-main flex flex-col gap-6 md:gap-10 py-12">
           <div className="mb-16 text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-              <Sparkles className="h-4 w-4" />
-              Vitajte na Printexpert.sk
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-medium  text-primary">
+              <Sparkles className="h-4 w-4  text-orange-500 animate-pulse" />
+              Tlač online • rýchlo • spoľahlivo
             </div>
 
-            <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
+            <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-8xl">
               Vyberte si režim
               <br />
               <span className="bg-gradient-to-r from-red-600 via-orange-600 to-blue-600 bg-clip-text text-transparent">
@@ -80,64 +79,34 @@ export function ModeSelectionPage() {
             </h1>
 
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-              Či už ste individuálny zákazník alebo firma, máme pre vás
-              optimalizované riešenie s príslušnými výhodami a službami.
+              Vyberte si režim podľa toho, či nakupujete ako súkromná osoba
+              alebo firma — prispôsobíme ceny, fakturáciu a podporu.
             </p>
-          </div>
-
-          <div className="mx-auto mb-12 grid max-w-4xl gap-4 md:grid-cols-2">
-            <div className="rounded-xl border-2 border-red-200 bg-red-50/50 p-6">
-              <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600 text-white">
-                  <ShoppingBag className="h-5 w-5" />
-                </div>
-                <h3 className="font-semibold">Vyberte B2C ak:</h3>
-              </div>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Nakupujete ako súkromná osoba</li>
-                <li>• Potrebujete menšie množstvá</li>
-                <li>• Chcete rýchle a jednoduché objednanie</li>
-                <li>• Uprednostňujete online platbu</li>
-              </ul>
-            </div>
-
-            <div className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-6">
-              <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                  <Briefcase className="h-5 w-5" />
-                </div>
-                <h3 className="font-semibold">Vyberte B2B ak:</h3>
-              </div>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Nakupujete ako firma alebo živnostník</li>
-                <li>• Potrebujete väčšie objemy</li>
-                <li>• Chcete osobnú podporu a poradenstvo</li>
-                <li>• Potrebujete faktúry a odloženú platbu</li>
-              </ul>
-            </div>
           </div>
 
           <div className="mx-auto mb-12 grid max-w-6xl gap-8 lg:grid-cols-2">
             <ModeSelectionCard
               mode="b2c"
-              title="B2C Režim"
-              subtitle="Pre individuálnych zákazníkov"
-              description="Rýchle a jednoduché objednávanie s expresným dodaním. Ideálne pre súkromné osoby a menšie objemy."
+              title="Súkromne"
+              subtitle="Pre súkromné osoby"
+              description="Rýchly online nákup s jasnými cenami s DPH. Ideálne pre menšie množstvá."
               features={b2cFeatures}
               icon={ShoppingBag}
-              image="https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&q=80"
+              image="/images/mode-selection/b2c.jpg"
+              ctaLabel="Pokračovať súkromne"
               onSelect={() => handleModeSelected("b2c")}
               isPending={isPending}
             />
 
             <ModeSelectionCard
               mode="b2b"
-              title="B2B Režim"
+              title="Firemne"
               subtitle="Pre firmy a živnostníkov"
-              description="Profesionálne služby s osobným prístupom. Objemové zľavy, fakturácia a flexibilná logistika."
+              description="Fakturácia, ceny bez DPH a objemové zľavy. Osobná podpora a flexibilná logistika."
               features={b2bFeatures}
               icon={Briefcase}
-              image="https://images.unsplash.com/photo-1664575602276-acd073f104c1?w=800&q=80"
+              image="/images/mode-selection/b2b.jpg"
+              ctaLabel="Pokračovať firemne"
               onSelect={() => handleModeSelected("b2b")}
               isPending={isPending}
             />
@@ -146,7 +115,7 @@ export function ModeSelectionPage() {
 
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 text-center">
-              <h2 className="mb-2 text-2xl font-bold md:text-3xl">
+              <h2 className="mb-2 text-2xl font-bold md:text-4xl">
                 Výhody pre všetkých
               </h2>
               <p className="text-muted-foreground">
@@ -187,7 +156,7 @@ export function ModeSelectionPage() {
                 </div>
                 <h3 className="mb-2 font-semibold">Kontrola súborov</h3>
                 <p className="text-sm text-muted-foreground">
-                  Profesionálna kontrola podkladov v cene
+                  Profesionálna kontrola podkladov
                 </p>
               </div>
 
@@ -197,7 +166,7 @@ export function ModeSelectionPage() {
                     <Headphones className="h-7 w-7 text-orange-600" />
                   </div>
                 </div>
-                <h3 className="mb-2 font-semibold">Podpora 24/7</h3>
+                <h3 className="mb-2 font-semibold">Zákaznícka podpora</h3>
                 <p className="text-sm text-muted-foreground">
                   Online chat a emailová podpora kedykoľvek
                 </p>

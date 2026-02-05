@@ -43,7 +43,7 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
 
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+      <div className="relative aspect-square overflow-hidden bg-muted">
         {primaryImage?.url ? (
           <Image
             src={primaryImage.url}
