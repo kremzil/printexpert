@@ -11,7 +11,15 @@ async function getOrder(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      items: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              priceType: true,
+            },
+          },
+        },
+      },
       statusHistory: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -49,8 +57,9 @@ async function getOrder(orderId: string) {
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
-    items: order.items.map(item => ({
+    items: order.items.map(({ product, ...item }) => ({
       ...item,
+      productPriceType: product?.priceType ?? null,
       width: item.width ? Number(item.width) : null,
       height: item.height ? Number(item.height) : null,
       priceNet: Number(item.priceNet),

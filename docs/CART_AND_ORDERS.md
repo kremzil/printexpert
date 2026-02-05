@@ -806,7 +806,7 @@ if (!session?.user || session.user.role !== "ADMIN") {
 - [ ] Export заказов в CSV/Excel
 - [x] Печать накладных → реализовано как PDF-счета (faktúry)
 - [x] Интеграция платежных систем → **реализовано (Stripe)**
-- [ ] Генерация расчёта стоимости корзины (quote/estimate)
+- [x] Генерация расчёта стоимости корзины (quote/estimate) → реализовано как Cenová ponuka
 
 ## Stripe интеграция
 

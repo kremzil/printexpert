@@ -24,6 +24,7 @@ type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCE
 interface OrderItem {
   id: string;
   productName: string;
+  productPriceType?: "ON_REQUEST" | "FIXED" | "MATRIX" | "AREA" | null;
   quantity: number;
   width: number | null;
   height: number | null;
@@ -147,6 +148,15 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       style: "currency",
       currency: "EUR",
     }).format(price);
+  };
+
+  const resolveItemPrices = (item: OrderItem) => {
+    const isPerUnit = item.productPriceType === "FIXED";
+    const safeQuantity = item.quantity > 0 ? item.quantity : 1;
+    const lineTotal = isPerUnit ? item.priceGross * safeQuantity : item.priceGross;
+    const unitPrice = lineTotal / safeQuantity;
+
+    return { lineTotal, unitPrice };
   };
 
   const formatDate = (date: Date) => {
@@ -302,12 +312,19 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                       </p>
                     </div>
                     <div className="text-right">
+                      {(() => {
+                        const { lineTotal, unitPrice } = resolveItemPrices(item);
+                        return (
+                          <>
                       <p className="font-semibold">
-                        {formatPrice(item.priceGross * item.quantity)}
+                            {formatPrice(lineTotal)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {formatPrice(item.priceGross)} / ks
+                            {formatPrice(unitPrice)} / ks
                       </p>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}

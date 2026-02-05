@@ -162,7 +162,15 @@ export async function getOrderById(orderId: string): Promise<OrderData | null> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      items: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              priceType: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -181,8 +189,9 @@ export async function getOrderById(orderId: string): Promise<OrderData | null> {
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
-    items: order.items.map(item => ({
+    items: order.items.map(({ product, ...item }) => ({
       ...item,
+      productPriceType: product?.priceType ?? null,
       width: item.width ? Number(item.width) : null,
       height: item.height ? Number(item.height) : null,
       priceNet: Number(item.priceNet),
@@ -199,7 +208,15 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderData |
   const order = await prisma.order.findUnique({
     where: { orderNumber },
     include: {
-      items: true,
+      items: {
+        include: {
+          product: {
+            select: {
+              priceType: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -210,8 +227,9 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderData |
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
-    items: order.items.map(item => ({
+    items: order.items.map(({ product, ...item }) => ({
       ...item,
+      productPriceType: product?.priceType ?? null,
       width: item.width ? Number(item.width) : null,
       height: item.height ? Number(item.height) : null,
       priceNet: Number(item.priceNet),

@@ -589,7 +589,7 @@ export function CheckoutForm({
     const attributes = getSelectedOptionAttributes(item.selectedOptions);
     const attributeValues = attributes ? Object.values(attributes).filter(Boolean) : [];
     const sizePart =
-      item.width && item.height ? `${item.width} × ${item.height} mm` : null;
+      item.width && item.height ? `${item.width} × ${item.height} cm` : null;
     return [sizePart, ...attributeValues].filter(Boolean).join(", ");
   };
 

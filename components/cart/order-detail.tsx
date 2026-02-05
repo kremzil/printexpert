@@ -139,6 +139,15 @@ export function OrderDetail({ order }: OrderDetailProps) {
     return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
   };
 
+  const resolveItemPrices = (item: OrderData["items"][number]) => {
+    const isPerUnit = item.productPriceType === "FIXED";
+    const safeQuantity = item.quantity > 0 ? item.quantity : 1;
+    const lineTotal = isPerUnit ? item.priceGross * safeQuantity : item.priceGross;
+    const unitPrice = lineTotal / safeQuantity;
+
+    return { lineTotal, unitPrice };
+  };
+
   const fetchAssets = useCallback(async () => {
     try {
       setIsLoadingAssets(true);
@@ -286,12 +295,17 @@ export function OrderDetail({ order }: OrderDetailProps) {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">
-                        {formatPrice(Number(item.priceGross) * item.quantity)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatPrice(Number(item.priceGross))} / ks
-                      </p>
+                      {(() => {
+                        const { lineTotal, unitPrice } = resolveItemPrices(item);
+                        return (
+                          <>
+                            <p className="font-semibold">{formatPrice(lineTotal)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {formatPrice(unitPrice)} / ks
+                            </p>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}

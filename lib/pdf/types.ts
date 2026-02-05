@@ -144,3 +144,62 @@ export const defaultPdfSettings: PdfSettings = {
   invoiceNextNumber: 1,
   paymentDueDays: 14,
 };
+
+/**
+ * Quote item with detailed configuration
+ */
+export interface QuoteItem {
+  name: string;
+  quantity: number;
+  width?: number | null;
+  height?: number | null;
+  configuration: QuoteItemConfiguration;
+  unitPrice: number;
+  netPrice: number;
+  vatRate: number;
+  vatAmount: number;
+  grossPrice: number;
+}
+
+/**
+ * Configuration details for quote item
+ */
+export interface QuoteItemConfiguration {
+  attributes: Record<string, string>;
+  dimensions?: string;
+  notes?: string;
+}
+
+/**
+ * Quote totals
+ */
+export interface QuoteTotals {
+  subtotal: number;
+  vatRate: number;
+  vatAmount: number;
+  total: number;
+  itemCount: number;
+}
+
+/**
+ * Quote header information
+ */
+export interface QuoteInfo {
+  quoteNumber: string;
+  createdAt: Date | string;
+  validUntil: Date | string;
+  customerName?: string;
+  customerEmail?: string;
+}
+
+/**
+ * Complete quote data for PDF generation
+ */
+export interface QuoteData {
+  company: CompanyInfo;
+  quote: QuoteInfo;
+  items: QuoteItem[];
+  totals: QuoteTotals;
+  settings: InvoiceSettings;
+  isB2B: boolean;
+}

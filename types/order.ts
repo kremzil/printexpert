@@ -31,6 +31,7 @@ export interface CheckoutData {
 export interface OrderItemData {
   productId: string;
   productName: string;
+  productPriceType?: "ON_REQUEST" | "FIXED" | "MATRIX" | "AREA" | null;
   quantity: number;
   width?: number;
   height?: number;

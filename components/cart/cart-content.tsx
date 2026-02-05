@@ -213,13 +213,15 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                 <Save className="h-4 w-4" />
                 <span className="hidden sm:inline">Uložiť košík</span>
               </button>
-              <button
-                type="button"
+              <a
+                href="/api/cart/quote"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted"
               >
                 <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
+                <span className="hidden sm:inline">Cenová ponuka</span>
+              </a>
             </div>
           ) : null}
         </div>
