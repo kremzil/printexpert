@@ -62,6 +62,12 @@ async function ProductDetails({
   if (audienceContext?.audience === "b2c" && product && product.showInB2c === false) {
     notFound()
   }
+  if (audienceContext?.audience === "b2b" && product?.category?.showInB2b === false) {
+    notFound()
+  }
+  if (audienceContext?.audience === "b2c" && product?.category?.showInB2c === false) {
+    notFound()
+  }
 
   if (!product) {
     notFound()

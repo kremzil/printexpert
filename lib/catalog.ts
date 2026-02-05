@@ -53,12 +53,14 @@ export async function getProducts({
         ? { showInB2c: true }
         : {}
     : {}
+  const categoryAudienceFilter = audienceFilter
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
       ...audienceFilter,
       category: {
         isActive: true,
+        ...categoryAudienceFilter,
         ...(slugFilter ? { slug: slugFilter } : {}),
       },
     },

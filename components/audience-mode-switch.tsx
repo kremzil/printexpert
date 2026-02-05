@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
 import { Building2, User } from "lucide-react"
@@ -12,6 +12,7 @@ type AudienceModeSwitchProps = {
 
 export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
   const [mode, setMode] = useState<"b2b" | "b2c">(initialAudience)
 
@@ -42,6 +43,12 @@ export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps)
         setMode(previous)
       }
     })
+  }
+
+  const isModeLocked =
+    pathname?.startsWith("/cart") || pathname?.startsWith("/checkout")
+  if (isModeLocked) {
+    return null
   }
 
   return (

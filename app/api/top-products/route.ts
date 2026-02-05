@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
     const count = Number.isFinite(rawCount)
       ? Math.min(Math.max(rawCount, 1), 24)
       : 8;
+    const productAudienceFilter =
+      audience === 'b2b' ? { showInB2b: true } : { showInB2c: true };
+    const categoryAudienceFilter = productAudienceFilter;
 
     let config;
     try {
@@ -30,7 +33,11 @@ export async function GET(request: NextRequest) {
     const allProducts = await prisma.product.findMany({
       where: {
         isActive: true,
-        ...(audience === 'b2b' ? { showInB2b: true } : { showInB2c: true }),
+        ...productAudienceFilter,
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
+        },
       },
       include: {
         images: {
@@ -45,9 +52,13 @@ export async function GET(request: NextRequest) {
     const categoryProducts = await prisma.product.findMany({
       where: {
         isActive: true,
-        ...(audience === 'b2b' ? { showInB2b: true } : { showInB2c: true }),
+        ...productAudienceFilter,
         categoryId: {
           in: config.categoryIds,
+        },
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
         },
       },
       include: {
@@ -66,6 +77,11 @@ export async function GET(request: NextRequest) {
           in: config.productIds,
         },
         isActive: true,
+        ...productAudienceFilter,
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
+        },
       },
       include: {
         images: {
@@ -81,9 +97,13 @@ export async function GET(request: NextRequest) {
       const additionalProducts = await prisma.product.findMany({
         where: {
           isActive: true,
-          ...(audience === 'b2b' ? { showInB2b: true } : { showInB2c: true }),
+          ...productAudienceFilter,
           id: {
             notIn: config.productIds,
+          },
+          category: {
+            isActive: true,
+            ...categoryAudienceFilter,
           },
         },
         take: count - products.length,
@@ -105,9 +125,13 @@ export async function GET(request: NextRequest) {
     const additional = await prisma.product.findMany({
       where: {
         isActive: true,
-        ...(audience === 'b2b' ? { showInB2b: true } : { showInB2c: true }),
+        ...productAudienceFilter,
         id: {
           notIn: existingIds,
+        },
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
         },
       },
       take: count - existing.length,
