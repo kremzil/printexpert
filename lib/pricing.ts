@@ -2,12 +2,18 @@ import "server-only"
 
 import { getPrisma } from "@/lib/prisma"
 import type { AudienceContext } from "@/lib/audience-shared"
-import { getWpCalculatorData } from "@/lib/wp-calculator"
 import { getShopSettings } from "@/lib/shop-settings"
+
+type MatrixSelectOption = {
+  value: string
+  label: string
+  selected?: boolean
+}
 
 type MatrixSelect = {
   aid: string
-  options: Array<{ value: string; selected?: boolean }>
+  label: string
+  options: MatrixSelectOption[]
   class: string
 }
 
@@ -28,12 +34,15 @@ type PricingGlobals = {
   min_quantity: number | string | null
   min_width: number | string | null
   min_height: number | string | null
+  max_width: number | string | null
+  max_height: number | string | null
   numbers_array: Array<string | null> | Record<string, string | null>
   smatrix: Record<string, number>
   fmatrix: Record<string, number>
 }
 
 type CalculatorData = {
+  product_id: string
   globals: PricingGlobals
   matrices: Matrix[]
 }
@@ -544,12 +553,43 @@ const parseBreakpointsValue = (value: unknown) => {
   return []
 }
 
+const toNumber = (value: number | bigint | null | undefined) => {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value === "bigint") {
+    const asNumber = Number(value)
+    return Number.isFinite(asNumber) ? asNumber : null
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null
+  }
+  return null
+}
+
 const parseAttrsKey = (attrsKey: string) =>
   attrsKey
     .split("-")
     .map((part) => part.split(":"))
     .filter((pair) => pair.length === 2)
     .map(([aid, termId]) => ({ aid, termId }))
+
+const normalizeMeta = (value: unknown) => {
+  if (!value || typeof value !== "object") {
+    return null
+  }
+  return value as Record<string, unknown>
+}
+
+const toStringArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item))
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).map((item) => String(item))
+  }
+  return []
+}
 
 const buildCalculatorDataFromPricingModels = async (
   productId: string
@@ -563,14 +603,35 @@ const buildCalculatorDataFromPricingModels = async (
     orderBy: [{ sourceMtypeId: "asc" }],
   })
 
-  if (models.length === 0) {
+  const orderedModels = [...models].sort((left, right) => {
+    const leftRank = left.kind === "FINISHING" ? 1 : 0
+    const rightRank = right.kind === "FINISHING" ? 1 : 0
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank
+    }
+    return left.sourceMtypeId - right.sourceMtypeId
+  })
+
+  if (orderedModels.length === 0) {
     return null
   }
+
+  const getEntryAidsOrder = (model: (typeof orderedModels)[number]) => {
+    const firstKey = model.entries.find((entry) => entry.attrsKey)?.attrsKey
+    if (!firstKey) return []
+    return parseAttrsKey(firstKey).map(({ aid }) => aid)
+  }
+
+  const baseAidsSet = new Set<string>()
+  orderedModels.forEach((model) => {
+    if (model.kind === "FINISHING") return
+    getEntryAidsOrder(model).forEach((aid) => baseAidsSet.add(aid))
+  })
 
   const attributeIds = new Set<string>()
   const termIds = new Set<string>()
 
-  models.forEach((model) => {
+  orderedModels.forEach((model) => {
     model.entries.forEach((entry) => {
       parseAttrsKey(entry.attrsKey).forEach(({ aid, termId }) => {
         attributeIds.add(aid)
@@ -632,7 +693,7 @@ const buildCalculatorDataFromPricingModels = async (
   const smatrix: Record<string, number> = {}
   const fmatrix: Record<string, number> = {}
 
-  const matrices: Matrix[] = models.map((model) => {
+  const matrices: Matrix[] = orderedModels.map((model) => {
     const mtid = String(model.sourceMtypeId)
     const kind: Matrix["kind"] =
       model.kind === "FINISHING" ? "finishing" : "simple"
@@ -641,18 +702,44 @@ const buildCalculatorDataFromPricingModels = async (
       parseBreakpointsValue(model.breakpoints).length > 0
         ? parseBreakpointsValue(model.breakpoints)
         : Array.from(
-            new Set(model.entries.map((entry) => entry.breakpoint))
+            new Set(
+              model.entries
+                .map((entry) => toNumber(entry.breakpoint))
+                .filter((value): value is number => value !== null)
+            )
           ).sort((a, b) => a - b)
 
     if (breakpoints.length > 0) {
       numbersArray[mtid] = breakpoints.join(",")
     }
 
-    const aidsOrder = (() => {
-      const firstKey = model.entries.find((entry) => entry.attrsKey)?.attrsKey
-      if (!firstKey) return []
-      return parseAttrsKey(firstKey).map(({ aid }) => aid)
+    const meta = normalizeMeta(model.meta)
+    const metaAttributes = meta?.attributes
+      ? toStringArray(meta.attributes)
+      : []
+    const metaAterms =
+      meta?.aterms && typeof meta.aterms === "object" ? meta.aterms : null
+
+    const entryAidsOrder = getEntryAidsOrder(model)
+    const metaAttributeSet = new Set(metaAttributes)
+
+    let aidsOrder = (() => {
+      if (entryAidsOrder.length > 0 && metaAttributes.length > 0) {
+        const filtered = entryAidsOrder.filter((aid) => metaAttributeSet.has(aid))
+        if (filtered.length > 0) {
+          return filtered
+        }
+        return metaAttributes
+      }
+      if (metaAttributes.length > 0) {
+        return metaAttributes
+      }
+      return entryAidsOrder
     })()
+
+    if (model.kind === "FINISHING" && baseAidsSet.size > 0) {
+      aidsOrder = aidsOrder.filter((aid) => !baseAidsSet.has(aid))
+    }
 
     const aidSet = new Set<string>()
     model.entries.forEach((entry) => {
@@ -667,13 +754,19 @@ const buildCalculatorDataFromPricingModels = async (
         ? `${attr.attributeName} ${attr.attributeLabel}`
         : ""
       const termIdsByAid = new Set<string>()
-      model.entries.forEach((entry) => {
-        parseAttrsKey(entry.attrsKey).forEach((pair) => {
-          if (pair.aid === aid) {
-            termIdsByAid.add(pair.termId)
-          }
+      if (metaAterms && aid in metaAterms) {
+        toStringArray((metaAterms as Record<string, unknown>)[aid]).forEach(
+          (termId) => termIdsByAid.add(termId)
+        )
+      } else {
+        model.entries.forEach((entry) => {
+          parseAttrsKey(entry.attrsKey).forEach((pair) => {
+            if (pair.aid === aid) {
+              termIdsByAid.add(pair.termId)
+            }
+          })
         })
-      })
+      }
       const options = Array.from(termIdsByAid)
         .map((termId) => {
           const term = termById.get(termId)
@@ -704,7 +797,11 @@ const buildCalculatorDataFromPricingModels = async (
     })
 
     model.entries.forEach((entry) => {
-      const key = `${entry.attrsKey}-${entry.breakpoint}`
+      const breakpointValue = toNumber(entry.breakpoint)
+      if (breakpointValue === null) {
+        return
+      }
+      const key = `${entry.attrsKey}-${breakpointValue}`
       const price = Number(entry.price.toString())
       if (kind === "finishing") {
         fmatrix[key] = price
@@ -729,18 +826,29 @@ const buildCalculatorDataFromPricingModels = async (
   })
 
   return {
+    product_id: productId,
     globals: {
       dim_unit: null,
       a_unit: null,
       min_quantity: null,
       min_width: null,
       min_height: null,
+      max_width: null,
+      max_height: null,
       numbers_array: numbersArray,
       smatrix,
       fmatrix,
     },
     matrices,
   }
+}
+
+export async function getProductCalculatorData({
+  productId,
+}: {
+  productId: string
+}): Promise<CalculatorData | null> {
+  return buildCalculatorDataFromPricingModels(productId)
 }
 
 export async function calculate(
@@ -769,12 +877,6 @@ export async function calculate(
 
   if (product.priceType === "FIXED") {
     net = product.priceFrom ? Number(product.priceFrom.toString()) : null
-  } else if (product.wpProductId) {
-    const calculatorData = await getWpCalculatorData(product.wpProductId, true)
-    if (!calculatorData) {
-      throw new Error("Pre tento produkt nie je dostupny cennik.")
-    }
-    net = calculateMatrixTotal(calculatorData, params)
   } else {
     const calculatorData = await buildCalculatorDataFromPricingModels(productId)
     if (calculatorData) {

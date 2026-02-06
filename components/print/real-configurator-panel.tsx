@@ -51,8 +51,11 @@ export function RealConfiguratorPanel({
                 Vyberte možnosti konfigurácie.
               </div>
             ) : (
-              summaryItems.map((item) => (
-                <div key={item.label} className="flex justify-between gap-4">
+              summaryItems.map((item, index) => (
+                <div
+                  key={`${item.label}-${item.value}-${index}`}
+                  className="flex justify-between gap-4"
+                >
                   <span className="text-muted-foreground">{item.label}:</span>
                   <span className="font-medium text-right">{item.value}</span>
                 </div>
@@ -91,7 +94,7 @@ export function RealConfiguratorPanel({
             <div className="flex items-center gap-2 text-sm">
               <FileCheck className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium" style={{ color: modeColor }}>
-                Kontrola súborov zadarmo
+                Kontrola súborov v cene
               </span>
             </div>
           </div>

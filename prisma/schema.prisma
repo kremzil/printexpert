@@ -217,7 +217,7 @@ model PricingEntry {
   pricingModelId String       @db.Uuid
   pricingModel   PricingModel @relation(fields: [pricingModelId], references: [id], onDelete: Cascade)
   attrsKey       String
-  breakpoint     Int
+  breakpoint     BigInt
   price          Decimal      @db.Decimal(12, 2)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

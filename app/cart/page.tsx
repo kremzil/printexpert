@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { EmptyCart } from "@/components/print/empty-cart";
 import { getShopVatRate } from "@/lib/shop-settings";
-import { getWpCalculatorData } from "@/lib/wp-calculator";
+import { getProductCalculatorData } from "@/lib/pricing";
 
 const parseNumber = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === "") return null;
@@ -49,13 +49,13 @@ async function CartItems() {
     return <EmptyCart mode={mode} />;
   }
 
-  const calculatorCache = new Map<number, Awaited<ReturnType<typeof getWpCalculatorData>>>();
-  const getCalculator = async (wpProductId: number) => {
-    if (calculatorCache.has(wpProductId)) {
-      return calculatorCache.get(wpProductId) ?? null;
+  const calculatorCache = new Map<string, Awaited<ReturnType<typeof getProductCalculatorData>>>();
+  const getCalculator = async (productId: string) => {
+    if (calculatorCache.has(productId)) {
+      return calculatorCache.get(productId) ?? null;
     }
-    const data = await getWpCalculatorData(wpProductId, true);
-    calculatorCache.set(wpProductId, data);
+    const data = await getProductCalculatorData({ productId });
+    calculatorCache.set(productId, data);
     return data;
   };
 
@@ -65,25 +65,21 @@ async function CartItems() {
     items: await Promise.all(
       cart.items.map(async (item) => {
         let quantityPresets: number[] | undefined;
-        const wpProductId = item.product.wpProductId;
+        const calculatorData = await getCalculator(item.product.id);
+        if (calculatorData && calculatorData.matrices.length > 0) {
+          const baseMatrix =
+            calculatorData.matrices.find((matrix) => matrix.kind === "simple") ??
+            calculatorData.matrices[0];
+          const baseNumStyle = parseNumber(baseMatrix?.numStyle) ?? 0;
+          const baseNumType = parseNumber(baseMatrix?.ntp) ?? 0;
+          const baseBreakpoints = parseBreakpoints(
+            getNumbersEntry(calculatorData.globals.numbers_array, baseMatrix.mtid)
+          ).sort((a, b) => a - b);
+          const useQuantitySelect =
+            baseNumStyle === 1 && baseNumType === 0 && baseBreakpoints.length > 0;
 
-        if (typeof wpProductId === "number") {
-          const calculatorData = await getCalculator(wpProductId);
-          if (calculatorData && calculatorData.matrices.length > 0) {
-            const baseMatrix =
-              calculatorData.matrices.find((matrix) => matrix.kind === "simple") ??
-              calculatorData.matrices[0];
-            const baseNumStyle = parseNumber(baseMatrix?.numStyle) ?? 0;
-            const baseNumType = parseNumber(baseMatrix?.ntp) ?? 0;
-            const baseBreakpoints = parseBreakpoints(
-              getNumbersEntry(calculatorData.globals.numbers_array, baseMatrix.mtid)
-            ).sort((a, b) => a - b);
-            const useQuantitySelect =
-              baseNumStyle === 1 && baseNumType === 0 && baseBreakpoints.length > 0;
-
-            if (useQuantitySelect) {
-              quantityPresets = baseBreakpoints;
-            }
+          if (useQuantitySelect) {
+            quantityPresets = baseBreakpoints;
           }
         }
 

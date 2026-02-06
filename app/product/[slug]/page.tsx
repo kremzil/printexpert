@@ -1,12 +1,11 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { Suspense } from "react"
+import { Suspense, cache } from "react"
 
 import { ProductPageClient } from "@/app/product/[slug]/product-page-client"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getProducts } from "@/lib/catalog"
-import { sanitizeHtml } from "@/lib/sanitize-html"
-import { getWpCalculatorData } from "@/lib/wp-calculator"
+import { getProductCalculatorData } from "@/lib/pricing"
 
 type ProductPageProps = {
   params: Promise<{
@@ -21,6 +20,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
 const toPlainText = (value?: string | null) =>
   value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : null
 
+const getCachedProductBySlug = cache(async (slug: string) => getProductBySlug(slug))
+
 export async function generateStaticParams() {
   const { getProducts } = await import("@/lib/catalog")
   const products = await getProducts({})
@@ -33,7 +34,7 @@ export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params
-  const product = await getProductBySlug(slug)
+  const product = await getCachedProductBySlug(slug)
   const descriptionSource = product?.excerpt || product?.description || null
   const description =
     toPlainText(descriptionSource) ?? "Produkty na mieru od PrintExpert."
@@ -62,7 +63,7 @@ async function ProductDetails({
   const audienceContext = await resolveAudienceContext({
     searchParams: resolvedSearchParams,
   })
-  const product = await getProductBySlug(slug)
+  const product = await getCachedProductBySlug(slug)
 
   // enforce product visibility per audience preference
   if (audienceContext?.audience === "b2b" && product && product.showInB2b === false) {
@@ -83,7 +84,9 @@ async function ProductDetails({
   }
 
   const [calculatorData, relatedSource] = await Promise.all([
-    product.wpProductId ? getWpCalculatorData(product.wpProductId, true) : Promise.resolve(null),
+    getProductCalculatorData({
+      productId: product.id,
+    }),
     product.category?.slug
       ? getProducts({
           categorySlug: product.category.slug,
@@ -107,16 +110,12 @@ async function ProductDetails({
         images: item.images ?? [],
       }
     })
-  const descriptionHtml = product.description ? sanitizeHtml(product.description) : null
-  const excerptHtml = product.excerpt ? sanitizeHtml(product.excerpt) : null
+  const descriptionHtml = product.description ?? null
+  const excerptHtml = product.excerpt ?? null
   const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
-  const parsedBasePrice = product.priceFrom ? Number(product.priceFrom) : Number.NaN
-  const basePrice = Number.isFinite(parsedBasePrice) ? parsedBasePrice : 24.9
-
   return (
     <ProductPageClient
       mode={mode}
-      basePrice={basePrice}
       productId={product.id}
       calculatorData={calculatorData}
       relatedProducts={relatedProducts}

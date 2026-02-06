@@ -37,7 +37,7 @@ const b2cTrustItems: TrustItem[] = [
   {
     icon: FileCheck,
     title: "Kontrola súborov",
-    description: "Zadarmo overíme vaše podklady",
+    description: "Kontrola súborov v cene",
   },
   {
     icon: Award,
@@ -50,7 +50,7 @@ const b2bTrustItems: TrustItem[] = [
   {
     icon: FileCheck,
     title: "Profesionálny prepress",
-    description: "Kontrola a úprava súborov zadarmo",
+    description: "Kontrola súborov v cene",
   },
   {
     icon: Archive,
