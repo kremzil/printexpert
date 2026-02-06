@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Send, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Send, Download, FilePlus } from "lucide-react";
 import { toast } from "sonner";
 import { getCsrfHeader } from "@/lib/csrf";
 
@@ -142,6 +142,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const [assets, setAssets] = useState<OrderAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -212,6 +213,8 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
     fetchAssets();
   }, [fetchAssets]);
 
+  const hasInvoiceAsset = assets.some((asset) => asset.kind === "INVOICE");
+
   const handleStatusChange = async (newStatus: OrderStatus) => {
     setIsUpdating(true);
     try {
@@ -255,6 +258,29 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       toast.error(message);
     } finally {
       setIsSendingInvoice(false);
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    setIsCreatingInvoice(true);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/invoice/create`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Nepodarilo sa vytvoriť faktúru");
+      }
+
+      const data = await response.json();
+      toast.success(data.message ?? "Faktúra bola vygenerovaná");
+      fetchAssets();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nepodarilo sa vytvoriť faktúru";
+      toast.error(message);
+    } finally {
+      setIsCreatingInvoice(false);
     }
   };
 
@@ -495,6 +521,24 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                   </a>
                 </AdminButton>
                 <AdminButton
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleCreateInvoice}
+                  disabled={isCreatingInvoice || hasInvoiceAsset}
+                >
+                  {isCreatingInvoice ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Vytváram...
+                    </>
+                  ) : (
+                    <>
+                      <FilePlus className="mr-2 h-4 w-4" />
+                      Vytvoriť faktúru
+                    </>
+                  )}
+                </AdminButton>
+                <AdminButton
                   variant="primary"
                   className="w-full"
                   onClick={handleSendInvoice}
@@ -516,6 +560,11 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
               <p className="text-xs text-muted-foreground">
                 Faktúra bude odoslaná na: {order.customerEmail}
               </p>
+              {hasInvoiceAsset && (
+                <p className="text-xs text-muted-foreground">
+                  Faktúra už bola vygenerovaná.
+                </p>
+              )}
             </CardContent>
           </Card>
 

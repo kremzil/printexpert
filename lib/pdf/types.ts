@@ -138,7 +138,7 @@ export const defaultPdfSettings: PdfSettings = {
   logoUrl: "",
   signatureUrl: "",
   footerText: "Výpis z Obchodného registra Mestského súdu Košice, Oddiel: Sja, Vložka číslo: 26/V",
-  autoGenerateOnStatus: "CONFIRMED",
+  autoGenerateOnStatus: "COMPLETED",
   autoSendEmail: true,
   invoicePrefix: "",
   invoiceNextNumber: 1,

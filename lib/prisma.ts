@@ -13,9 +13,7 @@ const prismaPool =
     connectionString: process.env.DATABASE_URL,
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prismaPool = prismaPool;
-}
+globalForPrisma.prismaPool = prismaPool;
 
 export function getPrisma() {
   const cachedPrisma = globalForPrisma.prisma;
@@ -29,9 +27,7 @@ export function getPrisma() {
     adapter: new PrismaPg(prismaPool),
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-  }
+  globalForPrisma.prisma = client;
 
   return client;
 }

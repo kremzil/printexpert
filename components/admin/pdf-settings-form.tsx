@@ -40,7 +40,7 @@ export function PdfSettingsForm() {
       logoUrl: "",
       signatureUrl: "",
       footerText: "",
-      autoGenerateOnStatus: "CONFIRMED",
+      autoGenerateOnStatus: "COMPLETED",
       autoSendEmail: true,
       invoicePrefix: "",
       invoiceNextNumber: 1,
