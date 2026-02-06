@@ -175,7 +175,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
       <div className="min-h-screen">
         <HeroSection mode={mode} modeColor={modeColor} modeAccent={modeAccent} />
 
-        <section className="container-main py-16">
+        <section className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-16">
           <div className="mb-8 text-center">
             <h2 className="mb-3 text-3xl font-bold md:text-4xl">
               Kategórie produktov
@@ -211,7 +211,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
         <section
           className={`relative left-1/2 right-1/2 w-screen -translate-x-1/2 ${mutedSectionBg} py-16`}
         >
-          <div className="container-main">
+          <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8">
             <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <div className="mb-2 flex items-center gap-2">
@@ -241,7 +241,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           </div>
         </section>
 
-        <section className="container-main py-16">
+        <section className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-16">
           <div className="mb-12 text-center">
             <h2 className="mb-3 text-3xl font-bold md:text-4xl">
               {mode === "b2c" ? "Ako to funguje?" : "Proces spolupráce"}
@@ -259,7 +259,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
         <section
           className={`relative left-1/2 right-1/2 w-screen -translate-x-1/2 ${mutedSectionBg} py-16`}
         >
-          <div className="container-main">
+          <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8">
             <div className="mb-12 text-center">
               <h2 className="mb-3 text-3xl font-bold md:text-4xl">
                 Prečo Printexpert?
@@ -341,7 +341,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           </div>
         </section>
 
-        <section className="container-main py-16">
+        <section className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-16">
           <div className="mb-12 text-center">
             <h2 className="mb-3 text-3xl font-bold md:text-4xl">
               Čo hovoria naši klienti
@@ -365,7 +365,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
           </div>
         </section>
 
-        <section className="container-main py-16">
+        <section className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-16">
           <CTASection mode={mode} modeColor={modeColor} modeAccent={modeAccent} />
         </section>
       </div>
@@ -392,7 +392,7 @@ function HeroSection({
           : "bg-gradient-to-br from-blue-50 via-indigo-50 to-white"
       }`}
     >
-      <div className="container-main">
+      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
           <div className="space-y-6">
             <div

@@ -63,7 +63,7 @@ export function ModeSelectionPage() {
   return (
     <div className="w-full">
       <div className="min-h-screen ">
-        <div className="container-main flex flex-col gap-6 md:gap-10 py-12">
+        <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 flex flex-col gap-6 md:gap-10 py-12">
           <div className="mb-16 text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-medium  text-primary">
               <Sparkles className="h-4 w-4  text-orange-500 animate-pulse" />

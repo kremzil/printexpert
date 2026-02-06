@@ -36,38 +36,49 @@ export default function AdminPage() {
 async function AdminPageContent() {
   await requireAdmin()
 
-  const products = await getAdminProducts()
+  const currentYear = new Date().getFullYear()
+
+  // All queries are independent — run in parallel
+  const [
+    products,
+    ordersCount,
+    pendingOrdersCount,
+    usersCount,
+    totalRevenue,
+    ordersForGraph,
+    recentOrders,
+  ] = await Promise.all([
+    getAdminProducts(),
+    prisma.order.count(),
+    prisma.order.count({ where: { status: "PENDING" } }),
+    prisma.user.count(),
+    prisma.order.aggregate({
+      _sum: { total: true },
+      where: { status: { not: "CANCELLED" } },
+    }),
+    prisma.order.findMany({
+      where: {
+        status: { not: "CANCELLED" },
+        createdAt: {
+          gte: new Date(currentYear, 0, 1),
+          lt: new Date(currentYear + 1, 0, 1),
+        },
+      },
+      select: { createdAt: true, total: true },
+    }),
+    prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: { name: true, email: true, image: true },
+        },
+      },
+    }),
+  ])
+
   const productsCount = products.length
   const activeProductsCount = products.filter(p => p.isActive).length
-  
-  const ordersCount = await prisma.order.count()
-  const pendingOrdersCount = await prisma.order.count({
-    where: { status: "PENDING" }
-  })
-  
-  const usersCount = await prisma.user.count()
-  
-  // Calculate revenue
-  const totalRevenue = await prisma.order.aggregate({
-    _sum: { total: true },
-    where: { status: { not: "CANCELLED" } }
-  })
-
-  // Calculate graph data (Revenue per month for current year)
-  const currentYear = new Date().getFullYear()
-  const ordersForGraph = await prisma.order.findMany({
-    where: {
-      status: { not: "CANCELLED" },
-      createdAt: {
-        gte: new Date(currentYear, 0, 1),
-        lt: new Date(currentYear + 1, 0, 1)
-      }
-    },
-    select: {
-      createdAt: true,
-      total: true
-    }
-  })
 
   const monthlyTotals = new Array(12).fill(0)
   ordersForGraph.forEach(order => {
@@ -78,22 +89,8 @@ async function AdminPageContent() {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "Máj", "Jún", "Júl", "Aug", "Sep", "Okt", "Nov", "Dec"]
   const graphData = monthNames.map((name, index) => ({
     name,
-    total: monthlyTotals[index]
+    total: monthlyTotals[index],
   }))
-
-  const recentOrders = await prisma.order.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: {
-        select: {
-          name: true,
-          email: true,
-          image: true,
-        }
-      }
-    }
-  })
 
   return (
     <div className="p-6">

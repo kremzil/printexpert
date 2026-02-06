@@ -3,7 +3,7 @@ import { Suspense } from "react"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { ModeSelectionPage } from "@/components/print/mode-selection-page"
 import { Homepage } from "@/components/print/homepage"
-import { getCategories, getProducts } from "@/lib/catalog"
+import { getCategories, getProducts, getTopProducts } from "@/lib/catalog"
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -32,12 +32,7 @@ async function HomeContent({
   const [categories, products, topProducts] = await Promise.all([
     getCategories(),
     getProducts({ audience: mode }),
-    fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/top-products?audience=${mode}&count=8`,
-      { next: { revalidate: 60 } }
-    )
-      .then(async (res) => (res.ok ? res.json() : []))
-      .catch(() => []),
+    getTopProducts(mode, 8),
   ])
 
   const visibleCategories = categories.filter((category) =>
@@ -52,6 +47,9 @@ async function HomeContent({
     map.set(categorySlug, (map.get(categorySlug) ?? 0) + 1)
     return map
   }, new Map<string, number>())
+  const imagesByProductId = new Map(
+    products.map((product) => [product.id, product.images ?? []])
+  )
 
   const homepageCategories = visibleCategories
     .filter((category) => !category.parentId)
@@ -66,14 +64,14 @@ async function HomeContent({
 
   const featuredProducts =
     Array.isArray(topProducts) && topProducts.length > 0
-      ? topProducts.map((product: typeof products[number]) => ({
+      ? topProducts.map((product) => ({
           id: product.id,
           slug: product.slug,
           name: product.name,
           excerpt: product.excerpt,
           description: product.description,
           priceFrom: product.priceFrom ? String(product.priceFrom) : null,
-          images: product.images ?? [],
+          images: imagesByProductId.get(product.id) ?? [],
         }))
       : products.slice(0, 8).map((product) => ({
           id: product.id,

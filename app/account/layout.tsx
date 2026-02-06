@@ -54,7 +54,7 @@ export default async function AccountLayout({
                 <span>Osobný účet</span>
               </div>
             </header>
-            <main className="container-main py-6">
+            <main className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
               {children}
             </main>
           </SidebarInset>
@@ -63,7 +63,7 @@ export default async function AccountLayout({
 
       {/* Desktop: Scroll menu */}
       <div className="hidden lg:block w-full">
-        <div className="container-main py-8">
+        <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8">
              <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
             <aside className="h-full">
               <div className="sticky top-20">

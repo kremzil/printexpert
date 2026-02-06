@@ -1,5 +1,7 @@
 import "server-only"
 
+import { unstable_cache } from "next/cache"
+
 import { getPrisma } from "@/lib/prisma"
 
 const SETTINGS_ID = "default"
@@ -12,7 +14,7 @@ export type ShopSettings = {
   pricesIncludeVat: boolean
 }
 
-export async function getShopSettings(): Promise<ShopSettings> {
+const fetchShopSettings = async (): Promise<ShopSettings> => {
   const prisma = getPrisma()
   const settings = await prisma.shopSettings.findUnique({
     where: { id: SETTINGS_ID },
@@ -31,6 +33,16 @@ export async function getShopSettings(): Promise<ShopSettings> {
     vatRate: Number(settings.vatRate.toString()),
     pricesIncludeVat: settings.pricesIncludeVat,
   }
+}
+
+const getCachedShopSettings = unstable_cache(
+  fetchShopSettings,
+  ["shop-settings"],
+  { revalidate: 300, tags: ["shop-settings"] }
+)
+
+export async function getShopSettings(): Promise<ShopSettings> {
+  return getCachedShopSettings()
 }
 
 export async function getShopVatRate() {

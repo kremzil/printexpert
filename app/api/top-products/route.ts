@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@/lib/generated/prisma';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -27,86 +28,38 @@ export async function GET(request: NextRequest) {
     }
 
     let products;
+    const isManualMode = config?.mode === 'MANUAL';
 
-  if (!config || config.mode === 'RANDOM_ALL') {
-    // Случайный выбор из всех доступных продуктов для данного типа
-    const allProducts = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        ...productAudienceFilter,
-        category: {
-          isActive: true,
-          ...categoryAudienceFilter,
-        },
-      },
-      include: {
-        images: {
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-    });
-
-    products = shuffleArray(allProducts).slice(0, count);
-  } else if (config.mode === 'RANDOM_CATEGORIES') {
-    // Случайный выбор из выбранных категорий
-    const categoryProducts = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        ...productAudienceFilter,
-        categoryId: {
-          in: config.categoryIds,
-        },
-        category: {
-          isActive: true,
-          ...categoryAudienceFilter,
-        },
-      },
-      include: {
-        images: {
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-    });
-
-    products = shuffleArray(categoryProducts).slice(0, count);
-  } else if (config.mode === 'MANUAL') {
-    // Ручной выбор продуктов
-    const manualProducts = await prisma.product.findMany({
-      where: {
-        id: {
-          in: config.productIds,
-        },
-        isActive: true,
-        ...productAudienceFilter,
-        category: {
-          isActive: true,
-          ...categoryAudienceFilter,
-        },
-      },
-      include: {
-        images: {
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-    });
-
-    products = manualProducts;
-
-    // Дополнить случайными, если не хватает
-    if (products.length < count) {
-      const additionalProducts = await prisma.product.findMany({
+    if (!config || config.mode === 'RANDOM_ALL') {
+      // Случайный выбор из всех доступных продуктов для данного типа
+      products = await getRandomProducts({
+        audience,
+        count,
+      });
+    } else if (config.mode === 'RANDOM_CATEGORIES') {
+      // Случайный выбор из выбранных категорий
+      products =
+        config.categoryIds && config.categoryIds.length > 0
+          ? await getRandomProducts({
+              audience,
+              count,
+              categoryIds: config.categoryIds,
+            })
+          : [];
+    } else if (config.mode === 'MANUAL') {
+      // Ручной выбор продуктов
+      const manualProducts = await prisma.product.findMany({
         where: {
+          id: {
+            in: config.productIds,
+          },
           isActive: true,
           ...productAudienceFilter,
-          id: {
-            notIn: config.productIds,
-          },
           category: {
             isActive: true,
             ...categoryAudienceFilter,
           },
         },
-        take: count - products.length,
         include: {
           images: {
             orderBy: { sortOrder: 'asc' },
@@ -114,42 +67,96 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      products = [...products, ...shuffleArray(additionalProducts)];
+      products = manualProducts;
     }
-  }
 
-  // Заполнить до нужного количества, если продуктов меньше
-  if (!products || products.length < count) {
-    const existing = products || [];
-    const existingIds = existing.map((p) => p.id);
-    const additional = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        ...productAudienceFilter,
-        id: {
-          notIn: existingIds,
-        },
-        category: {
+    // Заполнить до нужного количества, если продуктов меньше
+    if (!isManualMode && (!products || products.length < count)) {
+      const existing = products || [];
+      const existingIds = existing.map((p) => p.id);
+      const additional = await prisma.product.findMany({
+        where: {
           isActive: true,
-          ...categoryAudienceFilter,
+          ...productAudienceFilter,
+          id: {
+            notIn: existingIds,
+          },
+          category: {
+            isActive: true,
+            ...categoryAudienceFilter,
+          },
         },
-      },
-      take: count - existing.length,
-      include: {
-        images: {
-          orderBy: { sortOrder: 'asc' },
+        take: count - existing.length,
+        include: {
+          images: {
+            orderBy: { sortOrder: 'asc' },
+          },
         },
-      },
-    });
+      });
 
-    products = [...existing, ...shuffleArray(additional)];
-  }
+      products = [...existing, ...shuffleArray(additional)];
+    }
 
-  return NextResponse.json(products || []);
+    return NextResponse.json(products || []);
   } catch (error) {
     console.error('Error fetching top products:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }
+}
+
+async function getRandomProducts(options: {
+  audience: string;
+  count: number;
+  categoryIds?: string[];
+}) {
+  const { audience, count, categoryIds } = options;
+
+  if (categoryIds && categoryIds.length === 0) {
+    return [];
+  }
+
+  const productAudienceSql =
+    audience === 'b2b'
+      ? Prisma.sql`p."showInB2b" = true`
+      : Prisma.sql`p."showInB2c" = true`;
+  const categoryAudienceSql =
+    audience === 'b2b'
+      ? Prisma.sql`c."showInB2b" = true`
+      : Prisma.sql`c."showInB2c" = true`;
+  const categoryFilterSql =
+    categoryIds && categoryIds.length > 0
+      ? Prisma.sql`AND p."categoryId" IN (${Prisma.join(categoryIds)})`
+      : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT p.id
+    FROM "Product" p
+    INNER JOIN "Category" c ON c.id = p."categoryId"
+    WHERE p."isActive" = true
+      AND c."isActive" = true
+      AND ${productAudienceSql}
+      AND ${categoryAudienceSql}
+      ${categoryFilterSql}
+    ORDER BY RANDOM()
+    LIMIT ${count};
+  `;
+
+  const ids = rows.map((row) => row.id);
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    include: {
+      images: {
+        orderBy: { sortOrder: 'asc' },
+      },
+    },
+  });
+
+  const order = new Map(ids.map((id, index) => [id, index]));
+  return products.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
 // Fisher-Yates shuffle

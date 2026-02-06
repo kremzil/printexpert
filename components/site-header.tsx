@@ -31,6 +31,7 @@ import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { CartButton } from "@/components/cart/cart-button"
 import { LoginDialog } from "@/components/auth/login-dialog"
 import { resolveAudienceContext } from "@/lib/audience-context"
+import type { AudienceContext } from "@/lib/audience-shared"
 import { getPrisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { SiteHeaderClient } from "./site-header-client"
@@ -146,16 +147,22 @@ const getCachedNavData = unstable_cache(
   { revalidate: 300, tags: ["nav-data"] }
 )
 
-async function AudienceHeaderSwitch() {
-  const audienceContext = await resolveAudienceContext()
+async function AudienceHeaderSwitch({
+  audienceContext,
+}: {
+  audienceContext: AudienceContext
+}) {
   if (audienceContext.source === "default") {
     return null
   }
   return <AudienceModeSwitch initialAudience={audienceContext.audience} />
 }
 
-async function AudienceNavigation() {
-  const audienceContext = await resolveAudienceContext()
+async function AudienceNavigation({
+  audienceContext,
+}: {
+  audienceContext: AudienceContext
+}) {
   const { categories, productsByCategoryId } = await getCachedNavData(
     audienceContext.audience
   )
@@ -306,8 +313,11 @@ async function AudienceNavigation() {
   )
 }
 
-async function MobileMenu() {
-  const audienceContext = await resolveAudienceContext()
+async function MobileMenu({
+  audienceContext,
+}: {
+  audienceContext: AudienceContext
+}) {
   const { categories, productsByCategoryId } = await getCachedNavData(
     audienceContext.audience
   )
@@ -395,7 +405,10 @@ async function MobileMenu() {
 import { HeaderSearch } from "@/components/header-search"
 
 export async function SiteHeader() {
-  const session = await auth()
+  const [session, audienceContext] = await Promise.all([
+    auth(),
+    resolveAudienceContext(),
+  ])
   return (
     <SiteHeaderClient
       topBar={
@@ -403,7 +416,7 @@ export async function SiteHeader() {
           {/* Left: Logo + Search */}
           <div className="flex items-center gap-6">
             <Suspense fallback={null}>
-              <MobileMenu />
+              <MobileMenu audienceContext={audienceContext} />
             </Suspense>
             <Link 
               href="/" 
@@ -429,7 +442,7 @@ export async function SiteHeader() {
           {/* Right: Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
             <Suspense fallback={null}>
-              <AudienceHeaderSwitch />
+              <AudienceHeaderSwitch audienceContext={audienceContext} />
             </Suspense>
 
             <div className="h-6 w-px bg-border/50 hidden sm:block" />
@@ -469,7 +482,7 @@ export async function SiteHeader() {
             <div className="h-9 w-64 rounded-md bg-muted animate-pulse" aria-hidden />
           }
         >
-          <AudienceNavigation />
+          <AudienceNavigation audienceContext={audienceContext} />
         </Suspense>
       }
     />

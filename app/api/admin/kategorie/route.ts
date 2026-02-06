@@ -1,14 +1,29 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth()
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const { searchParams } = new URL(request.url)
+  const audience = searchParams.get("audience")
+  const audienceFilter =
+    audience === "b2b"
+      ? { showInB2b: true }
+      : audience === "b2c"
+        ? { showInB2c: true }
+        : null
+
   const categories = await prisma.category.findMany({
+    where: audienceFilter
+      ? {
+          isActive: true,
+          ...audienceFilter,
+        }
+      : undefined,
     select: {
       id: true,
       name: true,

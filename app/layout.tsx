@@ -61,14 +61,14 @@ export default async function RootLayout({
             {isAdminRoute ? (
               children
             ) : (
-              <div className="container-main py-6 md:py-8 lg:py-10">
+              <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10">
                 {children}
               </div>
             )}
           </main>
           {!isAdminRoute && (
             <footer className="border-t bg-muted/30">
-              <div className="container-main flex min-h-16 items-center justify-between gap-4 py-4 text-sm text-muted-foreground">
+              <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 flex min-h-16 items-center justify-between gap-4 py-4 text-sm text-muted-foreground">
                 <span className="font-display text-base font-semibold text-foreground">© PrintExpert</span>
                 <Suspense fallback={null}>
                   <AudienceFooterNote />

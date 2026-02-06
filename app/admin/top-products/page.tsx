@@ -60,28 +60,80 @@ export default function TopProductsPage() {
     productIds: [],
   });
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<{
+    b2c: Category[];
+    b2b: Category[];
+  }>({ b2c: [], b2b: [] });
+  const [productsByAudience, setProductsByAudience] = useState<{
+    b2c: Product[];
+    b2b: Product[];
+  }>({ b2c: [], b2b: [] });
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [b2cRes, b2bRes, categoriesRes, productsRes] = await Promise.all([
+      const [
+        b2cRes,
+        b2bRes,
+        categoriesB2cRes,
+        categoriesB2bRes,
+        productsB2cRes,
+        productsB2bRes,
+      ] = await Promise.all([
         fetch("/api/admin/top-products?audience=b2c"),
         fetch("/api/admin/top-products?audience=b2b"),
-        fetch("/api/admin/kategorie"),
-        fetch("/api/admin/products"),
+        fetch("/api/admin/kategorie?audience=b2c"),
+        fetch("/api/admin/kategorie?audience=b2b"),
+        fetch("/api/admin/products?audience=b2c"),
+        fetch("/api/admin/products?audience=b2b"),
       ]);
 
       const b2cData = await b2cRes.json();
       const b2bData = await b2bRes.json();
-      const categoriesData = await categoriesRes.json();
-      const productsData = await productsRes.json();
+      const categoriesB2cData = await categoriesB2cRes.json();
+      const categoriesB2bData = await categoriesB2bRes.json();
+      const productsB2cData = await productsB2cRes.json();
+      const productsB2bData = await productsB2bRes.json();
 
-      setB2cConfig(b2cData);
-      setB2bConfig(b2bData);
-      setCategories(categoriesData);
-      setProducts(productsData);
+      const b2cCategoryIds = new Set(
+        Array.isArray(categoriesB2cData) ? categoriesB2cData.map((item) => item.id) : []
+      );
+      const b2bCategoryIds = new Set(
+        Array.isArray(categoriesB2bData) ? categoriesB2bData.map((item) => item.id) : []
+      );
+      const b2cProductIds = new Set(
+        Array.isArray(productsB2cData) ? productsB2cData.map((item) => item.id) : []
+      );
+      const b2bProductIds = new Set(
+        Array.isArray(productsB2bData) ? productsB2bData.map((item) => item.id) : []
+      );
+
+      setB2cConfig({
+        ...b2cData,
+        categoryIds: Array.isArray(b2cData?.categoryIds)
+          ? b2cData.categoryIds.filter((id: string) => b2cCategoryIds.has(id))
+          : [],
+        productIds: Array.isArray(b2cData?.productIds)
+          ? b2cData.productIds.filter((id: string) => b2cProductIds.has(id))
+          : [],
+      });
+      setB2bConfig({
+        ...b2bData,
+        categoryIds: Array.isArray(b2bData?.categoryIds)
+          ? b2bData.categoryIds.filter((id: string) => b2bCategoryIds.has(id))
+          : [],
+        productIds: Array.isArray(b2bData?.productIds)
+          ? b2bData.productIds.filter((id: string) => b2bProductIds.has(id))
+          : [],
+      });
+      setCategories({
+        b2c: Array.isArray(categoriesB2cData) ? categoriesB2cData : [],
+        b2b: Array.isArray(categoriesB2bData) ? categoriesB2bData : [],
+      });
+      setProductsByAudience({
+        b2c: Array.isArray(productsB2cData) ? productsB2cData : [],
+        b2b: Array.isArray(productsB2bData) ? productsB2bData : [],
+      });
     } catch (error) {
       console.error("Failed to load data:", error);
       toast({
@@ -130,11 +182,15 @@ export default function TopProductsPage() {
   function renderConfig(audience: "b2c" | "b2b") {
     const config = audience === "b2c" ? b2cConfig : b2bConfig;
     const setConfig = audience === "b2c" ? setB2cConfig : setB2bConfig;
+    const availableProducts =
+      audience === "b2c" ? productsByAudience.b2c : productsByAudience.b2b;
+    const availableCategories =
+      audience === "b2c" ? categories.b2c : categories.b2b;
 
-    const selectedCategories = categories.filter((cat) =>
+    const selectedCategories = availableCategories.filter((cat) =>
       config.categoryIds.includes(cat.id)
     );
-    const selectedProducts = products.filter((prod) =>
+    const selectedProducts = availableProducts.filter((prod) =>
       config.productIds.includes(prod.id)
     );
 
@@ -180,7 +236,7 @@ export default function TopProductsPage() {
             <div className="space-y-2">
               <Label>Vybrané kategórie</Label>
               <CategoryCombobox
-                categories={categories}
+                categories={availableCategories}
                 selected={selectedCategories}
                 onChange={(selected) =>
                   setConfig({ ...config, categoryIds: selected.map((c) => c.id) })
@@ -193,14 +249,14 @@ export default function TopProductsPage() {
             <div className="space-y-2">
               <Label>Vybrané produkty</Label>
               <ProductCombobox
-                products={products}
+                products={availableProducts}
                 selected={selectedProducts}
                 onChange={(selected) =>
                   setConfig({ ...config, productIds: selected.map((p) => p.id) })
                 }
               />
               <p className="text-sm text-muted-foreground">
-                Vyberte až 8 produktov. Chýbajúce produkty budú doplnené náhodne.
+                Vyberte až 8 produktov.
               </p>
             </div>
           )}

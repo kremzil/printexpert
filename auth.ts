@@ -99,8 +99,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role
       }
       
-      // Обновляем роль из БД при каждом запросе (для актуальности прав)
-      if (token.id && !user) {
+      // Обновляем роль из БД только если её нет в токене
+      if (token.id && !user && typeof token.role === "undefined") {
         const prisma = getPrisma()
         const currentUser = await prisma.user.findUnique({
           where: { id: token.id as string },

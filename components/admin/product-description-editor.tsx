@@ -1,8 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 
-import { RichTextEditor } from "@/components/RichTextEditor"
+const RichTextEditor = dynamic(
+  () => import("@/components/RichTextEditor").then((mod) => mod.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 animate-pulse rounded-md border bg-muted" />
+    ),
+  }
+)
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 

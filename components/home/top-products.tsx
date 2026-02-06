@@ -1,4 +1,5 @@
 import { ProductCard } from "@/components/product/product-card"
+import { getTopProducts } from "@/lib/catalog"
 
 type TopProductsProps = {
   audience: "b2b" | "b2c"
@@ -21,13 +22,7 @@ export async function TopProducts({ audience }: TopProductsProps) {
   let products: TopProduct[] = []
 
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/top-products?audience=${audience}&count=8`,
-      { cache: "no-store" }
-    )
-    if (res.ok) {
-      products = await res.json()
-    }
+    products = await getTopProducts(audience, 8)
   } catch (error) {
     console.error("Failed to fetch top products:", error)
   }

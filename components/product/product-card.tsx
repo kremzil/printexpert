@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { MessageSquare, ShoppingCart } from "lucide-react"
 
 import { ModeButton } from "@/components/print/mode-button"
@@ -24,7 +24,6 @@ type Props = {
 }
 
 export function ProductCard({ product, mode = "b2c" }: Props) {
-  const router = useRouter()
   const primaryImage = product.images?.[0]
   const shortDescription =
     product.excerpt ||
@@ -36,10 +35,6 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
 
   const priceValue = Number(product.priceFrom)
   const hasPrice = Number.isFinite(priceValue) && priceValue > 0
-
-  const handleOpenProduct = () => {
-    router.push(`/product/${product.slug}`)
-  }
 
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
@@ -80,35 +75,41 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
         <div className="flex gap-2">
           {mode === "b2c" ? (
             <ModeButton
+              asChild
               mode={mode}
               variant="primary"
               size="md"
-              onClick={handleOpenProduct}
               className="flex-1"
             >
-              <ShoppingCart className="h-4 w-4" />
-              Kúpiť
+              <Link href={`/product/${product.slug}`}>
+                <ShoppingCart className="h-4 w-4" />
+                Kúpiť
+              </Link>
             </ModeButton>
           ) : (
             <>
               <ModeButton
+                asChild
                 mode={mode}
                 variant="outline"
                 size="md"
-                onClick={handleOpenProduct}
                 className="flex-1"
               >
-                <MessageSquare className="h-4 w-4" />
-                Cenová ponuka
+                <Link href={`/product/${product.slug}`}>
+                  <MessageSquare className="h-4 w-4" />
+                  Cenová ponuka
+                </Link>
               </ModeButton>
               <ModeButton
+                asChild
                 mode={mode}
                 variant="primary"
                 size="md"
-                onClick={handleOpenProduct}
                 className="flex-1"
               >
-                Konfigurovať
+                <Link href={`/product/${product.slug}`}>
+                  Konfigurovať
+                </Link>
               </ModeButton>
             </>
           )}

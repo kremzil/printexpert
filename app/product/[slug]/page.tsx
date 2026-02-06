@@ -18,11 +18,13 @@ type ProductPageProps = {
 }
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
+const toPlainText = (value?: string | null) =>
+  value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : null
 
 export async function generateStaticParams() {
   const { getProducts } = await import("@/lib/catalog")
   const products = await getProducts({})
-  return products.slice(0, 100).map((product) => ({
+  return products.map((product) => ({
     slug: product.slug,
   }))
 }
@@ -31,11 +33,18 @@ export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params
+  const product = await getProductBySlug(slug)
+  const descriptionSource = product?.excerpt || product?.description || null
+  const description =
+    toPlainText(descriptionSource) ?? "Produkty na mieru od PrintExpert."
+  const title = product?.name ? `${product.name} | PrintExpert` : "Produkt | PrintExpert"
 
   return {
     alternates: {
       canonical: new URL(`/product/${slug}`, siteUrl),
     },
+    title,
+    description,
   }
 }
 
@@ -73,15 +82,15 @@ async function ProductDetails({
     notFound()
   }
 
-  const calculatorData = product.wpProductId
-    ? await getWpCalculatorData(product.wpProductId, true)
-    : null
-  const relatedSource = product.category?.slug
-    ? await getProducts({
-        categorySlug: product.category.slug,
-        audience: audienceContext.audience,
-      })
-    : []
+  const [calculatorData, relatedSource] = await Promise.all([
+    product.wpProductId ? getWpCalculatorData(product.wpProductId, true) : Promise.resolve(null),
+    product.category?.slug
+      ? getProducts({
+          categorySlug: product.category.slug,
+          audience: audienceContext.audience,
+        })
+      : Promise.resolve([]),
+  ])
   const relatedProducts = relatedSource
     .filter((item) => item.id !== product.id)
     .slice(0, 3)
