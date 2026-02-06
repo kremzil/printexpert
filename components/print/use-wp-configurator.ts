@@ -21,7 +21,7 @@ export type WpConfiguratorData = {
   matrices: Array<{
     kind: "simple" | "finishing"
     mtid: string
-    isActive: boolean
+    isActive?: boolean
     ntp: string
     numStyle: string | null
     aUnit: string | null
