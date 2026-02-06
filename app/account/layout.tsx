@@ -5,6 +5,8 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { auth } from "@/auth"
 import { getPrisma } from "@/lib/prisma"
+import { mergeGuestCart } from "@/lib/cart"
+import { cookies } from "next/headers"
 
 export default async function AccountLayout({
   children,
@@ -13,6 +15,13 @@ export default async function AccountLayout({
 }) {
   const audienceContext = await resolveAudienceContext()
   const session = await auth()
+  const cookieStore = await cookies()
+  const guestSessionId = cookieStore.get("cart_session_id")?.value
+
+  if (session?.user?.id && guestSessionId) {
+    await mergeGuestCart(guestSessionId, session.user.id)
+  }
+
   const prisma = getPrisma()
   const orderCount = session?.user?.id
     ? await prisma.order.count({ where: { userId: session.user.id } })

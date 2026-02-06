@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { getPrisma } from "@/lib/prisma"
 import { resolveAudienceContext } from "@/lib/audience-context"
+import { SavedCartActions } from "@/components/account/saved-cart-actions"
 import { Card } from "@/components/ui/card"
 
 export const metadata = {
@@ -23,6 +24,39 @@ const formatDate = (value: Date) =>
     month: "2-digit",
     year: "numeric",
   })
+
+const toNumber = (value: unknown) => {
+  if (typeof value === "number") return value
+  if (typeof value === "string" && value.trim() !== "") return Number(value)
+  if (value && typeof value === "object" && "toNumber" in value) {
+    try {
+      return (value as { toNumber: () => number }).toNumber()
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+const getSelectedOptions = (selectedOptions: unknown) => {
+  if (!selectedOptions || typeof selectedOptions !== "object" || Array.isArray(selectedOptions)) {
+    return []
+  }
+
+  if ("_attributes" in selectedOptions) {
+    const attributes = (selectedOptions as { _attributes?: unknown })._attributes
+    if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+      return Object.entries(attributes as Record<string, unknown>)
+        .filter(([, value]) => value !== null && value !== undefined)
+        .map(([key, value]) => ({ label: key, value: String(value) }))
+    }
+  }
+
+  return Object.entries(selectedOptions as Record<string, unknown>)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .filter(([, value]) => ["string", "number", "boolean"].includes(typeof value))
+    .map(([key, value]) => ({ label: key, value: String(value) }))
+}
 
 export default async function SavedCartsPage() {
   const session = await auth()
@@ -125,7 +159,7 @@ export default async function SavedCartsPage() {
                     </div>
                   </div>
 
-                  <div className="text-sm text-muted-foreground">
+                  <div className="space-y-3 text-sm text-muted-foreground">
                     {totals.gross > 0 ? (
                       <div className="space-y-1">
                         <div>
@@ -151,34 +185,107 @@ export default async function SavedCartsPage() {
                       <div>Cena na dopyt</div>
                     )}
                     {totals.missing > 0 ? (
-                      <div className="mt-2 text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         Niektoré položky nemajú dostupnú cenu.
                       </div>
                     ) : null}
+                    <SavedCartActions savedCartId={cart.id} name={cart.name} />
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2 border-t pt-4">
-                  {cart.items.slice(0, 3).map((item) => (
-                    <div key={item.id} className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/product/${item.product.slug}`}
-                          className="block truncate font-medium hover:underline"
-                        >
-                          {item.product.name}
-                        </Link>
-                        <div className="text-xs text-muted-foreground">
-                          Množstvo: {item.quantity} ks
+                <div className="mt-4 space-y-3 border-t pt-4">
+                  {cart.items.map((item) => {
+                    const attributes = getSelectedOptions(item.selectedOptions)
+                    const width = toNumber(item.width)
+                    const height = toNumber(item.height)
+                    const snapshot = item.priceSnapshot as
+                      | { net?: number; vatAmount?: number; gross?: number }
+                      | null
+                    const hasSnapshot = Boolean(snapshot && typeof snapshot === "object")
+                    const priceNet = hasSnapshot ? Number(snapshot?.net ?? 0) : 0
+                    const priceVat = hasSnapshot ? Number(snapshot?.vatAmount ?? 0) : 0
+                    const priceGross = hasSnapshot ? Number(snapshot?.gross ?? 0) : 0
+                    const totalNet = priceNet * item.quantity
+                    const totalVat = priceVat * item.quantity
+                    const totalGross = priceGross * item.quantity
+
+                    return (
+                      <div key={item.id} className="rounded-lg border border-border/60 p-3">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-1">
+                            <Link
+                              href={`/product/${item.product.slug}`}
+                              className="block font-medium hover:underline"
+                            >
+                              {item.product.name}
+                            </Link>
+                            <div className="text-xs text-muted-foreground">
+                              Množstvo: {item.quantity} ks
+                            </div>
+                            {width && height ? (
+                              <div className="text-xs text-muted-foreground">
+                                Rozmery: {width} × {height} cm
+                              </div>
+                            ) : null}
+                            {attributes.length > 0 ? (
+                              <div className="text-xs text-muted-foreground">
+                                {attributes.map((attr) => (
+                                  <div key={attr.label}>
+                                    <span className="font-medium">{attr.label}:</span>{" "}
+                                    {attr.value}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="text-xs text-muted-foreground lg:text-right">
+                            {hasSnapshot ? (
+                              <div className="space-y-1">
+                                <div>
+                                  Cena za ks bez DPH:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatMoney(priceNet)}
+                                  </span>
+                                </div>
+                                <div>
+                                  DPH za ks:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatMoney(priceVat)}
+                                  </span>
+                                </div>
+                                <div>
+                                  Cena za ks s DPH:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatMoney(priceGross)}
+                                  </span>
+                                </div>
+                                <div>
+                                  Celkom bez DPH:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatMoney(totalNet)}
+                                  </span>
+                                </div>
+                                <div>
+                                  Celkom s DPH:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatMoney(totalGross)}
+                                  </span>
+                                </div>
+                                <div>
+                                  Celkové DPH:{" "}
+                                  <span className="font-semibold text-foreground">
+                                    {formatMoney(totalVat)}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>Cena na dopyt</div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {cart.items.length > 3 ? (
-                    <div className="text-xs text-muted-foreground">
-                      + ďalšie {cart.items.length - 3} položky
-                    </div>
-                  ) : null}
+                    )
+                  })}
                 </div>
               </Card>
             )

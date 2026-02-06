@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/sheet"
 import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { CartButton } from "@/components/cart/cart-button"
+import { LoginDialog } from "@/components/auth/login-dialog"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getPrisma } from "@/lib/prisma"
 import { auth } from "@/auth"
@@ -434,14 +435,28 @@ export async function SiteHeader() {
             <div className="h-6 w-px bg-border/50 hidden sm:block" />
 
             <div className="hidden items-center gap-2 lg:flex">
-              {!session?.user && (
-                <ModeButton asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  <Link href="/auth/register">Registrácia</Link>
+              {!session?.user ? (
+                <>
+                  <ModeButton asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Link href="/auth/register">Registrácia</Link>
+                  </ModeButton>
+                  <LoginDialog
+                    trigger={
+                      <ModeButton
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5"
+                      >
+                        Prihlásiť sa
+                      </ModeButton>
+                    }
+                  />
+                </>
+              ) : (
+                <ModeButton asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
+                  <Link href="/account">Môj účet</Link>
                 </ModeButton>
               )}
-              <ModeButton asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
-                <Link href="/account">Môj účet</Link>
-              </ModeButton>
             </div>
 
             <CartButton />

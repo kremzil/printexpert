@@ -24,6 +24,17 @@ import {
   Upload,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ModeButton } from "@/components/print/mode-button";
 import { PriceDisplay } from "@/components/print/price-display";
 import { getCsrfHeader } from "@/lib/csrf";
@@ -91,6 +102,9 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
   const [note, setNote] = useState("");
   const [selectedShipping, setSelectedShipping] = useState<"courier" | "pickup">("courier");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
   const isB2B = mode === "b2b";
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)";
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)";
@@ -183,23 +197,33 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
   const handleSaveCart = async () => {
     if (!isB2B || saveStatus === "saving") return;
     setSaveStatus("saving");
+    setSaveMessage(null);
 
     try {
       const response = await fetch("/api/saved-carts", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getCsrfHeader() },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          name: saveName.trim() !== "" ? saveName.trim() : null,
+        }),
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(data?.error ?? "Nepodarilo sa uložiť košík");
+        const message = data?.error ?? "Nepodarilo sa uložiť košík. Skúste to znova.";
+        setSaveStatus("error");
+        setSaveMessage({ type: "error", text: message });
+        return;
       }
 
       setSaveStatus("success");
+      setSaveMessage({ type: "success", text: "Košík bol uložený." });
+      setIsSaveDialogOpen(false);
+      setSaveName("");
     } catch (error) {
       console.error("Save cart error:", error);
       setSaveStatus("error");
+      setSaveMessage({ type: "error", text: "Nepodarilo sa uložiť košík. Skúste to znova." });
     }
   };
 
@@ -231,17 +255,75 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
           {mode === "b2b" ? (
             <div className="flex w-full flex-col gap-2 sm:w-auto">
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveCart}
-                  disabled={saveStatus === "saving" || initialCart.items.length === 0}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                <Dialog
+                  open={isSaveDialogOpen}
+                  onOpenChange={(open) => {
+                    setIsSaveDialogOpen(open);
+                    if (open) {
+                      setSaveMessage(null);
+                    } else {
+                      setSaveName("");
+                    }
+                  }}
                 >
-                  <Save className="h-4 w-4" />
-                  <span className="hidden sm:inline">
-                    {saveStatus === "saving" ? "Ukladám..." : "Uložiť košík"}
-                  </span>
-                </button>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={saveStatus === "saving" || initialCart.items.length === 0}
+                      className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span className="hidden sm:inline">Uložiť košík</span>
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent size="default">
+                    <DialogHeader>
+                      <DialogTitle>Uložiť košík</DialogTitle>
+                      <DialogDescription>
+                        Uložte aktuálnu zostavu produktov pre rýchle opakovanie.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                      <Label htmlFor="saved-cart-name">Názov košíka</Label>
+                      <Input
+                        id="saved-cart-name"
+                        placeholder="Napr. Mesačná výroba"
+                        value={saveName}
+                        onChange={(event) => setSaveName(event.target.value)}
+                        autoComplete="off"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Názov je voliteľný. Ak ho nevyplníte, použije sa predvolený názov.
+                      </p>
+                    </div>
+                    {saveMessage?.type === "error" ? (
+                      <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                        {saveMessage.text}
+                      </div>
+                    ) : null}
+                    <DialogFooter>
+                      <ModeButton
+                        mode={mode}
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setIsSaveDialogOpen(false)}
+                      >
+                        Zrušiť
+                      </ModeButton>
+                      <ModeButton
+                        mode={mode}
+                        variant="primary"
+                        size="sm"
+                        type="button"
+                        onClick={handleSaveCart}
+                        disabled={saveStatus === "saving" || initialCart.items.length === 0}
+                      >
+                        {saveStatus === "saving" ? "Ukladám..." : "Uložiť"}
+                      </ModeButton>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <a
                   href="/api/cart/quote"
                   target="_blank"
@@ -252,18 +334,16 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                   <span className="hidden sm:inline">Cenová ponuka</span>
                 </a>
               </div>
-              {saveStatus === "success" ? (
+              {saveMessage?.type === "success" ? (
                 <div className="text-sm text-green-600">
-                  Košík bol uložený.{" "}
+                  {saveMessage.text}{" "}
                   <Link href="/account/saved-carts" className="font-medium underline">
                     Zobraziť uložené košíky
                   </Link>
                 </div>
               ) : null}
-              {saveStatus === "error" ? (
-                <div className="text-sm text-red-600">
-                  Nepodarilo sa uložiť košík. Skúste to znova.
-                </div>
+              {saveMessage?.type === "error" ? (
+                <div className="text-sm text-red-600">{saveMessage.text}</div>
               ) : null}
             </div>
           ) : null}

@@ -307,7 +307,7 @@ export async function mergeGuestCart(guestSessionId: string, userId: string) {
   }
 
   // Удаляем гостевую корзину
-  await prisma.cart.delete({
+  await prisma.cart.deleteMany({
     where: { id: guestCart.id },
   });
 }

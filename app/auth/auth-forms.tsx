@@ -39,7 +39,13 @@ const loginSchema = z.object({
 type MagicValues = z.infer<typeof magicSchema>
 type LoginValues = z.infer<typeof loginSchema>
 
-function MagicLinkForm() {
+type AuthFormsProps = {
+  callbackUrl?: string
+  stayOnPage?: boolean
+  onSuccess?: () => void
+}
+
+function MagicLinkForm({ callbackUrl }: { callbackUrl: string }) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle"
   )
@@ -56,7 +62,7 @@ function MagicLinkForm() {
       const result = await signIn("nodemailer", {
         email: values.email,
         redirect: false,
-        callbackUrl: "/account",
+        callbackUrl,
       })
 
       if (result?.error) {
@@ -149,7 +155,15 @@ function MagicLinkForm() {
   )
 }
 
-function PasswordLoginForm() {
+function PasswordLoginForm({
+  callbackUrl,
+  stayOnPage,
+  onSuccess,
+}: {
+  callbackUrl: string
+  stayOnPage: boolean
+  onSuccess?: () => void
+}) {
   const router = useRouter()
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -178,7 +192,13 @@ function PasswordLoginForm() {
         return
       }
 
-      router.push("/account")
+      onSuccess?.()
+      if (stayOnPage) {
+        router.refresh()
+        return
+      }
+
+      router.push(callbackUrl)
       router.refresh()
     } catch (error) {
       console.error(error)
@@ -274,10 +294,14 @@ function PasswordLoginForm() {
   )
 }
 
-export function AuthForms() {
+export function AuthForms({
+  callbackUrl = "/account",
+  stayOnPage = false,
+  onSuccess,
+}: AuthFormsProps) {
   const onGoogleSignIn = async () => {
     try {
-        await signIn("google", { callbackUrl: "/account" })
+        await signIn("google", { callbackUrl })
     } catch (error) {
         console.error(error)
     }
@@ -335,10 +359,14 @@ export function AuthForms() {
                 <div className="text-center text-sm text-muted-foreground mb-4 pt-2 px-2">
                   Pošleme vám odkaz na e-mail. Netreba si pamätať heslo.
                 </div>
-                <MagicLinkForm />
+                <MagicLinkForm callbackUrl={callbackUrl} />
               </TabsContent>
               <TabsContent value="password">
-                <PasswordLoginForm />
+                <PasswordLoginForm
+                  callbackUrl={callbackUrl}
+                  stayOnPage={stayOnPage}
+                  onSuccess={onSuccess}
+                />
               </TabsContent>
             </Tabs>
         </CardContent>
