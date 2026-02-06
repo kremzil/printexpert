@@ -9,6 +9,7 @@ import {
   LogOut,
   Package,
   MapPin,
+  Save,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { ModeButton } from "@/components/print/mode-button"
@@ -20,34 +21,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-
-const menuItems = [
-  {
-    title: "Domov",
-    url: "/",
-    icon: Home,
-  },
-  {
-    title: "Prehľad",
-    url: "/account",
-    icon: User,
-  },
-  {
-    title: "Objednávky",
-    url: "/account/orders",
-    icon: Package,
-  },
-  {
-    title: "Adresy",
-    url: "/account/addresses",
-    icon: MapPin,
-  },
-  {
-    title: "Nastavenia",
-    url: "/account/settings",
-    icon: Settings,
-  },
-]
 
 function NavigationItems({
   pathname,
@@ -61,6 +34,43 @@ function NavigationItems({
   const modeColor = mode === 'b2c' ? 'var(--b2c-primary)' : 'var(--b2b-primary)'
   const modeAccent = mode === 'b2c' ? 'var(--b2c-accent)' : 'var(--b2b-accent)'
   
+  const menuItems = [
+    {
+      title: "Domov",
+      url: "/",
+      icon: Home,
+    },
+    {
+      title: "Prehľad",
+      url: "/account",
+      icon: User,
+    },
+    {
+      title: "Objednávky",
+      url: "/account/orders",
+      icon: Package,
+    },
+    ...(mode === "b2b"
+      ? [
+          {
+            title: "Uložené košíky",
+            url: "/account/saved-carts",
+            icon: Save,
+          },
+        ]
+      : []),
+    {
+      title: "Adresy",
+      url: "/account/addresses",
+      icon: MapPin,
+    },
+    {
+      title: "Nastavenia",
+      url: "/account/settings",
+      icon: Settings,
+    },
+  ]
+
   return (
     <>
       <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">

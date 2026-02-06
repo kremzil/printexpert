@@ -38,6 +38,7 @@ model User {
   orderStatusHistory OrderStatusHistory[]
   addresses     UserAddress[]
   companyProfile CompanyProfile?
+  savedCarts    SavedCart[]
 }
 
 model CompanyProfile {
@@ -173,6 +174,7 @@ model Product {
   pricingModels PricingModel[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
+  savedCartItems SavedCartItem[]
 
   @@index([categoryId])
 }
@@ -336,6 +338,36 @@ model CartItem {
   updatedAt       DateTime @updatedAt
 
   @@index([cartId])
+  @@index([productId])
+}
+
+model SavedCart {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String?
+  items     SavedCartItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([userId])
+}
+
+model SavedCartItem {
+  id          String     @id @default(cuid())
+  savedCartId String
+  savedCart   SavedCart  @relation(fields: [savedCartId], references: [id], onDelete: Cascade)
+  productId   String     @db.Uuid
+  product     Product    @relation(fields: [productId], references: [id])
+  quantity    Int
+  width       Decimal?   @db.Decimal(10, 2)
+  height      Decimal?   @db.Decimal(10, 2)
+  selectedOptions Json?
+  priceSnapshot   Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([savedCartId])
   @@index([productId])
 }
 

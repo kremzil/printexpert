@@ -2,31 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { User, Package, MapPin, Settings } from "lucide-react"
+import { User, Package, MapPin, Settings, Save } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-
-const tabs = [
-  {
-    title: "Prehľad",
-    url: "/account",
-    icon: User,
-  },
-  {
-    title: "Objednávky",
-    url: "/account/orders",
-    icon: Package,
-  },
-  {
-    title: "Adresy",
-    url: "/account/addresses",
-    icon: MapPin,
-  },
-  {
-    title: "Nastavenia",
-    url: "/account/settings",
-    icon: Settings,
-  },
-]
 
 interface AccountTabsProps {
   mode: 'b2c' | 'b2b'
@@ -39,6 +16,37 @@ export function AccountTabs({ mode, variant = 'horizontal', orderCount }: Accoun
   
   const modeAccent = mode === 'b2c' ? 'var(--b2c-accent)' : 'var(--b2b-accent)'
   const modeColor = mode === 'b2c' ? 'var(--b2c-primary)' : 'var(--b2b-primary)'
+  const tabs = [
+    {
+      title: "Prehľad",
+      url: "/account",
+      icon: User,
+    },
+    {
+      title: "Objednávky",
+      url: "/account/orders",
+      icon: Package,
+    },
+    ...(mode === "b2b"
+      ? [
+          {
+            title: "Uložené košíky",
+            url: "/account/saved-carts",
+            icon: Save,
+          },
+        ]
+      : []),
+    {
+      title: "Adresy",
+      url: "/account/addresses",
+      icon: MapPin,
+    },
+    {
+      title: "Nastavenia",
+      url: "/account/settings",
+      icon: Settings,
+    },
+  ]
 
   if (variant === 'vertical') {
     return (

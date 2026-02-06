@@ -90,6 +90,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
   const [pendingUpload, setPendingUpload] = useState<PendingOrderUpload | null>(null);
   const [note, setNote] = useState("");
   const [selectedShipping, setSelectedShipping] = useState<"courier" | "pickup">("courier");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const isB2B = mode === "b2b";
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)";
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)";
@@ -179,6 +180,29 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
     }).format(price);
   };
 
+  const handleSaveCart = async () => {
+    if (!isB2B || saveStatus === "saving") return;
+    setSaveStatus("saving");
+
+    try {
+      const response = await fetch("/api/saved-carts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error ?? "Nepodarilo sa uložiť košík");
+      }
+
+      setSaveStatus("success");
+    } catch (error) {
+      console.error("Save cart error:", error);
+      setSaveStatus("error");
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="container-main py-6">
@@ -205,23 +229,42 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
           </div>
 
           {mode === "b2b" ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted"
-              >
-                <Save className="h-4 w-4" />
-                <span className="hidden sm:inline">Uložiť košík</span>
-              </button>
-              <a
-                href="/api/cart/quote"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Cenová ponuka</span>
-              </a>
+            <div className="flex w-full flex-col gap-2 sm:w-auto">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveCart}
+                  disabled={saveStatus === "saving" || initialCart.items.length === 0}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {saveStatus === "saving" ? "Ukladám..." : "Uložiť košík"}
+                  </span>
+                </button>
+                <a
+                  href="/api/cart/quote"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:bg-muted"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Cenová ponuka</span>
+                </a>
+              </div>
+              {saveStatus === "success" ? (
+                <div className="text-sm text-green-600">
+                  Košík bol uložený.{" "}
+                  <Link href="/account/saved-carts" className="font-medium underline">
+                    Zobraziť uložené košíky
+                  </Link>
+                </div>
+              ) : null}
+              {saveStatus === "error" ? (
+                <div className="text-sm text-red-600">
+                  Nepodarilo sa uložiť košík. Skúste to znova.
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
