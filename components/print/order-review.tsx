@@ -5,7 +5,6 @@ import { PriceDisplay } from "@/components/print/price-display"
 import { Card } from "@/components/ui/card"
 import {
   Building2,
-  CreditCard,
   Edit,
   FileCheck,
   Package,
@@ -25,7 +24,6 @@ interface OrderReviewProps {
   items: OrderItem[]
   shippingMethod: string
   shippingCost: number
-  paymentMethod: string
   billingAddress: {
     companyName?: string
     name: string
@@ -46,7 +44,6 @@ interface OrderReviewProps {
     items: number
     shipping: number
     billing: number
-    payment: number
   }
 }
 
@@ -55,19 +52,16 @@ export function OrderReview({
   items,
   shippingMethod,
   shippingCost,
-  paymentMethod,
   billingAddress,
   deliveryAddress,
   onEditStep,
   editSteps,
 }: OrderReviewProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
-  const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
   const stepMap = editSteps ?? {
     items: 1,
-    shipping: mode === "b2c" ? 2 : 3,
+    shipping: mode === "b2c" ? 1 : 2,
     billing: mode === "b2c" ? 1 : 2,
-    payment: mode === "b2c" ? 3 : 4,
   }
 
   const subtotal = items.reduce(
@@ -216,27 +210,6 @@ export function OrderReview({
           </div>
         </Card>
       </div>
-
-      <Card className="p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" style={{ color: modeColor }} />
-            <h3 className="font-semibold">Platobná metóda</h3>
-          </div>
-          <button
-            onClick={() => onEditStep(stepMap.payment)}
-            className="text-sm font-medium hover:underline"
-            style={{ color: modeColor }}
-          >
-            <Edit className="mr-1 inline h-3.5 w-3.5" />
-            Upraviť
-          </button>
-        </div>
-
-        <div className="rounded-lg p-3 text-sm font-medium" style={{ backgroundColor: modeAccent }}>
-          {paymentMethod}
-        </div>
-      </Card>
 
       <Card className="p-6">
         <h3 className="mb-4 font-semibold">Celková suma</h3>

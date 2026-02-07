@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Loader2, Search } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 
 type SearchProduct = {
   id: string
@@ -32,7 +33,17 @@ const MIN_QUERY_LENGTH = 2
 const PRODUCT_LIMIT = 6
 const CATEGORY_LIMIT = 4
 
-export function HeaderSearch() {
+type HeaderSearchProps = {
+  variant?: "desktop" | "mobile"
+  className?: string
+  autoFocus?: boolean
+}
+
+export function HeaderSearch({
+  variant = "desktop",
+  className,
+  autoFocus = false,
+}: HeaderSearchProps) {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [query, setQuery] = useState("")
@@ -123,8 +134,22 @@ export function HeaderSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  const isMobile = variant === "mobile"
+  const containerClassName = cn(
+    "relative w-full",
+    isMobile ? "max-w-none" : "hidden max-w-sm lg:block",
+    className
+  )
+
+  const inputClassName = cn(
+    "w-full border-border/50 transition-all focus-visible:ring-primary/20",
+    isMobile
+      ? "h-10 rounded-lg bg-background pl-9 pr-3 focus:bg-background"
+      : "h-9 min-w-[300px] rounded-full bg-secondary/50 pl-9 hover:bg-secondary/80 focus:bg-background"
+  )
+
   return (
-    <div ref={containerRef} className="relative hidden w-full max-w-sm lg:block">
+    <div ref={containerRef} className={containerClassName}>
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -136,7 +161,8 @@ export function HeaderSearch() {
           type="search"
           value={query}
           placeholder="Hľadať produkty alebo kategórie..."
-          className="h-9 w-full min-w-[300px] rounded-full bg-secondary/50 pl-9 border-border/50 focus-visible:ring-primary/20 transition-all hover:bg-secondary/80 focus:bg-background"
+          className={inputClassName}
+          autoFocus={autoFocus}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           onChange={(event) => setQuery(event.target.value)}

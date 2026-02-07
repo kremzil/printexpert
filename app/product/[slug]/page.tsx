@@ -65,20 +65,6 @@ async function ProductDetails({
   })
   const product = await getCachedProductBySlug(slug)
 
-  // enforce product visibility per audience preference
-  if (audienceContext?.audience === "b2b" && product && product.showInB2b === false) {
-    notFound()
-  }
-  if (audienceContext?.audience === "b2c" && product && product.showInB2c === false) {
-    notFound()
-  }
-  if (audienceContext?.audience === "b2b" && product?.category?.showInB2b === false) {
-    notFound()
-  }
-  if (audienceContext?.audience === "b2c" && product?.category?.showInB2c === false) {
-    notFound()
-  }
-
   if (!product) {
     notFound()
   }

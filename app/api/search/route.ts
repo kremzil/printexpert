@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       sort: "relevance",
       page: 1,
       pageSize: limit,
+      includeHidden: true,
     }),
     getCategories(),
   ])

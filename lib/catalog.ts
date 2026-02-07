@@ -90,6 +90,7 @@ export async function getCatalogProducts(options: {
   sort?: CatalogSort;
   page?: number;
   pageSize?: number;
+  includeHidden?: boolean;
 }) {
   const prisma = getPrisma();
   const {
@@ -99,9 +100,11 @@ export async function getCatalogProducts(options: {
     sort = "relevance",
     page = 1,
     pageSize = 24,
+    includeHidden = false,
   } = options;
 
-  const audienceFilter = audience
+  const shouldApplyAudience = !includeHidden && Boolean(audience);
+  const audienceFilter = shouldApplyAudience
     ? audience === "b2b"
       ? { showInB2b: true }
       : audience === "b2c"

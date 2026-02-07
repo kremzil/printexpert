@@ -1,8 +1,9 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Suspense } from "react"
-import { Menu, ChevronDown } from "lucide-react"
+import { Menu, ChevronDown, Search } from "lucide-react"
 import { unstable_cache } from "next/cache"
+import type { Session } from "next-auth"
 
 import {
   NavigationMenu,
@@ -38,6 +39,7 @@ import { SiteHeaderClient } from "./site-header-client"
 
 const MAX_PRODUCTS_PER_SUBCATEGORY = 6
 const MAX_PRODUCTS_PER_CATEGORY = 12
+type AuthSession = Session | null
 
 // Кэшированный запрос навигационных данных (5 минут)
 const getCachedNavData = unstable_cache(
@@ -315,9 +317,15 @@ async function AudienceNavigation({
 
 async function MobileMenu({
   audienceContext,
+  session,
 }: {
   audienceContext: AudienceContext
+  session: AuthSession
 }) {
+  const authHoverClass =
+    audienceContext.audience === "b2b"
+      ? "hover:bg-[color:var(--b2b-accent)]"
+      : "hover:bg-[color:var(--b2c-accent)]"
   const { categories, productsByCategoryId } = await getCachedNavData(
     audienceContext.audience
   )
@@ -344,6 +352,48 @@ async function MobileMenu({
           <SheetDescription>
             Navigujte cez kategórie a produkty
           </SheetDescription>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Suspense fallback={null}>
+              <AudienceHeaderSwitch audienceContext={audienceContext} />
+            </Suspense>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {!session?.user ? (
+              <>
+                <ModeButton
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`w-full ${authHoverClass}`}
+                  mode={audienceContext.audience}
+                >
+                  <Link href="/auth/register">Registrácia</Link>
+                </ModeButton>
+                <LoginDialog
+                  trigger={
+                    <ModeButton
+                      variant="outline"
+                      size="sm"
+                      className={`w-full ${authHoverClass}`}
+                      mode={audienceContext.audience}
+                    >
+                      Prihlásiť sa
+                    </ModeButton>
+                  }
+                />
+              </>
+            ) : (
+              <ModeButton
+                asChild
+                variant="outline"
+                size="sm"
+                className={`w-full ${authHoverClass}`}
+                mode={audienceContext.audience}
+              >
+                <Link href="/account">Môj účet</Link>
+              </ModeButton>
+            )}
+          </div>
         </SheetHeader>
         <nav className="mt-6 flex flex-col gap-2 overflow-y-auto flex-1">
           <Link
@@ -404,53 +454,93 @@ async function MobileMenu({
 
 import { HeaderSearch } from "@/components/header-search"
 
+function MobileSearch() {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <ModeButton variant="ghost" size="icon" className="lg:hidden">
+          <Search className="h-5 w-5" />
+          <span className="sr-only">Hľadať</span>
+        </ModeButton>
+      </SheetTrigger>
+      <SheetContent side="top" className="lg:hidden">
+        <SheetHeader className="pb-2">
+          <SheetTitle>Vyhľadávanie</SheetTitle>
+          <SheetDescription>Hľadať produkty alebo kategórie</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-4">
+          <HeaderSearch variant="mobile" autoFocus />
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 export async function SiteHeader() {
   const [session, audienceContext] = await Promise.all([
     auth(),
     resolveAudienceContext(),
   ])
+  const authHoverClass =
+    audienceContext.audience === "b2b"
+      ? "hover:bg-[color:var(--b2b-accent)]"
+      : "hover:bg-[color:var(--b2c-accent)]"
   return (
     <SiteHeaderClient
       topBar={
         <>
-          {/* Left: Logo + Search */}
-          <div className="flex items-center gap-6">
-            <Suspense fallback={null}>
-              <MobileMenu audienceContext={audienceContext} />
-            </Suspense>
+          {/* Left: Mobile actions + Logo + Search */}
+          <div className="flex w-full items-center justify-between gap-0 lg:w-auto lg:justify-start lg:gap-6">
             <Link 
               href="/" 
               className="group flex items-center gap-2 transition-transform duration-300 hover:scale-105"
             >
               <div className="relative site-header-logo">
                 <Image
+                  src="/icon.png"
+                  alt="PrintExpert"
+                  width={32}
+                  height={32}
+                  priority
+                  className="block transition-transform duration-300 ease-in-out group-hover:opacity-90 lg:hidden"
+                />
+                <Image
                   src="/printexpert-logo.svg"
                   alt="PrintExpert"
                   width={180}
                   height={40}
                   priority
-                  className="transition-transform duration-300 ease-in-out group-hover:opacity-90"
+                  className="hidden transition-transform duration-300 ease-in-out group-hover:opacity-90 lg:block site-header-logo-main"
                 />
                 <div className="absolute -bottom-1 left-0 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
               </div>
               <span className="sr-only">PrintExpert</span>
             </Link>
-            
+            <div className="flex items-center gap-1 lg:hidden">
+              <MobileSearch />
+              <CartButton mode={audienceContext.audience} />
+              <Suspense fallback={null}>
+              <MobileMenu audienceContext={audienceContext} session={session} />
+            </Suspense>
+            </div>
             <HeaderSearch />
           </div>
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
-            <Suspense fallback={null}>
-              <AudienceHeaderSwitch audienceContext={audienceContext} />
-            </Suspense>
-
-            <div className="h-6 w-px bg-border/50 hidden sm:block" />
-
             <div className="hidden items-center gap-2 lg:flex">
+              <Suspense fallback={null}>
+                <AudienceHeaderSwitch audienceContext={audienceContext} />
+              </Suspense>
               {!session?.user ? (
                 <>
-                  <ModeButton asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <ModeButton
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    mode={audienceContext.audience}
+                    className={authHoverClass}
+                  >
                     <Link href="/auth/register">Registrácia</Link>
                   </ModeButton>
                   <LoginDialog
@@ -458,7 +548,8 @@ export async function SiteHeader() {
                       <ModeButton
                         variant="outline"
                         size="sm"
-                        className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5"
+                        mode={audienceContext.audience}
+                        className={`rounded-full ${authHoverClass}`}
                       >
                         Prihlásiť sa
                       </ModeButton>
@@ -466,13 +557,18 @@ export async function SiteHeader() {
                   />
                 </>
               ) : (
-                <ModeButton asChild variant="outline" size="sm" className="rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5">
+                <ModeButton
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  mode={audienceContext.audience}
+                  className={`rounded-full ${authHoverClass}`}
+                >
                   <Link href="/account">Môj účet</Link>
                 </ModeButton>
               )}
+              <CartButton mode={audienceContext.audience} />
             </div>
-
-            <CartButton mode={audienceContext.audience} />
           </div>
         </>
       }

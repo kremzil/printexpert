@@ -19,33 +19,42 @@ interface PaymentMethodSelectorProps {
   mode: CustomerMode
   selected: PaymentMethod
   onSelect: (method: PaymentMethod) => void
+  variant?: "card" | "embedded"
 }
 
 const paymentMethods: PaymentMethodOption[] = [
-  {
-    id: "stripe",
-    title: "Platobná karta",
-    description: "Okamžité spracovanie cez platobnú bránu",
-    icon: CreditCard,
-  },
   {
     id: "bank",
     title: "Bankový prevod",
     description: "Platba vopred na účet",
     icon: Building2,
   },
+  {
+    id: "stripe",
+    title: "Platobná karta",
+    description: "Okamžité spracovanie cez platobnú bránu",
+    icon: CreditCard,
+  },
 ]
 
-export function PaymentMethodSelector({ mode, selected, onSelect }: PaymentMethodSelectorProps) {
+export function PaymentMethodSelector({
+  mode,
+  selected,
+  onSelect,
+  variant = "card",
+}: PaymentMethodSelectorProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
 
-  return (
-    <Card className="p-6">
-      <h3 className="mb-4 text-lg font-semibold" style={{ color: modeColor }}>
-        Spôsob platby
-      </h3>
+  const TitleTag = variant === "embedded" ? "div" : "h3"
+  const titleClassName =
+    variant === "embedded" ? "text-sm font-semibold" : "mb-4 text-lg font-semibold"
 
+  const content = (
+    <>
+      <TitleTag className={titleClassName} style={{ color: modeColor }}>
+        Spôsob platby
+      </TitleTag>
       <div className="space-y-3">
         {paymentMethods.map((method) => {
           const Icon = method.icon
@@ -100,6 +109,12 @@ export function PaymentMethodSelector({ mode, selected, onSelect }: PaymentMetho
           )
         })}
       </div>
-    </Card>
+    </>
   )
+
+  if (variant === "embedded") {
+    return <div className="space-y-4">{content}</div>
+  }
+
+  return <Card className="p-6">{content}</Card>
 }

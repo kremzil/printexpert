@@ -65,6 +65,23 @@ type CheckoutBillingData = {
   country: string;
 };
 
+type CheckoutAddressStorage = {
+  billingData?: Partial<CheckoutBillingData>;
+  deliveryData?: Partial<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    street: string;
+    apt: string;
+    city: string;
+    zipCode: string;
+    country: string;
+  }>;
+  deliveryDifferent?: boolean;
+  selectedDeliveryAddressId?: string;
+};
+
 declare global {
   interface Window {
     __pendingOrderUpload?: PendingOrderUpload;
@@ -197,6 +214,7 @@ export function CheckoutForm({
   initialBillingData,
   savedAddresses = [],
 }: CheckoutFormProps) {
+  const addressStorageKey = `checkout-address-v1:${mode}`;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -204,7 +222,7 @@ export function CheckoutForm({
   const [saveCard, setSaveCard] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"bank" | "stripe">("bank");
+  const [paymentMethod, setPaymentMethod] = useState<"bank" | "stripe">("stripe");
   const isPreparingRef = useRef(false);
   const initialBilling = buildBillingData(initialBillingData);
   const defaultSavedAddress =
@@ -212,6 +230,7 @@ export function CheckoutForm({
   const [billingData, setBillingData] = useState<CheckoutBillingData>(
     initialBilling
   );
+  const [hasHydratedAddress, setHasHydratedAddress] = useState(false);
   const [deliveryDifferent, setDeliveryDifferent] = useState(false);
   const [deliveryData, setDeliveryData] = useState({
     firstName: initialBilling.firstName,
@@ -257,8 +276,7 @@ export function CheckoutForm({
             title: "Kontakt a doručenie",
             description: "Kontaktné údaje a doručenie",
           },
-          { number: 2, title: "Platba", description: "Spôsob platby" },
-          { number: 3, title: "Dokončenie", description: "Kontrola a potvrdenie" },
+          { number: 2, title: "Dokončenie", description: "Kontrola a platba" },
         ]
       : [
           { number: 1, title: "Prezeranie", description: "Kontrola košíka" },
@@ -267,13 +285,11 @@ export function CheckoutForm({
             title: "Fakturácia a doručenie",
             description: "Firemné údaje a adresa",
           },
-          { number: 3, title: "Platba", description: "Spôsob úhrady" },
-          { number: 4, title: "Dokončenie", description: "Potvrdenie" },
+          { number: 3, title: "Dokončenie", description: "Kontrola a platba" },
         ];
 
   const infoStep = mode === "b2c" ? 1 : 2;
-  const paymentStep = mode === "b2c" ? 2 : 3;
-  const reviewStep = mode === "b2c" ? 3 : 4;
+  const reviewStep = mode === "b2c" ? 2 : 3;
 
   const handleBillingChange = (field: string, value: string) => {
     setBillingData((prev) => ({ ...prev, [field]: value }));
@@ -312,6 +328,56 @@ export function CheckoutForm({
       phone: prev.phone || billingData.phone,
     }));
   }, [billingData, deliveryDifferent]);
+
+  useEffect(() => {
+    if (hasHydratedAddress) return;
+    try {
+      const stored = localStorage.getItem(addressStorageKey);
+      if (!stored) {
+        setHasHydratedAddress(true);
+        return;
+      }
+      const parsed = JSON.parse(stored) as CheckoutAddressStorage;
+      if (parsed?.billingData) {
+        setBillingData((prev) => ({ ...prev, ...parsed.billingData }));
+      }
+      if (typeof parsed?.deliveryDifferent === "boolean") {
+        setDeliveryDifferent(parsed.deliveryDifferent);
+      }
+      if (parsed?.deliveryData) {
+        setDeliveryData((prev) => ({ ...prev, ...parsed.deliveryData }));
+      }
+      if (parsed?.selectedDeliveryAddressId) {
+        setSelectedDeliveryAddressId(parsed.selectedDeliveryAddressId);
+      }
+    } catch (storageError) {
+      console.warn("Checkout address restore failed:", storageError);
+    } finally {
+      setHasHydratedAddress(true);
+    }
+  }, [addressStorageKey, hasHydratedAddress]);
+
+  useEffect(() => {
+    if (!hasHydratedAddress) return;
+    const payload: CheckoutAddressStorage = {
+      billingData,
+      deliveryData,
+      deliveryDifferent,
+      selectedDeliveryAddressId,
+    };
+    try {
+      localStorage.setItem(addressStorageKey, JSON.stringify(payload));
+    } catch (storageError) {
+      console.warn("Checkout address persist failed:", storageError);
+    }
+  }, [
+    addressStorageKey,
+    billingData,
+    deliveryData,
+    deliveryDifferent,
+    hasHydratedAddress,
+    selectedDeliveryAddressId,
+  ]);
 
   const customerName = `${billingData.firstName} ${billingData.lastName}`.trim();
   const customerEmail = billingData.email.trim();
@@ -481,8 +547,9 @@ export function CheckoutForm({
     return { orderId: order.id as string, uploadFailed };
   }, [billingData, deliveryData, deliveryDifferent, notes, customerEmail, customerName, customerPhone]);
 
-  const preparePayment = useCallback(async () => {
-    if (paymentMethod !== "stripe") {
+  const preparePayment = useCallback(async (methodOverride?: "bank" | "stripe") => {
+    const effectiveMethod = methodOverride ?? paymentMethod;
+    if (effectiveMethod !== "stripe") {
       return;
     }
     // Защита от дублирования вызовов через ref
@@ -556,6 +623,21 @@ export function CheckoutForm({
     paymentMethod,
   ]);
 
+  useEffect(() => {
+    if (currentStep !== reviewStep) return;
+    if (paymentMethod !== "stripe") return;
+    if (clientSecret || orderId || isPreparingPayment) return;
+    preparePayment("stripe");
+  }, [
+    clientSecret,
+    currentStep,
+    isPreparingPayment,
+    orderId,
+    paymentMethod,
+    preparePayment,
+    reviewStep,
+  ]);
+
   const handleBankTransfer = useCallback(async () => {
     if (isSubmitting || isPreparingPayment) return;
     if (!customerName.trim() || !customerEmail.trim()) {
@@ -600,9 +682,6 @@ export function CheckoutForm({
     pricePerUnit: item.priceSnapshot?.gross || 0,
     configuration: getItemConfiguration(item) || "—",
   }));
-
-  const paymentLabel =
-    paymentMethod === "stripe" ? "Platobná karta" : "Bankový prevod";
 
   const handleEditStep = (step: number) => {
     setCurrentStep(step);
@@ -734,58 +813,6 @@ export function CheckoutForm({
           </>
         )}
 
-        {currentStep === paymentStep && (
-          <>
-            <PaymentMethodSelector
-              mode={mode}
-              selected={paymentMethod}
-              onSelect={(next) => {
-                setPaymentMethod(next);
-                if (next === "stripe") {
-                  preparePayment();
-                }
-              }}
-            />
-
-            {paymentMethod === "stripe" && (
-              <Card className="p-6">
-                <div className="flex items-start gap-2">
-                  <input
-                    id="saveCard"
-                    name="saveCard"
-                    type="checkbox"
-                    checked={saveCard}
-                    onChange={(event) => setSaveCard(event.target.checked)}
-                    disabled={isSubmitting || Boolean(clientSecret)}
-                    className="mt-1 h-4 w-4 rounded border border-input"
-                  />
-                  <div className="space-y-1">
-                    <label htmlFor="saveCard" className="text-sm leading-tight">
-                      Uložiť kartu pre budúce platby
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      Uloženie karty vyžaduje prihlásenie.
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            <Card className="p-6">
-              <h3 className="mb-2 text-lg font-semibold">Poznámka k objednávke</h3>
-              <Textarea
-                id="notes"
-                name="notes"
-                placeholder="Doplňujúce informácie k objednávke..."
-                rows={4}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                disabled={isSubmitting}
-              />
-            </Card>
-          </>
-        )}
-
         {currentStep === reviewStep && (
           <>
             <OrderReview
@@ -793,7 +820,6 @@ export function CheckoutForm({
               items={orderItems}
               shippingMethod="Kuriér"
               shippingCost={0}
-              paymentMethod={paymentLabel}
               billingAddress={{
                 companyName: billingData.companyName,
                 name: customerName,
@@ -818,9 +844,21 @@ export function CheckoutForm({
                 items: mode === "b2c" ? infoStep : 1,
                 shipping: infoStep,
                 billing: infoStep,
-                payment: paymentStep,
               }}
             />
+
+            <Card className="p-6">
+              <h3 className="mb-2 text-lg font-semibold">Poznámka k objednávke</h3>
+              <Textarea
+                id="notes"
+                name="notes"
+                placeholder="Doplňujúce informácie k objednávke..."
+                rows={4}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                disabled={isSubmitting}
+              />
+            </Card>
 
             <Card className="p-6">
               <div className="flex items-start gap-3">
@@ -946,73 +984,97 @@ export function CheckoutForm({
 
           {currentStep === reviewStep && (
             <Card className="p-6">
-              <h3 className="mb-3 text-lg font-semibold">Platba</h3>
-              {paymentMethod === "bank" && (
-                <div className="space-y-3">
-                  <ModeButton
-                    mode={mode}
-                    variant="primary"
-                    size="lg"
-                    type="button"
-                    className="w-full"
-                    onClick={handleBankTransfer}
-                    disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
-                  >
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Potvrdiť objednávku
-                  </ModeButton>
-                  <p className="text-center text-xs text-muted-foreground">
-                    Pokyny k platbe uvidíte po vytvorení objednávky.
-                  </p>
-                </div>
-              )}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Platba</h3>
+                <PaymentMethodSelector
+                  mode={mode}
+                  selected={paymentMethod}
+                  variant="embedded"
+                  onSelect={(next) => {
+                    setPaymentMethod(next);
+                    if (next === "stripe") {
+                      preparePayment(next);
+                    }
+                  }}
+                />
 
-              {paymentMethod === "stripe" && (
-                <>
-                  {!clientSecret && (
-                    <div className="space-y-3 text-sm text-muted-foreground">
-                      <p>
-                        Vyplňte kontaktné údaje, aby sme mohli pripraviť platbu.
-                      </p>
-                      <ModeButton
-                        mode={mode}
-                        variant="outline"
-                        size="md"
-                        type="button"
-                        className="w-full"
-                        onClick={preparePayment}
-                        disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
-                      >
-                        {isPreparingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Načítať platobný formulár
-                      </ModeButton>
-                    </div>
-                  )}
-                  {clientSecret && orderId && getStripePromise() && (
-                    <>
-                      <Elements
-                        stripe={getStripePromise()}
-                        options={{
-                          clientSecret,
-                          appearance: { theme: "stripe" },
-                        }}
-                      >
-                        <PaymentForm
-                          mode={mode}
-                          orderId={orderId}
-                          onError={(message) => setError(message)}
-                          onProcessing={(value) => setIsProcessingPayment(value)}
-                        />
-                      </Elements>
-                      {isProcessingPayment && (
-                        <p className="mt-3 text-xs text-muted-foreground">
-                          Platba sa spracováva. Prosím, neodchádzajte z tejto stránky.
+                {paymentMethod === "stripe" && (
+                  <div className="rounded-lg border border-border p-4">
+                    <div className="flex items-start gap-2">
+                      <input
+                        id="saveCard"
+                        name="saveCard"
+                        type="checkbox"
+                        checked={saveCard}
+                        onChange={(event) => setSaveCard(event.target.checked)}
+                        disabled={isSubmitting || Boolean(clientSecret)}
+                        className="mt-1 h-4 w-4 rounded border border-input"
+                      />
+                      <div className="space-y-1">
+                        <label htmlFor="saveCard" className="text-sm leading-tight">
+                          Uložiť kartu pre budúce platby
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Uloženie karty vyžaduje prihlásenie.
                         </p>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === "bank" && (
+                  <div className="space-y-3">
+                    <ModeButton
+                      mode={mode}
+                      variant="primary"
+                      size="lg"
+                      type="button"
+                      className="w-full"
+                      onClick={handleBankTransfer}
+                      disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
+                    >
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Potvrdiť objednávku
+                    </ModeButton>
+                    <p className="text-center text-xs text-muted-foreground">
+                      Pokyny k platbe uvidíte po vytvorení objednávky.
+                    </p>
+                  </div>
+                )}
+
+                {paymentMethod === "stripe" && (
+                  <>
+                    {!clientSecret && (
+                      <div className="text-sm text-muted-foreground">
+                        Pripravujeme platobný formulár...
+                      </div>
+                    )}
+                    {clientSecret && orderId && getStripePromise() && (
+                      <>
+                        <Elements
+                          stripe={getStripePromise()}
+                          options={{
+                            clientSecret,
+                            appearance: { theme: "stripe" },
+                          }}
+                        >
+                          <PaymentForm
+                            mode={mode}
+                            orderId={orderId}
+                            onError={(message) => setError(message)}
+                            onProcessing={(value) => setIsProcessingPayment(value)}
+                          />
+                        </Elements>
+                        {isProcessingPayment && (
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Platba sa spracováva. Prosím, neodchádzajte z tejto stránky.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             </Card>
           )}
 

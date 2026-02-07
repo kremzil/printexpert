@@ -107,6 +107,7 @@ async function CatalogContent({
       sort: sortBy,
       page,
       pageSize,
+      includeHidden: Boolean(searchQuery),
     }),
     getCategoryProductCounts({ audience: audienceContext?.audience }),
   ])

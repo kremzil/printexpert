@@ -166,17 +166,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    const setupFutureUsage: Stripe.PaymentIntentCreateParams.SetupFutureUsage | undefined =
+      shouldSaveCard ? "off_session" : undefined;
+
+    const baseIntentPayload = {
       amount: amountInCents,
       currency: "eur",
-      automatic_payment_methods: { enabled: true },
       customer: customerId,
-      setup_future_usage: shouldSaveCard ? "off_session" : undefined,
+      setup_future_usage: setupFutureUsage,
       receipt_email: order.customerEmail,
       metadata: {
         orderId: order.id,
       },
-    });
+    };
+
+    let paymentIntent: Stripe.Response<Stripe.PaymentIntent>;
+
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        ...baseIntentPayload,
+        payment_method_types: ["card", "link"],
+      });
+    } catch (error) {
+      const stripeError = error as { code?: string };
+      if (stripeError?.code !== "payment_method_type_not_enabled") {
+        throw error;
+      }
+      paymentIntent = await stripe.paymentIntents.create({
+        ...baseIntentPayload,
+        payment_method_types: ["card"],
+      });
+    }
 
     await prisma.order.update({
       where: { id: order.id },

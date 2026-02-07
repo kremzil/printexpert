@@ -336,7 +336,7 @@
   
   /* Логотип меньше на мобилках */
   @media (max-width: 768px) {
-    .site-header-logo img {
+    .site-header-logo .site-header-logo-main {
       width: 130px !important;
       height: 29px !important;
     }
