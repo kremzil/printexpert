@@ -228,7 +228,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
   };
 
   return (
-    <div className="w-full">
+    <div className="min-h-screen bg-background rounded-2xl shadow-2xl my-4 md:my-8">
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
         <nav className="mb-6 flex items-center gap-2 text-[14px] text-[#717182]">
           <Home className="h-4 w-4" />

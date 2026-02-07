@@ -38,6 +38,7 @@ export default async function RootLayout({
   const headersList = await headers()
   const pathname = headersList.get("x-pathname") || ""
   const isAdminRoute = pathname.startsWith("/admin")
+  const isHomeRoute = pathname === "/"
 
   return (
     <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
@@ -61,7 +62,11 @@ export default async function RootLayout({
             {isAdminRoute ? (
               children
             ) : (
-              <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10">
+              <div
+                className={`mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 ${
+                  isHomeRoute ? "" : "py-6 md:py-8 lg:py-10"
+                }`}
+              >
                 {children}
               </div>
             )}

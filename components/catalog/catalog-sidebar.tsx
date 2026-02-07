@@ -45,7 +45,7 @@ export function CatalogSidebar({ categories }: CatalogSidebarProps) {
           <Button
             asChild
             variant={!activeSlug ? "secondary" : "ghost"}
-            className="w-full justify-start font-medium"
+            className="w-full justify-start font-medium text-white"
           >
             <Link href="/catalog">Všetky produkty</Link>
           </Button>

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/carousel"
 import { ProductCard } from "@/components/product/product-card"
 import type { CustomerMode } from "@/components/print/types"
+import { HeroCarousel } from "@/components/print/hero-carousel"
 
 type CategoryCardData = {
   id: string
@@ -383,6 +384,35 @@ function HeroSection({
   modeAccent: string
 }) {
   const isB2C = mode === "b2c"
+  const heroSlides = isB2C
+    ? [
+        {
+          src: "/homepage/b2c/b2c-1.webp",
+          alt: "Veľky fotoobr s rodinou",
+        },
+        {
+          src: "/homepage/b2c/b2c-2.webp",
+          alt: "Nalálepky na stenu do detskej izby",
+        },
+        {
+          src: "/homepage/b2c/b2c-3.webp",
+          alt: "Rohožka pri vchode do domu",
+        },
+      ]
+    : [
+        {
+          src: "/homepage/b2b/nalepka.webp",
+          alt: "Tlačoviny pre váš biznis",
+        },
+        {
+          src: "/homepage/b2b/banner.webp",
+          alt: "Bannery od 6.66 eur",
+        },
+        {
+          src: "/homepage/b2b/rollup.webp",
+          alt: "Rollup od 41.66 eur",
+        },
+      ]
 
   return (
     <section
@@ -463,20 +493,7 @@ function HeroSection({
           </div>
 
           <div className="relative">
-            <div className="relative aspect-square overflow-hidden rounded-2xl shadow-2xl">
-              <Image
-                src={
-                  isB2C
-                    ? "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&q=80"
-                    : "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80"
-                }
-                alt={isB2C ? "Tlačové produkty" : "Firemné tlačové riešenia"}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
-                priority
-              />
-            </div>
+            <HeroCarousel slides={heroSlides} activeColor={modeColor} />
 
             <div className="absolute -bottom-4 -left-4 rounded-lg bg-white p-4 shadow-lg md:p-6">
               <div className="flex items-center gap-3">

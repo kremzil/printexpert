@@ -153,8 +153,8 @@ export function CatalogClient({
 
   return (
     <div className="w-full">
-      <div className="min-h-screen bg-background">
-        <div className="w-full">
+      <div className="min-h-screen bg-background rounded-2xl shadow-2xl my-4 md:my-8">
+        <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8">
           <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
             <Home className="h-4 w-4" />
             <ChevronRight className="h-4 w-4" />

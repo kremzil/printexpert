@@ -331,7 +331,7 @@ export function ProductPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background rounded-2xl shadow-2xl my-4 md:my-8">
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
         <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Link

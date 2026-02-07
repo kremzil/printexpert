@@ -156,7 +156,7 @@ async function CheckoutShell() {
   const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background rounded-2xl shadow-2xl my-4 md:my-8">
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 flex flex-col gap-4">
           <Link

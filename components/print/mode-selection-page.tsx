@@ -71,7 +71,7 @@ export function ModeSelectionPage() {
             </div>
 
             <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-8xl">
-              Vyberte si režim
+              Vyberte si tlač
               <br />
               <span className="bg-gradient-to-r from-red-600 via-orange-600 to-blue-600 bg-clip-text text-transparent">
                 pre vaše potreby

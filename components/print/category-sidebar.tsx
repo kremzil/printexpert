@@ -78,7 +78,11 @@ export function CategorySidebar({
         style={!selectedCategory ? { backgroundColor: modeColor } : undefined}
       >
         Všetky produkty
-        <span className="text-xs text-muted-foreground">
+        <span
+          className={`text-xs ${
+            !selectedCategory ? "text-white/80" : "text-muted-foreground"
+          }`}
+        >
           {categories.reduce((sum, item) => sum + item.count, 0)}
         </span>
       </button>
@@ -117,7 +121,11 @@ export function CategorySidebar({
                   </span>
                   {category.name}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span
+                  className={`text-xs ${
+                    isActive ? "text-white/80" : "text-muted-foreground"
+                  }`}
+                >
                   {category.count}
                 </span>
               </button>
@@ -138,7 +146,11 @@ export function CategorySidebar({
                         }`}
                       >
                         <span>{child.name}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span
+                          className={`text-xs ${
+                            childActive ? "text-foreground/60" : "text-muted-foreground"
+                          }`}
+                        >
                           {child.count}
                         </span>
                       </button>

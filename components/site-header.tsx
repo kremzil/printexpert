@@ -472,7 +472,7 @@ export async function SiteHeader() {
               )}
             </div>
 
-            <CartButton />
+            <CartButton mode={audienceContext.audience} />
           </div>
         </>
       }
