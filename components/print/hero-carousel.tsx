@@ -45,17 +45,13 @@ export function HeroCarousel({ slides, activeColor }: HeroCarouselProps) {
     const resume = () => setIsPaused(false)
 
     api.on("pointerDown", pause)
-    api.on("dragStart", pause)
     api.on("pointerUp", resume)
-    api.on("dragEnd", resume)
 
     return () => {
       api.off("select", update)
       api.off("reInit", update)
       api.off("pointerDown", pause)
-      api.off("dragStart", pause)
       api.off("pointerUp", resume)
-      api.off("dragEnd", resume)
     }
   }, [api])
 
