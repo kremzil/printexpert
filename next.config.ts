@@ -21,6 +21,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: false,
+  serverExternalPackages: ["@react-pdf/renderer"],
   async headers() {
     const headers = [...securityHeaders];
 

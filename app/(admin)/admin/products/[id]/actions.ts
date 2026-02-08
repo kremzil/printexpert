@@ -613,6 +613,14 @@ export async function updateProductDetails(
   const showInB2cRaw = String(formData.get("showInB2c") ?? "").trim()
   const isActiveRaw = String(formData.get("isActive") ?? "").trim()
 
+  // Designer fields
+  const designerEnabledRaw = String(formData.get("designerEnabled") ?? "").trim()
+  const designerWidthRaw = String(formData.get("designerWidth") ?? "").trim()
+  const designerHeightRaw = String(formData.get("designerHeight") ?? "").trim()
+  const designerBgColorRaw = String(formData.get("designerBgColor") ?? "").trim()
+  const designerDpiRaw = String(formData.get("designerDpi") ?? "").trim()
+  const designerColorProfile = String(formData.get("designerColorProfile") ?? "").trim()
+
   if (!name || !slug) {
     return
   }
@@ -654,6 +662,12 @@ export async function updateProductDetails(
       isActive: isActiveRaw === "1",
       showInB2b: showInB2bRaw === "1",
       showInB2c: showInB2cRaw === "1",
+      designerEnabled: designerEnabledRaw === "1",
+      designerWidth: designerWidthRaw ? parseInt(designerWidthRaw) || null : null,
+      designerHeight: designerHeightRaw ? parseInt(designerHeightRaw) || null : null,
+      designerBgColor: designerBgColorRaw || null,
+      designerDpi: designerDpiRaw ? parseInt(designerDpiRaw) || null : null,
+      designerColorProfile: designerColorProfile || null,
     },
     select: { slug: true },
   })

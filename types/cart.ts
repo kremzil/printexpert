@@ -4,6 +4,7 @@ export interface CartItemData {
   width?: number;
   height?: number;
   selectedOptions?: Record<string, unknown>;
+  designData?: unknown;
 }
 
 export interface PriceSnapshot {

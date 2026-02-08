@@ -115,6 +115,18 @@ async function ProductDetails({
         descriptionHtml,
         images: product.images ?? [],
       }}
+      designerConfig={
+        product.designerEnabled
+          ? {
+              enabled: true,
+              width: product.designerWidth ?? 1050,
+              height: product.designerHeight ?? 600,
+              bgColor: product.designerBgColor ?? "#ffffff",
+              dpi: product.designerDpi ?? 300,
+              colorProfile: product.designerColorProfile ?? "CMYK",
+            }
+          : null
+      }
     />
   )
 }

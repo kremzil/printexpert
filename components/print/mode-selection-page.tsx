@@ -15,6 +15,7 @@ import {
 
 import { ModeSelectionCard } from "@/components/print/mode-selection-card"
 import type { CustomerMode } from "@/components/print/types"
+import { AUDIENCE_QUERY_PARAM } from "@/lib/audience-shared"
 
 export function ModeSelectionPage() {
   const router = useRouter()
@@ -53,8 +54,8 @@ export function ModeSelectionPage() {
           return
         }
 
+        router.replace(`/?${AUDIENCE_QUERY_PARAM}=${mode}`, { scroll: true })
         router.refresh()
-        window.scrollTo({ top: 0, behavior: "instant" })
       } catch (error) {
         console.error("Mode selection error:", error)
       }

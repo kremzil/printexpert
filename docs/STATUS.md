@@ -11,10 +11,12 @@
 - Новые модели:
   - `OrderAsset` (файлы к заказу) + enums `OrderAssetKind`, `OrderAssetStatus`, `OrderAssetStorageProvider`.
   - `NotificationLog` + enums `NotificationType`, `NotificationStatus`.
+  - `DesignTemplate` — шаблоны дизайнов (JSON с элементами, привязка к `Product`).
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
 - Флаги видимости: `showInB2b` и `showInB2c` в Product и Category
+- Поля Design Studio в `Product`: `designerEnabled`, `designerWidth`, `designerHeight`, `designerBgColor`, `designerDpi`, `designerColorProfile`.
 
 ## Каталог (DB-backed)
 - Страницы `/kategorie`, `/catalog`, `/product/[slug]` читают данные из Postgres через `lib/catalog.ts`.
@@ -25,6 +27,12 @@
 - `catalog` и `product/[slug]` обернуты в `<Suspense>` для устранения blocking-route по `searchParams/params`.
 - Данные для витрины сериализуются (Decimal → string) перед передачей в клиентские компоненты.
 - Для товаров без калькулятора (нет матриц цен) на `/product/[slug]` используется простой фолбэк: только ввод количества (`Množstvo kusov`), без статических опций и без блока «Objemové zľavy».
+- **Design Studio** — встроенный canvas-редактор дизайна на странице товара:
+  - Включается чекбоксом `designerEnabled` в настройках товара (админка).
+  - Кнопка «Otvoriť dizajnér» появляется после блока загрузки файлов.
+  - Полноэкранный редактор с инструментами (текст, изображения, фигуры), панелью свойств и панелью слоёв.
+  - Поддержка шаблонов (встроенные + из БД `DesignTemplate`).
+  - Настраиваемые параметры на уровне товара: размеры плотна, DPI, цветовой профиль, фон.
 
 ## Маршрутизация и layout
 - Витрина и админка разделены на route groups:
@@ -101,6 +109,7 @@
 - Server actions защищены через `requireAdmin()`:
   - `updateProductDetails`, `deleteMatrix`, `createMatrix`, `createCategory`
   - `deleteCategory`, `updateCategory`, `createAttribute`, `deleteAttribute`
+- API шаблонов Design Studio защищён через `requireAdmin()`
 - Upload API требует активную сессию
 - Первый администратор назначается вручную через Prisma Studio
 

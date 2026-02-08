@@ -6,7 +6,7 @@ import { randomBytes } from "crypto";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { productId, quantity, width, height, selectedOptions, priceSnapshot } = body;
+    const { productId, quantity, width, height, selectedOptions, priceSnapshot, designData } = body;
 
     if (!productId || !quantity || quantity <= 0) {
       return NextResponse.json(
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
         height,
         selectedOptions,
         priceSnapshot,
+        designData,
       },
       sessionId
     );
