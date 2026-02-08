@@ -489,7 +489,10 @@ export async function SiteHeader() {
             </Link>
             <div className="flex items-center gap-1 lg:hidden">
               <MobileSearch />
-              <CartButton mode={audienceContext.audience} />
+              <CartButton
+                mode={audienceContext.audience}
+                userId={session?.user?.id ?? null}
+              />
               <Suspense fallback={null}>
               <MobileMenu audienceContext={audienceContext} session={session} />
             </Suspense>
@@ -538,7 +541,10 @@ export async function SiteHeader() {
                   <Link href="/account">Môj účet</Link>
                 </ModeButton>
               )}
-              <CartButton mode={audienceContext.audience} />
+              <CartButton
+                mode={audienceContext.audience}
+                userId={session?.user?.id ?? null}
+              />
             </div>
           </div>
         </>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Playfair_Display, Work_Sans, Geist_Mono } from "next/font/google"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import "./globals.css"
 
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
       <body className="antialiased">
         {children}
+        <SpeedInsights />
       </body>
     </html>
   )

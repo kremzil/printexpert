@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Trash2 } from "lucide-react";
@@ -21,66 +21,134 @@ import type { CustomerMode } from "@/components/print/types";
 
 type CartButtonProps = {
   mode?: CustomerMode;
+  userId?: string | null;
 };
 
 type CartResponse = CartData & { id: string | null };
 
-export function CartButton({ mode = "b2c" }: CartButtonProps) {
+const CART_CACHE_KEY = "printexpert_cart_cache_v1";
+const CART_CACHE_VERSION = 2;
+
+type CartCachePayload = {
+  version: number;
+  data: CartResponse;
+  userId: string | null;
+  savedAt: number;
+};
+
+export function CartButton({ mode = "b2c", userId }: CartButtonProps) {
   const [itemCount, setItemCount] = useState(0);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
+  const previousUserIdRef = useRef<string | null>(userId ?? null);
 
-  useEffect(() => {
-    const fetchCart = async () => {
-      try {
+  const clearCachedCart = () => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(CART_CACHE_KEY);
+    } catch {
+      // Ignore cache clear errors
+    }
+  };
+
+  const readCachedCart = (currentUserId: string | null) => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(CART_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as CartCachePayload;
+      if (
+        !parsed ||
+        parsed.version !== CART_CACHE_VERSION ||
+        (parsed.userId ?? null) !== currentUserId
+      ) {
+        clearCachedCart();
+        return null;
+      }
+      return parsed.data ?? null;
+    } catch {
+      clearCachedCart();
+      return null;
+    }
+  };
+
+  const writeCachedCart = (data: CartResponse, currentUserId: string | null) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        CART_CACHE_KEY,
+        JSON.stringify({
+          version: CART_CACHE_VERSION,
+          data,
+          userId: currentUserId,
+          savedAt: Date.now(),
+        } satisfies CartCachePayload)
+      );
+    } catch {
+      // Ignore cache write errors (quota, private mode, etc.)
+    }
+  };
+
+  const fetchCart = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    const currentUserId = userId ?? null;
+    try {
+      if (!silent) {
         setIsLoading(true);
-        const response = await fetch("/api/cart");
-        if (response.ok) {
-          const cartData = (await response.json()) as CartResponse;
-          const count = cartData.items?.length || 0;
-          setItemCount(count);
-          setCart(cartData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch cart:", error);
-      } finally {
+      }
+      const response = await fetch("/api/cart");
+      if (response.ok) {
+        const cartData = (await response.json()) as CartResponse;
+        const count = cartData.items?.length || 0;
+        setItemCount(count);
+        setCart(cartData);
+        writeCachedCart(cartData, currentUserId);
+      }
+    } catch (error) {
+      console.error("Failed to fetch cart:", error);
+    } finally {
+      if (!silent) {
         setIsLoading(false);
       }
-    };
+    }
+  }, [userId]);
 
-    fetchCart();
+  useEffect(() => {
+    const cached = readCachedCart(userId ?? null);
+    if (cached) {
+      setCart(cached);
+      setItemCount(cached.items?.length || 0);
+      fetchCart({ silent: true });
+    } else {
+      fetchCart();
+    }
 
     // Обновляем при изменении корзины
-    const handleCartUpdate = () => fetchCart();
+    const handleCartUpdate = () => fetchCart({ silent: true });
     window.addEventListener("cart-updated", handleCartUpdate);
 
     return () => {
       window.removeEventListener("cart-updated", handleCartUpdate);
     };
-  }, []);
+  }, [fetchCart]);
+
+  useEffect(() => {
+    const currentUserId = userId ?? null;
+    if (previousUserIdRef.current !== currentUserId) {
+      clearCachedCart();
+      setCart(null);
+      setItemCount(0);
+      fetchCart();
+    }
+    previousUserIdRef.current = currentUserId;
+  }, [userId, fetchCart]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const fetchCart = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/cart");
-        if (response.ok) {
-          const cartData = (await response.json()) as CartResponse;
-          const count = cartData.items?.length || 0;
-          setItemCount(count);
-          setCart(cartData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch cart:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCart();
-  }, [isOpen]);
+    fetchCart({ silent: true });
+  }, [isOpen, fetchCart]);
 
   const items = cart?.items ?? [];
   const subtotal = cart?.totals.subtotal ?? 0;
@@ -89,6 +157,7 @@ export function CartButton({ mode = "b2c" }: CartButtonProps) {
   const totalWithoutVat = Math.max(total - vatAmount, 0);
   const normalizedVatRate = subtotal > 0 ? vatAmount / subtotal : 0.2;
   const vatPercent = Math.round(normalizedVatRate * 100);
+  const showLoading = isLoading && items.length === 0;
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("sk-SK", { style: "currency", currency: "EUR" }).format(price);
@@ -141,7 +210,7 @@ export function CartButton({ mode = "b2c" }: CartButtonProps) {
         </SheetHeader>
 
         <div className="mt-6 flex flex-1 flex-col gap-4 overflow-hidden">
-          {isLoading ? (
+          {showLoading ? (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
               Načítavam košík...
             </div>
