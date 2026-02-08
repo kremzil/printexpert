@@ -236,6 +236,7 @@ export function InvoiceTemplate({ data }: InvoiceTemplateProps) {
         {/* Header with logo and company info */}
         <View style={styles.header}>
           {settings.logoUrl ? (
+            // eslint-disable-next-line jsx-a11y/alt-text
             <Image src={settings.logoUrl} style={styles.logo} />
           ) : (
             <View style={styles.logo} />
@@ -384,6 +385,7 @@ export function InvoiceTemplate({ data }: InvoiceTemplateProps) {
         {/* Signature */}
         {settings.signatureUrl && (
           <View style={styles.signature}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={settings.signatureUrl} style={styles.signatureImage} />
           </View>
         )}

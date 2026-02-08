@@ -43,8 +43,8 @@
 - `app/api/audience/route.ts` — API для интерактивного переключателя.
 
 **UI**
-- `app/page.tsx` — экран выбора режима при первом визите.
-- `app/layout.tsx` — аудитория‑зависимые header/footer в `<Suspense>`.
+- `app/(site)/page.tsx` — экран выбора режима при первом визите.
+- `app/(site)/layout.tsx` — аудитория‑зависимые header/footer в `<Suspense>`.
 - `components/audience-mode-switch.tsx` — интерактивный переключатель в хедере.
 
 **Server Pricing**
@@ -94,11 +94,8 @@
 ## Top produkty на главной странице
 - Отдельная конфигурация блока «Top produkty pre online tlač» для B2B и B2C режимов.
 - Товары автоматически фильтруются по `showInB2b`/`showInB2c` в зависимости от текущей аудитории.
-- Три режима отбора товаров (настраиваются в `/admin/top-products`):
-  - **RANDOM_ALL** — случайные из всех доступных для режима
-  - **RANDOM_CATEGORIES** — случайные из выбранных категорий
-  - **MANUAL** — конкретный список с дополнением случайными
-- Данные хранятся в `TopProducts` таблице с полями `audience`, `mode`, `categoryIds[]`, `productIds[]`.
+- Ручной выбор товаров (настраивается в `/admin/top-products`).
+- Данные хранятся в `TopProducts` таблице с полями `audience`, `mode` (MANUAL), `productIds[]`.
 - API endpoint `/api/top-products?audience={b2b|b2c}&count=8` возвращает товары с изображениями.
 
 ## Что ещё нужно (план)
@@ -106,4 +103,3 @@
 2) Аналитика событий с `audience`/`source`.
 3) Дополнительные правила фильтрации ассортимента под B2B/B2C (если потребуется).
 4) Ручное изменение порядка товаров в Top produkty (drag-and-drop).
-

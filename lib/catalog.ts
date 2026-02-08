@@ -1,8 +1,8 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
-import { Prisma } from "@/lib/generated/prisma";
 import { getPrisma } from "@/lib/prisma";
+import { getAudienceFilter } from "@/lib/audience-filter";
 
 const serializeProduct = <
   T extends {
@@ -17,12 +17,20 @@ const serializeProduct = <
   vatRate: product.vatRate.toString(),
 });
 
+const getCachedCategories = unstable_cache(
+  async () => {
+    const prisma = getPrisma();
+    return prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
+  },
+  ["catalog-categories"],
+  { tags: ["catalog-data"] }
+);
+
 export async function getCategories() {
-  const prisma = getPrisma();
-  return prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-  });
+  return getCachedCategories();
 }
 
 export async function getCategoryBySlug(slug: string) {
@@ -48,13 +56,7 @@ export async function getProducts({
       : categorySlug
         ? categorySlug
         : undefined;
-  const audienceFilter = audience
-    ? audience === "b2b"
-      ? { showInB2b: true }
-      : audience === "b2c"
-        ? { showInB2c: true }
-        : {}
-    : {}
+  const audienceFilter = getAudienceFilter(audience);
   const categoryAudienceFilter = audienceFilter
   const products = await prisma.product.findMany({
     where: {
@@ -104,13 +106,7 @@ export async function getCatalogProducts(options: {
   } = options;
 
   const shouldApplyAudience = !includeHidden && Boolean(audience);
-  const audienceFilter = shouldApplyAudience
-    ? audience === "b2b"
-      ? { showInB2b: true }
-      : audience === "b2c"
-        ? { showInB2c: true }
-        : {}
-    : {};
+  const audienceFilter = getAudienceFilter(shouldApplyAudience ? audience : null);
   const categoryAudienceFilter = audienceFilter
 
   const where = {
@@ -181,36 +177,39 @@ export async function getCatalogProducts(options: {
   };
 }
 
+const getCachedCategoryProductCounts = unstable_cache(
+  async (audience?: string | null) => {
+    const prisma = getPrisma();
+    const audienceFilter = getAudienceFilter(audience);
+    const categoryAudienceFilter = audienceFilter;
+
+    const rows = await prisma.product.groupBy({
+      by: ["categoryId"],
+      where: {
+        isActive: true,
+        ...audienceFilter,
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
+        },
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    return rows.map((row) => [row.categoryId, row._count._all] as const);
+  },
+  ["category-product-counts"],
+  { tags: ["catalog-data"] }
+);
+
 export async function getCategoryProductCounts(options: {
   audience?: string | null;
 }) {
-  const prisma = getPrisma();
   const { audience } = options;
-  const audienceFilter = audience
-    ? audience === "b2b"
-      ? { showInB2b: true }
-      : audience === "b2c"
-        ? { showInB2c: true }
-      : {}
-    : {};
-  const categoryAudienceFilter = audienceFilter
-
-  const rows = await prisma.product.groupBy({
-    by: ["categoryId"],
-    where: {
-      isActive: true,
-      ...audienceFilter,
-      category: {
-        isActive: true,
-        ...categoryAudienceFilter,
-      },
-    },
-    _count: {
-      _all: true,
-    },
-  });
-
-  return new Map(rows.map((row) => [row.categoryId, row._count._all]));
+  const rows = await getCachedCategoryProductCounts(audience ?? null);
+  return new Map(rows);
 }
 
 export async function getProductBySlug(slug: string) {
@@ -288,19 +287,9 @@ export async function getAdminProductById(id: string) {
 
 // ===== Top Products (server-side, cached) =====
 
-function shuffleArray<T>(array: T[]): T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
 async function fetchTopProducts(audience: string, count: number) {
   const prisma = getPrisma();
-  const productAudienceFilter =
-    audience === "b2b" ? { showInB2b: true as const } : { showInB2c: true as const };
+  const productAudienceFilter = getAudienceFilter(audience);
   const categoryAudienceFilter = productAudienceFilter;
 
   const imagesInclude = {
@@ -320,115 +309,30 @@ async function fetchTopProducts(audience: string, count: number) {
     config = null;
   }
 
-  let products;
-  const isManualMode = config?.mode === "MANUAL";
-
-  if (!config || config.mode === "RANDOM_ALL") {
-    products = await getRandomProducts({
-      prisma,
-      audience,
-      count,
-      imagesInclude,
-    });
-  } else if (config.mode === "RANDOM_CATEGORIES") {
-    products =
-      config.categoryIds && config.categoryIds.length > 0
-        ? await getRandomProducts({
-            prisma,
-            audience,
-            count,
-            categoryIds: config.categoryIds,
-            imagesInclude,
-          })
-        : [];
-  } else if (config.mode === "MANUAL") {
-    products = await prisma.product.findMany({
-      where: {
-        id: { in: config.productIds },
-        isActive: true,
-        ...productAudienceFilter,
-        category: { isActive: true, ...categoryAudienceFilter },
-      },
-      include: imagesInclude,
-    });
-  }
-
-  // Fill up if still not enough
-  if (!isManualMode && (!products || products.length < count)) {
-    const existing = products || [];
-    const existingIds = existing.map((p) => p.id);
-    const additional = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        ...productAudienceFilter,
-        id: { notIn: existingIds },
-        category: { isActive: true, ...categoryAudienceFilter },
-      },
-      take: count - existing.length,
-      include: imagesInclude,
-    });
-    products = [...existing, ...shuffleArray(additional)];
-  }
-
-  return (products || []).map(serializeProduct);
-}
-
-async function getRandomProducts(options: {
-  prisma: ReturnType<typeof getPrisma>;
-  audience: string;
-  count: number;
-  categoryIds?: string[];
-  imagesInclude: Prisma.ProductFindManyArgs["include"];
-}) {
-  const { prisma, audience, count, categoryIds, imagesInclude } = options;
-
-  if (categoryIds && categoryIds.length === 0) {
+  const productIds = config?.productIds ?? [];
+  if (productIds.length === 0) {
     return [];
   }
 
-  const productAudienceSql =
-    audience === "b2b"
-      ? Prisma.sql`p."showInB2b" = true`
-      : Prisma.sql`p."showInB2c" = true`;
-  const categoryAudienceSql =
-    audience === "b2b"
-      ? Prisma.sql`c."showInB2b" = true`
-      : Prisma.sql`c."showInB2c" = true`;
-  const categoryFilterSql =
-    categoryIds && categoryIds.length > 0
-      ? Prisma.sql`AND p."categoryId" IN (${Prisma.join(categoryIds)})`
-      : Prisma.empty;
-
-  const query = Prisma.sql`
-    SELECT p.id
-    FROM "Product" p
-    INNER JOIN "Category" c ON c.id = p."categoryId"
-    WHERE p."isActive" = true
-      AND c."isActive" = true
-      AND ${productAudienceSql}
-      AND ${categoryAudienceSql}
-      ${categoryFilterSql}
-    ORDER BY RANDOM()
-    LIMIT ${count};
-  `;
-  const rows = await prisma.$queryRaw<{ id: string }[]>(query);
-
-  const ids = rows.map((row) => row.id);
-  if (ids.length === 0) {
-    return [];
-  }
-
+  const orderedIds = productIds.slice(0, count);
   const products = await prisma.product.findMany({
-    where: { id: { in: ids } },
+    where: {
+      id: { in: orderedIds },
+      isActive: true,
+      ...productAudienceFilter,
+      category: { isActive: true, ...categoryAudienceFilter },
+    },
     include: imagesInclude,
   });
 
-  const order = new Map(ids.map((id, index) => [id, index]));
-  return products.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  const order = new Map(orderedIds.map((id, index) => [id, index]));
+  return products
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .map(serializeProduct);
 }
 
 export const getTopProducts = unstable_cache(
   fetchTopProducts,
   ["top-products"],
-  { revalidate: 60, tags: ["top-products"] }
+  { tags: ["top-products"] }
 );

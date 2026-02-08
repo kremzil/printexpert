@@ -14,7 +14,6 @@ import {
   ShoppingCart,
   ChevronDown,
   ChevronRight,
-  TrendingUp,
 } from "lucide-react"
 
 const menuItems = [

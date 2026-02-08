@@ -23,11 +23,15 @@ const toPlainText = (value?: string | null) =>
 const getCachedProductBySlug = cache(async (slug: string) => getProductBySlug(slug))
 
 export async function generateStaticParams() {
-  const { getProducts } = await import("@/lib/catalog")
-  const products = await getProducts({})
-  return products.map((product) => ({
-    slug: product.slug,
-  }))
+  try {
+    const { getProducts } = await import("@/lib/catalog")
+    const products = await getProducts({})
+    return products.map((product) => ({
+      slug: product.slug,
+    }))
+  } catch {
+    return []
+  }
 }
 
 export async function generateMetadata({

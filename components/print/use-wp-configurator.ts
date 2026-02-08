@@ -538,9 +538,10 @@ export function useWpConfigurator({
     },
     [
       baseSizeEntry,
+      data.globals.a_unit,
       data.globals.fmatrix,
       data.globals.numbers_array,
-    data.globals.smatrix,
+      data.globals.smatrix,
     data.matrices,
     dimUnit,
     finishingHasSize,

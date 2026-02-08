@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AdminButton as Button } from "@/components/admin/admin-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,13 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getCsrfHeader } from "@/lib/csrf";
 
-type Mode = "RANDOM_ALL" | "RANDOM_CATEGORIES" | "MANUAL";
-
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-};
+type Mode = "MANUAL";
 
 type Product = {
   id: string;
@@ -38,7 +31,6 @@ type Product = {
 
 type Config = {
   mode: Mode;
-  categoryIds: string[];
   productIds: string[];
 };
 
@@ -49,21 +41,15 @@ export default function TopProductsPage() {
   const [saving, setSaving] = useState(false);
 
   const [b2cConfig, setB2cConfig] = useState<Config>({
-    mode: "RANDOM_ALL",
-    categoryIds: [],
+    mode: "MANUAL",
     productIds: [],
   });
 
   const [b2bConfig, setB2bConfig] = useState<Config>({
-    mode: "RANDOM_ALL",
-    categoryIds: [],
+    mode: "MANUAL",
     productIds: [],
   });
 
-  const [categories, setCategories] = useState<{
-    b2c: Category[];
-    b2b: Category[];
-  }>({ b2c: [], b2b: [] });
   const [productsByAudience, setProductsByAudience] = useState<{
     b2c: Product[];
     b2b: Product[];
@@ -75,32 +61,20 @@ export default function TopProductsPage() {
       const [
         b2cRes,
         b2bRes,
-        categoriesB2cRes,
-        categoriesB2bRes,
         productsB2cRes,
         productsB2bRes,
       ] = await Promise.all([
         fetch("/api/admin/top-products?audience=b2c"),
         fetch("/api/admin/top-products?audience=b2b"),
-        fetch("/api/admin/kategorie?audience=b2c"),
-        fetch("/api/admin/kategorie?audience=b2b"),
         fetch("/api/admin/products?audience=b2c"),
         fetch("/api/admin/products?audience=b2b"),
       ]);
 
       const b2cData = await b2cRes.json();
       const b2bData = await b2bRes.json();
-      const categoriesB2cData = await categoriesB2cRes.json();
-      const categoriesB2bData = await categoriesB2bRes.json();
       const productsB2cData = await productsB2cRes.json();
       const productsB2bData = await productsB2bRes.json();
 
-      const b2cCategoryIds = new Set(
-        Array.isArray(categoriesB2cData) ? categoriesB2cData.map((item) => item.id) : []
-      );
-      const b2bCategoryIds = new Set(
-        Array.isArray(categoriesB2bData) ? categoriesB2bData.map((item) => item.id) : []
-      );
       const b2cProductIds = new Set(
         Array.isArray(productsB2cData) ? productsB2cData.map((item) => item.id) : []
       );
@@ -109,26 +83,16 @@ export default function TopProductsPage() {
       );
 
       setB2cConfig({
-        ...b2cData,
-        categoryIds: Array.isArray(b2cData?.categoryIds)
-          ? b2cData.categoryIds.filter((id: string) => b2cCategoryIds.has(id))
-          : [],
+        mode: "MANUAL",
         productIds: Array.isArray(b2cData?.productIds)
           ? b2cData.productIds.filter((id: string) => b2cProductIds.has(id))
           : [],
       });
       setB2bConfig({
-        ...b2bData,
-        categoryIds: Array.isArray(b2bData?.categoryIds)
-          ? b2bData.categoryIds.filter((id: string) => b2bCategoryIds.has(id))
-          : [],
+        mode: "MANUAL",
         productIds: Array.isArray(b2bData?.productIds)
           ? b2bData.productIds.filter((id: string) => b2bProductIds.has(id))
           : [],
-      });
-      setCategories({
-        b2c: Array.isArray(categoriesB2cData) ? categoriesB2cData : [],
-        b2b: Array.isArray(categoriesB2bData) ? categoriesB2bData : [],
       });
       setProductsByAudience({
         b2c: Array.isArray(productsB2cData) ? productsB2cData : [],
@@ -158,7 +122,7 @@ export default function TopProductsPage() {
       const res = await fetch("/api/admin/top-products", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getCsrfHeader() },
-        body: JSON.stringify({ audience, ...config }),
+        body: JSON.stringify({ audience, mode: "MANUAL", productIds: config.productIds }),
       });
 
       if (!res.ok) throw new Error("Failed to save");
@@ -184,12 +148,7 @@ export default function TopProductsPage() {
     const setConfig = audience === "b2c" ? setB2cConfig : setB2bConfig;
     const availableProducts =
       audience === "b2c" ? productsByAudience.b2c : productsByAudience.b2b;
-    const availableCategories =
-      audience === "b2c" ? categories.b2c : categories.b2b;
 
-    const selectedCategories = availableCategories.filter((cat) =>
-      config.categoryIds.includes(cat.id)
-    );
     const selectedProducts = availableProducts.filter((prod) =>
       config.productIds.includes(prod.id)
     );
@@ -199,67 +158,23 @@ export default function TopProductsPage() {
         <CardHeader>
           <CardTitle>Top produkty pre {audience.toUpperCase()}</CardTitle>
           <CardDescription>
-            Nastavte spôsob výberu top produktov pre {audience === "b2c" ? "B2C" : "B2B"} režim
+            Vyberte produkty, ktoré sa zobrazia na úvodnej stránke v {audience === "b2c" ? "B2C" : "B2B"} režime.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <Label>Režim výberu</Label>
-            <RadioGroup
-              value={config.mode}
-              onValueChange={(value) =>
-                setConfig({ ...config, mode: value as Mode })
+          <div className="space-y-2">
+            <Label>Vybrané produkty</Label>
+            <ProductCombobox
+              products={availableProducts}
+              selected={selectedProducts}
+              onChange={(selected) =>
+                setConfig({ ...config, productIds: selected.map((p) => p.id) })
               }
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="RANDOM_ALL" id={`${audience}-random-all`} />
-                <Label htmlFor={`${audience}-random-all`} className="font-normal">
-                  Náhodný výber zo všetkých produktov
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="RANDOM_CATEGORIES" id={`${audience}-random-cat`} />
-                <Label htmlFor={`${audience}-random-cat`} className="font-normal">
-                  Náhodný výber z vybraných kategórií
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="MANUAL" id={`${audience}-manual`} />
-                <Label htmlFor={`${audience}-manual`} className="font-normal">
-                  Ručný výber produktov
-                </Label>
-              </div>
-            </RadioGroup>
+            />
+            <p className="text-sm text-muted-foreground">
+              Vyberte až 8 produktov.
+            </p>
           </div>
-
-          {config.mode === "RANDOM_CATEGORIES" && (
-            <div className="space-y-2">
-              <Label>Vybrané kategórie</Label>
-              <CategoryCombobox
-                categories={availableCategories}
-                selected={selectedCategories}
-                onChange={(selected) =>
-                  setConfig({ ...config, categoryIds: selected.map((c) => c.id) })
-                }
-              />
-            </div>
-          )}
-
-          {config.mode === "MANUAL" && (
-            <div className="space-y-2">
-              <Label>Vybrané produkty</Label>
-              <ProductCombobox
-                products={availableProducts}
-                selected={selectedProducts}
-                onChange={(selected) =>
-                  setConfig({ ...config, productIds: selected.map((p) => p.id) })
-                }
-              />
-              <p className="text-sm text-muted-foreground">
-                Vyberte až 8 produktov.
-              </p>
-            </div>
-          )}
 
           <Button onClick={() => saveConfig(audience)} disabled={saving}>
             {saving ? "Ukladám..." : "Uložiť nastavenia"}
@@ -295,51 +210,6 @@ export default function TopProductsPage() {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function CategoryCombobox({
-  categories,
-  selected,
-  onChange,
-}: {
-  categories: Category[];
-  selected: Category[];
-  onChange: (selected: Category[]) => void;
-}) {
-  const anchor = useComboboxAnchor();
-
-  return (
-    <Combobox
-      multiple
-      autoHighlight
-      items={categories}
-      value={selected}
-      onValueChange={onChange}
-    >
-      <ComboboxChips ref={anchor} className="w-full">
-        <ComboboxValue>
-          {(values: Category[]) => (
-            <React.Fragment>
-              {values.map((value) => (
-                <ComboboxChip key={value.id}>{value.name}</ComboboxChip>
-              ))}
-              <ComboboxChipsInput placeholder="Vyberte kategórie..." />
-            </React.Fragment>
-          )}
-        </ComboboxValue>
-      </ComboboxChips>
-      <ComboboxContent anchor={anchor}>
-        <ComboboxEmpty>Žiadne kategórie nenájdené.</ComboboxEmpty>
-        <ComboboxList>
-          {(item: Category) => (
-            <ComboboxItem key={item.id} value={item}>
-              {item.name}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
   );
 }
 

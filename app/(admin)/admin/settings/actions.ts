@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath, updateTag } from "next/cache"
+import { revalidatePath, revalidateTag, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
@@ -35,4 +35,10 @@ export async function updateShopVatRate(formData: FormData) {
 
   updateTag("shop-settings")
   revalidatePath("/admin/settings")
+}
+
+export async function revalidateCatalogCache() {
+  await requireAdmin()
+  revalidateTag("nav-data", "max")
+  revalidateTag("catalog-data", "max")
 }

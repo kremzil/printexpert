@@ -33,6 +33,7 @@ import { CartButton } from "@/components/cart/cart-button"
 import { LoginDialog } from "@/components/auth/login-dialog"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import type { AudienceContext } from "@/lib/audience-shared"
+import { getAudienceFilter } from "@/lib/audience-filter"
 import { getPrisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { buildCategoryTree } from "@/lib/category-tree"
@@ -46,18 +47,8 @@ type AuthSession = Session | null
 const getCachedNavData = unstable_cache(
   async (audience: "b2b" | "b2c" | null) => {
     const prisma = getPrisma()
-    const audienceFilter =
-      audience === "b2b"
-        ? { showInB2b: true }
-        : audience === "b2c"
-          ? { showInB2c: true }
-          : {}
-    const productAudienceFilter =
-      audience === "b2b"
-        ? { showInB2b: true }
-        : audience === "b2c"
-          ? { showInB2c: true }
-          : {}
+    const audienceFilter = getAudienceFilter(audience)
+    const productAudienceFilter = audienceFilter
           
     const categories = await prisma.category.findMany({
       where: {
@@ -140,7 +131,7 @@ const getCachedNavData = unstable_cache(
     return { categories, productsByCategoryId }
   },
   ["nav-data"],
-  { revalidate: 300, tags: ["nav-data"] }
+  { tags: ["nav-data"] }
 )
 
 async function AudienceHeaderSwitch({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   if (!config) {
     return NextResponse.json({
-      mode: 'RANDOM_ALL',
+      mode: 'MANUAL',
       categoryIds: [],
       productIds: [],
     });
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { audience, mode, categoryIds, productIds } = body;
+  const { audience, productIds } = body;
 
   if (!audience || !['b2b', 'b2c'].includes(audience)) {
     return NextResponse.json({ error: 'Invalid audience' }, { status: 400 });
@@ -46,17 +47,18 @@ export async function POST(request: NextRequest) {
   const config = await prisma.topProducts.upsert({
     where: { audience },
     update: {
-      mode,
-      categoryIds: categoryIds || [],
+      mode: 'MANUAL',
+      categoryIds: [],
       productIds: productIds || [],
     },
     create: {
       audience,
-      mode,
-      categoryIds: categoryIds || [],
+      mode: 'MANUAL',
+      categoryIds: [],
       productIds: productIds || [],
     },
   });
 
+  revalidateTag('top-products', 'max');
   return NextResponse.json(config);
 }

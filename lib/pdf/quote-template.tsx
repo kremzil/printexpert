@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Font,
   Image,
+  type DocumentProps,
 } from "@react-pdf/renderer";
 import type { QuoteData } from "./types";
 
@@ -258,7 +259,11 @@ function formatPrice(amount: number): string {
   });
 }
 
-export function QuoteTemplate({ data }: { data: QuoteData }): React.ReactElement {
+export function QuoteTemplate({
+  data,
+}: {
+  data: QuoteData
+}): React.ReactElement<DocumentProps> {
   const { company, quote, items, totals, settings, isB2B } = data;
 
   return (
@@ -268,6 +273,7 @@ export function QuoteTemplate({ data }: { data: QuoteData }): React.ReactElement
         <View style={styles.header}>
           <View>
             {settings.logoUrl ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
               <Image src={settings.logoUrl} style={styles.logo} />
             ) : (
               <Text style={styles.companyName}>{company.name}</Text>

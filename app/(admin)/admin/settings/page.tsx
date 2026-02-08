@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requireAdmin } from "@/lib/auth-helpers"
 import { getShopSettings } from "@/lib/shop-settings"
-import { updateShopVatRate } from "./actions"
+import { revalidateCatalogCache, updateShopVatRate } from "./actions"
 import { PdfSettingsForm } from "@/components/admin/pdf-settings-form"
 
 export default async function AdminSettingsPage() {
@@ -78,6 +78,22 @@ export default async function AdminSettingsPage() {
                         Uložiť
                       </AdminButton>
                     </div>
+                  </form>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Navigácia a kategórie</CardTitle>
+                  <CardDescription>
+                    Ručné obnovenie cache pre navigačné menu a zoznam kategórií.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <form action={revalidateCatalogCache} className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Ak ste robili hromadné zmeny, obnovte cache manuálne.</span>
+                    <AdminButton type="submit" size="sm">
+                      Obnoviť cache
+                    </AdminButton>
                   </form>
                 </CardContent>
               </Card>

@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath, updateTag } from "next/cache"
+import { revalidatePath, revalidateTag, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
@@ -74,6 +74,9 @@ export async function createCategory(formData: FormData) {
   revalidatePath("/kategorie")
   revalidatePath("/catalog")
   revalidatePath("/admin/kategorie")
+  revalidateTag("nav-data", "max")
+  revalidateTag("catalog-data", "max")
+  revalidateTag("top-products", "max")
 }
 
 export async function updateCategory(
@@ -143,6 +146,9 @@ export async function updateCategory(
   revalidatePath("/kategorie")
   revalidatePath("/catalog")
   revalidatePath("/admin/kategorie")
+  revalidateTag("nav-data", "max")
+  revalidateTag("catalog-data", "max")
+  revalidateTag("top-products", "max")
 }
 
 export async function deleteCategory(input: DeleteCategoryInput) {
@@ -172,4 +178,7 @@ export async function deleteCategory(input: DeleteCategoryInput) {
   revalidatePath("/kategorie")
   revalidatePath("/catalog")
   revalidatePath("/admin/kategorie")
+  revalidateTag("nav-data", "max")
+  revalidateTag("catalog-data", "max")
+  revalidateTag("top-products", "max")
 }

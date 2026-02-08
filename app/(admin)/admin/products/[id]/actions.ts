@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath, updateTag } from "next/cache"
+import { revalidatePath, revalidateTag, updateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { sanitizeHtml } from "@/lib/sanitize-html"
@@ -672,6 +672,9 @@ export async function updateProductDetails(
   if (updated.slug !== existing.slug) {
     revalidatePath(`/product/${updated.slug}`)
   }
+  revalidateTag("nav-data", "max")
+  revalidateTag("catalog-data", "max")
+  revalidateTag("top-products", "max")
 }
 
 export async function createMatrixPriceRows(input: DeleteMatrixInput) {
@@ -793,6 +796,7 @@ export async function addProductImage(input: AddProductImageInput) {
   updateTag(`product:${product.slug}`)
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${product.slug}`)
+  revalidateTag("top-products", "max")
 }
 
 export async function deleteProductImage(input: DeleteProductImageInput) {
@@ -835,6 +839,7 @@ export async function deleteProductImage(input: DeleteProductImageInput) {
     revalidatePath(`/product/${product.slug}`)
   }
   revalidatePath(`/admin/products/${input.productId}`)
+  revalidateTag("top-products", "max")
 }
 
 export async function setProductImagePrimary(input: SetProductImagePrimaryInput) {
@@ -871,6 +876,7 @@ export async function setProductImagePrimary(input: SetProductImagePrimaryInput)
     revalidatePath(`/product/${product.slug}`)
   }
   revalidatePath(`/admin/products/${input.productId}`)
+  revalidateTag("top-products", "max")
 }
 
 export async function reorderProductImages(input: ReorderProductImagesInput) {
@@ -898,4 +904,5 @@ export async function reorderProductImages(input: ReorderProductImagesInput) {
   updateTag(`product:${product.slug}`)
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${product.slug}`)
+  revalidateTag("top-products", "max")
 }

@@ -4,6 +4,7 @@ import { resolveAudienceContext } from "@/lib/audience-context"
 import { ModeSelectionPage } from "@/components/print/mode-selection-page"
 import { Homepage } from "@/components/print/homepage"
 import { getCategories, getProducts, getTopProducts } from "@/lib/catalog"
+import { buildHomepageModel } from "@/lib/homepage-model"
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -35,53 +36,13 @@ async function HomeContent({
     getTopProducts(mode, 8),
   ])
 
-  const visibleCategories = categories.filter((category) =>
-    mode === "b2b" ? category.showInB2b !== false : category.showInB2c !== false
-  )
-  const categorySlugById = new Map(
-    visibleCategories.map((category) => [category.id, category.slug])
-  )
-  const productCountByCategory = products.reduce((map, product) => {
-    const categorySlug = categorySlugById.get(product.categoryId)
-    if (!categorySlug) return map
-    map.set(categorySlug, (map.get(categorySlug) ?? 0) + 1)
-    return map
-  }, new Map<string, number>())
-  const imagesByProductId = new Map(
-    products.map((product) => [product.id, product.images ?? []])
-  )
-
-  const homepageCategories = visibleCategories
-    .filter((category) => !category.parentId)
-    .map((category) => ({
-      id: category.id,
-      slug: category.slug,
-      name: category.name,
-      description: category.description,
-      image: category.image,
-      productCount: productCountByCategory.get(category.slug) ?? 0,
-    }))
-
-  const featuredProducts =
-    Array.isArray(topProducts) && topProducts.length > 0
-      ? topProducts.map((product) => ({
-          id: product.id,
-          slug: product.slug,
-          name: product.name,
-          excerpt: product.excerpt,
-          description: product.description,
-          priceFrom: product.priceFrom ? String(product.priceFrom) : null,
-          images: imagesByProductId.get(product.id) ?? [],
-        }))
-      : products.slice(0, 8).map((product) => ({
-          id: product.id,
-          slug: product.slug,
-          name: product.name,
-          excerpt: product.excerpt,
-          description: product.description,
-          priceFrom: product.priceFrom,
-          images: product.images ?? [],
-        }))
+  const { homepageCategories, featuredProducts } = buildHomepageModel({
+    mode,
+    categories,
+    products,
+    topProducts,
+    fallbackCount: 8,
+  })
 
   return (
     <Homepage

@@ -29,7 +29,6 @@ export function AdminButton({
   className = '',
   asChild = false,
 }: AdminButtonProps) {
-  const Comp = asChild ? Slot : "button"
   const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2';
 
   const variantClasses = {

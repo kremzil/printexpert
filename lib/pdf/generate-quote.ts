@@ -178,9 +178,7 @@ export async function generateQuotePdf(
   };
 
   // Generate PDF
-  const pdfBuffer = await renderToBuffer(
-    QuoteTemplate({ data: quoteData }) as any
-  );
+  const pdfBuffer = await renderToBuffer(QuoteTemplate({ data: quoteData }));
 
   return Buffer.from(pdfBuffer);
 }
