@@ -8,6 +8,8 @@ import {
   Package,
   Settings,
   Star,
+  Paintbrush,
+  Sparkles,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +33,18 @@ import {
   type WpConfiguratorData,
 } from "@/components/print/use-wp-configurator"
 import { RealConfiguratorPanel } from "@/components/print/real-configurator-panel"
+import { Button } from "@/components/ui/button"
+import { DesignEditor, type DesignElement } from "@/components/print/design-editor"
+import { toast } from "sonner"
+
+export type DesignerConfig = {
+  enabled: boolean
+  width: number
+  height: number
+  bgColor: string
+  dpi: number
+  colorProfile: string
+} | null
 
 type ProductPageClientProps = {
   mode: CustomerMode
@@ -50,6 +64,7 @@ type ProductPageClientProps = {
     descriptionHtml?: string | null
     images: Array<{ url: string; alt?: string | null }>
   }
+  designerConfig?: DesignerConfig
 }
 
 declare global {
@@ -74,6 +89,9 @@ function RealConfiguratorSection({
   fileStatus,
   fileStatusMessage,
   onFileSelect,
+  designerConfig,
+  onOpenDesigner,
+  designData,
 }: {
   mode: CustomerMode
   data: WpConfiguratorData
@@ -82,6 +100,9 @@ function RealConfiguratorSection({
   fileStatus: "idle" | "success"
   fileStatusMessage?: string
   onFileSelect: (files: FileList) => void
+  designerConfig?: DesignerConfig
+  onOpenDesigner?: () => void
+  designData?: unknown
 }) {
   const {
     selections,
@@ -107,7 +128,7 @@ function RealConfiguratorSection({
     addToCart,
     isAddingToCart,
     serverError,
-  } = useWpConfigurator({ data, productId })
+  } = useWpConfigurator({ data, productId, designData })
 
   return (
     <div className="grid gap-8 lg:grid-cols-3">
@@ -220,6 +241,41 @@ function RealConfiguratorSection({
           />
         </Card>
 
+        {/* Design Studio button — rendered via ProductPageClient below */}
+        {designerConfig?.enabled && onOpenDesigner && (
+          <Card className="overflow-hidden border-2 border-dashed border-purple-200 bg-linear-to-br from-purple-50/80 to-pink-50/60 p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white shadow-md">
+                <Paintbrush className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">Design Studio</h3>
+                  <span className="flex items-center gap-1 rounded-full bg-linear-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    NOVO
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {designData
+                    ? `Dizajn uložený (${Array.isArray(designData) ? (designData as unknown[]).length : 0} elementov)`
+                    : "Vytvorte si vlastný dizajn priamo v prehliadači"}
+                </p>
+              </div>
+              <Button
+                onClick={onOpenDesigner}
+                variant={designData ? "outline" : "default"}
+                className={designData
+                  ? "border-purple-300 text-purple-700 hover:bg-purple-50"
+                  : "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md hover:from-purple-700 hover:to-pink-700"}
+              >
+                <Paintbrush className="mr-2 h-4 w-4" />
+                {designData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
         <Tabs defaultValue="specs" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="specs">Popis produktu</TabsTrigger>
@@ -312,11 +368,14 @@ export function ProductPageClient({
   calculatorData,
   relatedProducts,
   product,
+  designerConfig,
 }: ProductPageClientProps) {
   const [fileStatus, setFileStatus] = useState<"idle" | "success">("idle")
   const [fileStatusMessage, setFileStatusMessage] = useState<string | undefined>(
     undefined
   )
+  const [showDesigner, setShowDesigner] = useState(false)
+  const [designData, setDesignData] = useState<unknown>(null)
 
   const handleFileSelect = (files: FileList) => {
     const file = files[0]
@@ -392,6 +451,9 @@ export function ProductPageClient({
             fileStatus={fileStatus}
             fileStatusMessage={fileStatusMessage}
             onFileSelect={handleFileSelect}
+            designerConfig={designerConfig}
+            onOpenDesigner={() => setShowDesigner(true)}
+            designData={designData}
           />
         ) : null}
         <div className="my-12">
@@ -425,6 +487,30 @@ export function ProductPageClient({
           )}
         </div>
       </div>
+
+      {/* Design Studio Fullscreen Modal */}
+      {showDesigner && designerConfig?.enabled && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+          <DesignEditor
+            width={designerConfig.width}
+            height={designerConfig.height}
+            bgColor={designerConfig.bgColor}
+            dpi={designerConfig.dpi}
+            colorProfile={designerConfig.colorProfile}
+            productLabel={product.name}
+            initialElements={Array.isArray(designData) ? designData as DesignElement[] : undefined}
+            onClose={() => setShowDesigner(false)}
+            onSave={(elements) => {
+              setDesignData(elements)
+              setShowDesigner(false)
+              toast.success(
+                `Dizajn uložený (${elements.length} ${elements.length === 1 ? "element" : "elementov"})`,
+                { description: "Dizajn bude priložený k objednávke pri pridaní do košíka." }
+              )
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

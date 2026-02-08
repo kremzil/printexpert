@@ -268,9 +268,11 @@ function getMatrixPrice(
 export function useWpConfigurator({
   data,
   productId,
+  designData,
 }: {
   data: WpConfiguratorData
   productId: string
+  designData?: unknown
 }) {
   const router = useRouter()
 
@@ -682,6 +684,7 @@ export function useWpConfigurator({
             ...perUnitPrice,
             calculatedAt: new Date().toISOString(),
           },
+          designData: designData || undefined,
         }),
       })
 

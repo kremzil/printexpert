@@ -353,6 +353,12 @@ export async function getAdminProductById(id: string) {
           { sortOrder: "asc" },
         ],
       },
+      designTemplates: {
+        orderBy: [
+          { sortOrder: "asc" },
+          { createdAt: "desc" },
+        ],
+      },
     },
   });
 

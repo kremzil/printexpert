@@ -12,6 +12,8 @@ import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { MatrixVisibilitySwitch } from "@/components/admin/matrix-visibility-switch"
 import { ProductDescriptionEditor } from "@/components/admin/product-description-editor"
 import { ProductImagesEditor } from "@/components/admin/product-images-editor"
+import { ProductDesignerSettings } from "@/components/admin/product-designer-settings"
+import { DesignTemplatesManager } from "@/components/admin/design-templates-manager"
 import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { ProductTitleEditor } from "@/components/admin/product-title-editor"
 import { getAdminProductById } from "@/lib/catalog"
@@ -267,6 +269,17 @@ async function AdminProductDetails({
               placeholder="Začnite písať popis..."
             />
 
+            <Separator />
+
+            <ProductDesignerSettings
+              designerEnabled={product.designerEnabled ?? false}
+              designerWidth={product.designerWidth ?? null}
+              designerHeight={product.designerHeight ?? null}
+              designerBgColor={product.designerBgColor ?? null}
+              designerDpi={product.designerDpi ?? null}
+              designerColorProfile={product.designerColorProfile ?? null}
+            />
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="priceFrom">Cena od</Label>
@@ -293,6 +306,17 @@ async function AdminProductDetails({
           </form>
         </CardContent>
       </Card>
+
+      {product.designerEnabled && (
+        <Card>
+          <CardContent className="py-6">
+            <DesignTemplatesManager
+              productId={product.id}
+              templates={(product as any).designTemplates ?? []}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="space-y-6 py-6">

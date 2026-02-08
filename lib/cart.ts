@@ -125,7 +125,7 @@ export async function getOrCreateCart(sessionId?: string) {
  * Добавить товар в корзину
  */
 export async function addToCart(
-  data: CartItemData & { priceSnapshot?: PriceSnapshot },
+  data: CartItemData & { priceSnapshot?: PriceSnapshot; designData?: unknown },
   sessionId?: string
 ) {
   const cart = await getOrCreateCart(sessionId);
@@ -151,6 +151,9 @@ export async function addToCart(
         priceSnapshot: data.priceSnapshot
           ? (data.priceSnapshot as unknown as Prisma.InputJsonValue)
           : undefined,
+        designData: data.designData
+          ? (data.designData as unknown as Prisma.InputJsonValue)
+          : undefined,
         updatedAt: new Date(),
       },
     });
@@ -168,6 +171,9 @@ export async function addToCart(
           : undefined,
         priceSnapshot: data.priceSnapshot
           ? (data.priceSnapshot as unknown as Prisma.InputJsonValue)
+          : undefined,
+        designData: data.designData
+          ? (data.designData as unknown as Prisma.InputJsonValue)
           : undefined,
       },
     });
