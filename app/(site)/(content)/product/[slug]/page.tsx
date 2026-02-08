@@ -4,7 +4,7 @@ import { Suspense, cache } from "react"
 
 import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product-page-client"
 import { resolveAudienceContext } from "@/lib/audience-context"
-import { getProductBySlug, getProducts } from "@/lib/catalog"
+import { getProductBySlug, getRelatedProducts } from "@/lib/catalog"
 import { getProductCalculatorData } from "@/lib/pricing"
 
 type ProductPageProps = {
@@ -60,14 +60,14 @@ async function ProductDetails({
   paramsPromise: ProductPageProps["params"]
   searchParamsPromise?: ProductPageProps["searchParams"]
 }) {
-  const { slug } = await paramsPromise
-  const resolvedSearchParams = searchParamsPromise
-    ? await searchParamsPromise
-    : {}
-  const audienceContext = await resolveAudienceContext({
-    searchParams: resolvedSearchParams,
-  })
-  const product = await getCachedProductBySlug(slug)
+  const [{ slug }, resolvedSearchParams] = await Promise.all([
+    paramsPromise,
+    searchParamsPromise ? searchParamsPromise : Promise.resolve({}),
+  ])
+  const [audienceContext, product] = await Promise.all([
+    resolveAudienceContext({ searchParams: resolvedSearchParams }),
+    getCachedProductBySlug(slug),
+  ])
 
   if (!product) {
     notFound()
@@ -78,14 +78,14 @@ async function ProductDetails({
       productId: product.id,
     }),
     product.category?.slug
-      ? getProducts({
-          categorySlug: product.category.slug,
-          audience: audienceContext.audience,
-        })
+      ? getRelatedProducts(
+          product.category.slug,
+          audienceContext.audience,
+          product.id
+        )
       : Promise.resolve([]),
   ])
   const relatedProducts = relatedSource
-    .filter((item) => item.id !== product.id)
     .slice(0, 3)
     .map((item) => {
       const excerptText = item.excerpt

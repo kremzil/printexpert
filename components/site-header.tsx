@@ -78,54 +78,42 @@ const getCachedNavData = unstable_cache(
       }
     })
 
-    const entries = Array.from(limitByCategoryId.entries())
-    const productBatches: Array<
-      Array<{
-        id: string
-        name: string
-        slug: string
-        categoryId: string
-        priceFrom: unknown
-      }>
-    > = []
-    const batchSize = 3
-    for (let i = 0; i < entries.length; i += batchSize) {
-      const slice = entries.slice(i, i + batchSize)
-      const batch = await Promise.all(
-        slice.map(([categoryId, take]) =>
-          prisma.product.findMany({
-            where: {
+    const allCategoryIds = Array.from(limitByCategoryId.keys())
+    const maxTake = Math.max(MAX_PRODUCTS_PER_SUBCATEGORY, MAX_PRODUCTS_PER_CATEGORY)
+
+    const allProducts = allCategoryIds.length > 0
+      ? await prisma.product.findMany({
+          where: {
+            isActive: true,
+            ...productAudienceFilter,
+            categoryId: { in: allCategoryIds },
+            category: {
               isActive: true,
-              ...productAudienceFilter,
-              categoryId,
-              category: {
-                isActive: true,
-                ...audienceFilter,
-              },
+              ...audienceFilter,
             },
-            orderBy: [{ name: "asc" }],
-            take,
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              categoryId: true,
-              priceFrom: true,
-            },
-          })
-        )
-      )
-      productBatches.push(...batch)
-    }
+          },
+          orderBy: [{ name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            categoryId: true,
+            priceFrom: true,
+          },
+        })
+      : []
 
     const productsByCategoryId: Record<
       string,
-      typeof productBatches[number][number][]
+      typeof allProducts[number][]
     > = {}
-    productBatches.flat().forEach((product) => {
+    allProducts.forEach((product) => {
+      const limit = limitByCategoryId.get(product.categoryId) ?? maxTake
       const list = productsByCategoryId[product.categoryId] ?? []
-      list.push(product)
-      productsByCategoryId[product.categoryId] = list
+      if (list.length < limit) {
+        list.push(product)
+        productsByCategoryId[product.categoryId] = list
+      }
     })
 
     return { categories, productsByCategoryId }

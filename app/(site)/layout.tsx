@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 
 import { AudienceFooterNote } from "@/components/audience-footer-note"
+import { PageTransition } from "@/components/page-transition"
 import { SiteHeader } from "@/components/site-header"
 
 export default function SiteLayout({
@@ -20,7 +21,7 @@ export default function SiteLayout({
         <SiteHeader />
       </Suspense>
       <main id="main-content" className="flex-1 w-full">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
       <footer className="border-t bg-muted/30">
         <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 flex min-h-16 items-center justify-between gap-4 py-4 text-sm text-muted-foreground">

@@ -40,6 +40,53 @@ export async function getCategoryBySlug(slug: string) {
   });
 }
 
+const getCachedProducts = unstable_cache(
+  async ({
+    categorySlug,
+    categorySlugs,
+    audience,
+  }: {
+    categorySlug?: string;
+    categorySlugs?: string[];
+    audience?: string | null;
+  }) => {
+    const prisma = getPrisma();
+    const slugFilter =
+      categorySlugs && categorySlugs.length > 0
+        ? { in: categorySlugs }
+        : categorySlug
+          ? categorySlug
+          : undefined;
+    const audienceFilter = getAudienceFilter(audience);
+    const categoryAudienceFilter = audienceFilter
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        ...audienceFilter,
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
+          ...(slugFilter ? { slug: slugFilter } : {}),
+        },
+      },
+      orderBy: [{ name: "asc" }],
+      include: {
+        images: {
+          orderBy: [
+            { isPrimary: "desc" },
+            { sortOrder: "asc" },
+            { id: "asc" },
+          ],
+        },
+      },
+    });
+
+    return products.map(serializeProduct);
+  },
+  ["catalog-products"],
+  { tags: ["catalog-data"] }
+);
+
 export async function getProducts({
   categorySlug,
   categorySlugs,
@@ -49,38 +96,7 @@ export async function getProducts({
   categorySlugs?: string[];
   audience?: string | null;
 }) {
-  const prisma = getPrisma();
-  const slugFilter =
-    categorySlugs && categorySlugs.length > 0
-      ? { in: categorySlugs }
-      : categorySlug
-        ? categorySlug
-        : undefined;
-  const audienceFilter = getAudienceFilter(audience);
-  const categoryAudienceFilter = audienceFilter
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...audienceFilter,
-      category: {
-        isActive: true,
-        ...categoryAudienceFilter,
-        ...(slugFilter ? { slug: slugFilter } : {}),
-      },
-    },
-    orderBy: [{ name: "asc" }],
-    include: {
-      images: {
-        orderBy: [
-          { isPrimary: "desc" },
-          { sortOrder: "asc" },
-          { id: "asc" },
-        ],
-      },
-    },
-  });
-
-  return products.map(serializeProduct);
+  return getCachedProducts({ categorySlug, categorySlugs, audience });
 }
 
 export type CatalogSort = "relevance" | "popular" | "price-asc" | "price-desc" | "name";
@@ -212,23 +228,81 @@ export async function getCategoryProductCounts(options: {
   return new Map(rows);
 }
 
-export async function getProductBySlug(slug: string) {
-  const prisma = getPrisma();
-  const product = await prisma.product.findFirst({
-    where: { slug, isActive: true },
-    include: {
-      category: true,
-      images: {
-        orderBy: [
-          { isPrimary: "desc" },
-          { sortOrder: "asc" },
-          { id: "asc" },
-        ],
+const getCachedProductBySlug = unstable_cache(
+  async (slug: string) => {
+    const prisma = getPrisma();
+    const product = await prisma.product.findFirst({
+      where: { slug, isActive: true },
+      include: {
+        category: true,
+        images: {
+          orderBy: [
+            { isPrimary: "desc" },
+            { sortOrder: "asc" },
+            { id: "asc" },
+          ],
+        },
       },
-    },
-  });
+    });
 
-  return product ? serializeProduct(product) : null;
+    return product ? serializeProduct(product) : null;
+  },
+  ["product-by-slug"],
+  { tags: ["catalog-data"] }
+);
+
+export async function getProductBySlug(slug: string) {
+  return getCachedProductBySlug(slug);
+}
+
+const getCachedRelatedProducts = unstable_cache(
+  async (categorySlug: string, audience: string | null, excludeId: string) => {
+    const prisma = getPrisma();
+    const audienceFilter = getAudienceFilter(audience);
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        id: { not: excludeId },
+        ...audienceFilter,
+        category: {
+          isActive: true,
+          ...audienceFilter,
+          slug: categorySlug,
+        },
+      },
+      orderBy: [{ name: "asc" }],
+      take: 4,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        excerpt: true,
+        priceFrom: true,
+        vatRate: true,
+        images: {
+          take: 1,
+          orderBy: [
+            { isPrimary: "desc" },
+            { sortOrder: "asc" },
+            { id: "asc" },
+          ],
+          select: { url: true, alt: true },
+        },
+      },
+    });
+
+    return products.map(serializeProduct);
+  },
+  ["related-products"],
+  { tags: ["catalog-data"] }
+);
+
+export async function getRelatedProducts(
+  categorySlug: string,
+  audience: string | null,
+  excludeId: string
+) {
+  return getCachedRelatedProducts(categorySlug, audience, excludeId);
 }
 
 export async function getAdminCategories() {

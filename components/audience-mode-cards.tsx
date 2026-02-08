@@ -36,6 +36,7 @@ export function AudienceModeCards({ redirectTo }: Props) {
 
         // Обновляем Server Components, чтобы / сразу увидел новый cookie
         router.refresh()
+        window.scrollTo({ top: 0, behavior: "instant" })
 
         // Опционально: сразу увести в каталог/куда надо
         if (redirectTo) router.push(redirectTo)

@@ -445,3 +445,25 @@
     }
   }
 }
+
+/* === Page transition === */
+.page-transition {
+  will-change: opacity;
+}
+
+.page-transition-enter {
+  animation: page-fade-in 0.4s ease-out both;
+}
+
+.page-transition-exit {
+  opacity: 0;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

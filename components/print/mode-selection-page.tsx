@@ -54,6 +54,7 @@ export function ModeSelectionPage() {
         }
 
         router.refresh()
+        window.scrollTo({ top: 0, behavior: "instant" })
       } catch (error) {
         console.error("Mode selection error:", error)
       }
