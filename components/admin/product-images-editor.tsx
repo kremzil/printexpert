@@ -12,7 +12,7 @@ import {
   deleteProductImage,
   setProductImagePrimary,
   reorderProductImages,
-} from "@/app/admin/products/[id]/actions"
+} from "@/app/(admin)/admin/products/[id]/actions"
 
 type ProductImage = {
   id: string

@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 
-import { AuthForms } from "@/app/auth/auth-forms"
+import { AuthForms } from "@/app/(site)/(content)/auth/auth-forms"
 import {
   Dialog,
   DialogContent,

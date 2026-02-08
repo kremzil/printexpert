@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense, cache } from "react"
 
-import { ProductPageClient } from "@/app/product/[slug]/product-page-client"
+import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product-page-client"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getProducts } from "@/lib/catalog"
 import { getProductCalculatorData } from "@/lib/pricing"

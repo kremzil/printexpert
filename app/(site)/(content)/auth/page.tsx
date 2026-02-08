@@ -1,4 +1,4 @@
-import { AuthForms } from "@/app/auth/auth-forms"
+import { AuthForms } from "@/app/(site)/(content)/auth/auth-forms"
 
 export default function AuthPage() {
   return (

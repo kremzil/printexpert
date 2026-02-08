@@ -35,6 +35,7 @@ import { resolveAudienceContext } from "@/lib/audience-context"
 import type { AudienceContext } from "@/lib/audience-shared"
 import { getPrisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { buildCategoryTree } from "@/lib/category-tree"
 import { SiteHeaderClient } from "./site-header-client"
 
 const MAX_PRODUCTS_PER_SUBCATEGORY = 6
@@ -72,14 +73,7 @@ const getCachedNavData = unstable_cache(
       },
     })
 
-    const childrenByParentId = categories.reduce((map, category) => {
-      const key = category.parentId ?? "root"
-      const list = map.get(key) ?? []
-      list.push(category)
-      map.set(key, list)
-      return map
-    }, new Map<string, typeof categories>())
-    const rootCategories = childrenByParentId.get("root") ?? []
+    const { childrenByParentId, rootCategories } = buildCategoryTree(categories)
 
     const limitByCategoryId = new Map<string, number>()
     rootCategories.forEach((category) => {
@@ -168,14 +162,7 @@ async function AudienceNavigation({
   const { categories, productsByCategoryId } = await getCachedNavData(
     audienceContext.audience
   )
-  const childrenByParentId = categories.reduce((map, category) => {
-    const key = category.parentId ?? "root"
-    const list = map.get(key) ?? []
-    list.push(category)
-    map.set(key, list)
-    return map
-  }, new Map<string, typeof categories>())
-  const rootCategories = childrenByParentId.get("root") ?? []
+  const { childrenByParentId, rootCategories } = buildCategoryTree(categories)
 
   return (
     <NavigationMenu>
@@ -329,14 +316,7 @@ async function MobileMenu({
   const { categories, productsByCategoryId } = await getCachedNavData(
     audienceContext.audience
   )
-  const childrenByParentId = categories.reduce((map, category) => {
-    const key = category.parentId ?? "root"
-    const list = map.get(key) ?? []
-    list.push(category)
-    map.set(key, list)
-    return map
-  }, new Map<string, typeof categories>())
-  const rootCategories = childrenByParentId.get("root") ?? []
+  const { childrenByParentId, rootCategories } = buildCategoryTree(categories)
 
   return (
     <Sheet>

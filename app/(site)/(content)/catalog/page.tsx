@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import { CatalogClient } from "@/app/catalog/catalog-client"
+import { CatalogClient } from "@/app/(site)/(content)/catalog/catalog-client"
 import {
   getCategories,
   getCatalogProducts,
