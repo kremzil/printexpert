@@ -21,7 +21,15 @@ export default function SiteLayout({
         <SiteHeader />
       </Suspense>
       <main id="main-content" className="flex-1 w-full">
-        <PageTransition>{children}</PageTransition>
+        <Suspense
+          fallback={
+            <div className="page-transition page-transition-enter">
+              {children}
+            </div>
+          }
+        >
+          <PageTransition>{children}</PageTransition>
+        </Suspense>
       </main>
       <footer className="border-t bg-muted/30">
         <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 flex min-h-16 items-center justify-between gap-4 py-4 text-sm text-muted-foreground">

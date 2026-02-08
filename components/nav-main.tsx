@@ -1,6 +1,7 @@
 "use client"
 
-import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react"
+import { IconCirclePlusFilled, IconMail } from "@tabler/icons-react"
+import type { ComponentType, SVGProps } from "react"
 
 import { ModeButton } from "@/components/print/mode-button"
 import {
@@ -17,7 +18,7 @@ export function NavMain({
   items: {
     title: string
     url: string
-    icon?: Icon
+    icon?: ComponentType<SVGProps<SVGSVGElement>>
   }[]
 }) {
   return (
