@@ -195,7 +195,7 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
               {categories.map((category) => (
                 <CarouselItem
                   key={category.id}
-                  className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                  className="pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3 xl:basis-1/5"
                 >
                   <CategoryCard
                     modeColor={modeColor}
@@ -204,8 +204,8 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="-left-3" />
-            <CarouselNext className="-right-3" />
+            <CarouselPrevious className= "-left-4" />
+            <CarouselNext className= "-right-4" />
           </Carousel>
         </section>
 
@@ -541,37 +541,28 @@ function CategoryCard({
   return (
     <Link
       href={`/catalog?cat=${category.slug}`}
-      className="group relative block overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-muted-foreground hover:shadow-lg"
+      className="group relative block h-100 overflow-hidden rounded-xl border border-border text-left transition-all hover:border-muted-foreground hover:shadow-lg"
     >
-      <div className="relative h-48 overflow-hidden bg-muted ">
-        <Image
-          src={category.image}
-          alt={category.name}
-          fill
-          sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 25vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      <Image
+        src={category.image}
+        alt={category.name}
+        fill
+        sizes="(max-width: 640px) 85vw, (max-width: 1024px) 50vw, 25vw"
+        className="object-cover transition-transform duration-500 group-hover:scale-110"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-        <div className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg">
-          <FileText className="h-6 w-6" style={{ color: modeColor }} />
-        </div>
+      <div className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-b from-white to-transparent shadow-lg">
+        <FileText className="h-6 w-6" style={{ color: modeColor }} />
       </div>
 
-      <div className="bg-card p-5">
+      <div className="absolute inset-0 flex flex-col justify-end p-5 text-white">
         <h3 className="mb-2 text-lg font-semibold">{category.name}</h3>
-        <p className="mb-3 text-sm text-muted-foreground">
-          {category.description ?? "Profesionálne tlačové produkty na mieru"}
-        </p>
-
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-white/70">
             {category.productCount} produktov
           </span>
-          <span
-            className="flex items-center gap-1 text-sm font-medium transition-all group-hover:gap-2"
-            style={{ color: modeColor }}
-          >
+          <span className="flex items-center gap-1 text-sm font-medium transition-all group-hover:gap-2">
             Zobraziť
             <span className="transition-transform group-hover:translate-x-1">→</span>
           </span>

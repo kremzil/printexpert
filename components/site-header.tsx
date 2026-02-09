@@ -1,7 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Suspense } from "react"
-import { Menu, ChevronDown, Search } from "lucide-react"
+import { Menu, ChevronDown, Search, HelpCircle, Phone } from "lucide-react"
 import { unstable_cache } from "next/cache"
 import type { Session } from "next-auth"
 
@@ -28,7 +28,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { CartButton } from "@/components/cart/cart-button"
 import { LoginDialog } from "@/components/auth/login-dialog"
 import { resolveAudienceContext } from "@/lib/audience-context"
@@ -122,17 +121,6 @@ const getCachedNavData = unstable_cache(
   { tags: ["nav-data"] }
 )
 
-async function AudienceHeaderSwitch({
-  audienceContext,
-}: {
-  audienceContext: AudienceContext
-}) {
-  if (audienceContext.source === "default") {
-    return null
-  }
-  return <AudienceModeSwitch initialAudience={audienceContext.audience} />
-}
-
 async function AudienceNavigation({
   audienceContext,
 }: {
@@ -147,10 +135,7 @@ async function AudienceNavigation({
     <NavigationMenu>
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-            <Link href="/">Domov</Link>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
+         </NavigationMenuItem>
         {rootCategories.length === 0 ? (
           <NavigationMenuItem>
             <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
@@ -311,11 +296,6 @@ async function MobileMenu({
           <SheetDescription>
             Navigujte cez kategórie a produkty
           </SheetDescription>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Suspense fallback={null}>
-              <AudienceHeaderSwitch audienceContext={audienceContext} />
-            </Suspense>
-          </div>
           <div className="mt-3 flex flex-col gap-2">
             {!session?.user ? (
               <>
@@ -444,6 +424,10 @@ export async function SiteHeader() {
     audienceContext.audience === "b2b"
       ? "hover:bg-[color:var(--b2b-accent)]"
       : "hover:bg-[color:var(--b2c-accent)]"
+  const modeColor =
+    audienceContext.audience === "b2b"
+      ? "text-[color:var(--b2b-primary)]"
+      : "text-[color:var(--b2c-primary)]"
   return (
     <SiteHeaderClient
       topBar={
@@ -477,10 +461,12 @@ export async function SiteHeader() {
             </Link>
             <div className="flex items-center gap-1 lg:hidden">
               <MobileSearch />
-              <CartButton
-                mode={audienceContext.audience}
-                userId={session?.user?.id ?? null}
-              />
+              <div className="mr-3">
+                <CartButton
+                  mode={audienceContext.audience}
+                  userId={session?.user?.id ?? null}
+                />
+              </div>
               <Suspense fallback={null}>
               <MobileMenu audienceContext={audienceContext} session={session} />
             </Suspense>
@@ -491,9 +477,28 @@ export async function SiteHeader() {
           {/* Right: Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="hidden items-center gap-2 lg:flex">
-              <Suspense fallback={null}>
-                <AudienceHeaderSwitch audienceContext={audienceContext} />
-              </Suspense>
+              <div className="hidden items-center gap-5 text-sm text-muted-foreground lg:flex">
+                <a
+                  href="tel:+421917545003"
+                  className="inline-flex items-center gap-2 font-medium text-foreground/80 transition-colors hover:text-foreground"
+                >
+                  <Phone className={`h-4 w-4 ${modeColor}`} />
+                  +421 917 545 003
+                </a>
+                <Link
+                  href="/kontaktujte-nas"
+                  className="inline-flex items-center gap-2 font-medium text-foreground/80 transition-colors hover:text-foreground"
+                >
+                  <HelpCircle className={`h-4 w-4 ${modeColor}`} />
+                  Potrebujete pomoc?
+                </Link>
+              </div>
+              <div className="mr-4">
+              <CartButton
+                mode={audienceContext.audience}
+                userId={session?.user?.id ?? null}
+              />
+               </div>
               {!session?.user ? (
                 <>
                   <ModeButton
@@ -517,6 +522,7 @@ export async function SiteHeader() {
                       </ModeButton>
                     }
                   />
+                 
                 </>
               ) : (
                 <ModeButton
@@ -529,10 +535,6 @@ export async function SiteHeader() {
                   <Link href="/account">Môj účet</Link>
                 </ModeButton>
               )}
-              <CartButton
-                mode={audienceContext.audience}
-                userId={session?.user?.id ?? null}
-              />
             </div>
           </div>
         </>

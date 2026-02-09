@@ -1,8 +1,18 @@
 import { Suspense } from "react"
 
 import { AudienceFooterNote } from "@/components/audience-footer-note"
+import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { PageTransition } from "@/components/page-transition"
 import { SiteHeader } from "@/components/site-header"
+import { resolveAudienceContext } from "@/lib/audience-context"
+
+async function AudienceFooterSwitch() {
+  const audienceContext = await resolveAudienceContext()
+  if (audienceContext.source === "default") {
+    return null
+  }
+  return <AudienceModeSwitch initialAudience={audienceContext.audience} />
+}
 
 export default function SiteLayout({
   children,
@@ -36,6 +46,9 @@ export default function SiteLayout({
           <span className="font-display text-base font-semibold text-foreground">© PrintExpert</span>
           <Suspense fallback={null}>
             <AudienceFooterNote />
+          </Suspense>
+          <Suspense fallback={null}>
+            <AudienceFooterSwitch />
           </Suspense>
         </div>
       </footer>
