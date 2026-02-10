@@ -60,6 +60,8 @@ export interface DesignElement {
   rotation?: number
   visible?: boolean
   locked?: boolean
+  strokeColor?: string
+  strokeWidth?: number
 }
 
 export interface DesignTemplate {
@@ -127,8 +129,8 @@ export function DesignEditor({
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; elX: number; elY: number; elW: number; elH: number; fontSize?: number } | null>(null)
   const [showLayers, setShowLayers] = useState(true)
 
-  // Helper: draw a rounded rectangle on any canvas context
-  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+  // Helper: draw a rounded rectangle path on any canvas context
+  const roundedRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
     const radius = Math.min(r, w / 2, h / 2)
     ctx.beginPath()
     ctx.moveTo(x + radius, y)
@@ -141,7 +143,13 @@ export function DesignEditor({
     ctx.lineTo(x, y + radius)
     ctx.arcTo(x, y, x + radius, y, radius)
     ctx.closePath()
+  }
+
+  // Helper: draw a rounded rectangle (fill + optional stroke)
+  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, doStroke = false) => {
+    roundedRectPath(ctx, x, y, w, h, r)
     ctx.fill()
+    if (doStroke) ctx.stroke()
   }
   const [showTemplates, setShowTemplates] = useState(false)
 
@@ -199,7 +207,12 @@ export function DesignEditor({
       }
 
       if (element.type === "shape") {
+        const hasStroke = element.strokeColor && element.strokeWidth && element.strokeWidth > 0
         ctx.fillStyle = element.backgroundColor || "#cccccc"
+        if (hasStroke) {
+          ctx.strokeStyle = element.strokeColor!
+          ctx.lineWidth = element.strokeWidth!
+        }
         if (element.shapeType === "circle") {
           ctx.beginPath()
           ctx.ellipse(
@@ -210,12 +223,24 @@ export function DesignEditor({
             0, 0, Math.PI * 2
           )
           ctx.fill()
+          if (hasStroke) ctx.stroke()
         } else if (element.borderRadius) {
-          drawRoundedRect(ctx, element.x, element.y, element.width, element.height, element.borderRadius)
+          drawRoundedRect(ctx, element.x, element.y, element.width, element.height, element.borderRadius, !!hasStroke)
         } else {
           ctx.fillRect(element.x, element.y, element.width, element.height)
+          if (hasStroke) ctx.strokeRect(element.x, element.y, element.width, element.height)
         }
       } else if (element.type === "text") {
+        // Text background fill
+        if (element.backgroundColor) {
+          ctx.fillStyle = element.backgroundColor
+          if (element.borderRadius) {
+            drawRoundedRect(ctx, element.x - 2, element.y - 2, element.width + 4, element.height + 4, element.borderRadius)
+          } else {
+            ctx.fillRect(element.x - 2, element.y - 2, element.width + 4, element.height + 4)
+          }
+        }
+        const hasStroke = element.strokeColor && element.strokeWidth && element.strokeWidth > 0
         ctx.fillStyle = element.color || "#000000"
         ctx.font = `${element.fontStyle === "italic" ? "italic " : ""}${element.fontWeight || "normal"} ${element.fontSize || 16}px ${element.fontFamily || "Arial"}`
         ctx.textBaseline = "top"
@@ -224,6 +249,12 @@ export function DesignEditor({
         let textX = element.x
         if (align === "center") textX = element.x + element.width / 2
         if (align === "right") textX = element.x + element.width
+        if (hasStroke) {
+          ctx.strokeStyle = element.strokeColor!
+          ctx.lineWidth = element.strokeWidth!
+          ctx.lineJoin = "round"
+          ctx.strokeText(element.content || "", textX, element.y, element.width)
+        }
         ctx.fillText(element.content || "", textX, element.y, element.width)
       } else if (element.type === "image" && element.imageUrl) {
         const img = new Image()
@@ -721,7 +752,17 @@ export function DesignEditor({
     for (const el of elements) {
       if (el.visible === false) continue
       ctx.save()
+      const hasStroke = el.strokeColor && el.strokeWidth && el.strokeWidth > 0
       if (el.type === "text") {
+        if (el.backgroundColor) {
+          ctx.fillStyle = el.backgroundColor
+          if (el.borderRadius) {
+            roundedRectPath(ctx, el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4, el.borderRadius)
+            ctx.fill()
+          } else {
+            ctx.fillRect(el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4)
+          }
+        }
         const style = el.fontStyle === "italic" ? "italic" : ""
         const weight = el.fontWeight === "bold" ? "bold" : ""
         ctx.font = `${style} ${weight} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
@@ -733,17 +774,29 @@ export function DesignEditor({
             : el.textAlign === "right"
               ? el.x + el.width
               : el.x
+        if (hasStroke) {
+          ctx.strokeStyle = el.strokeColor!
+          ctx.lineWidth = el.strokeWidth!
+          ctx.lineJoin = "round"
+          ctx.strokeText(el.content || "", textX, el.y + (el.fontSize || 16))
+        }
         ctx.fillText(el.content || "", textX, el.y + (el.fontSize || 16))
       } else if (el.type === "shape") {
         ctx.fillStyle = el.backgroundColor || "#cccccc"
+        if (hasStroke) {
+          ctx.strokeStyle = el.strokeColor!
+          ctx.lineWidth = el.strokeWidth!
+        }
         if (el.shapeType === "circle") {
           ctx.beginPath()
           ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
           ctx.fill()
+          if (hasStroke) ctx.stroke()
         } else if (el.borderRadius) {
-          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius)
+          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius, !!hasStroke)
         } else {
           ctx.fillRect(el.x, el.y, el.width, el.height)
+          if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
         }
       }
       ctx.restore()
@@ -811,8 +864,18 @@ export function DesignEditor({
     for (const el of elements) {
       if (el.visible === false) continue
       ctx.save()
+      const hasStroke = el.strokeColor && el.strokeWidth && el.strokeWidth > 0
 
       if (el.type === "text") {
+        if (el.backgroundColor) {
+          ctx.fillStyle = el.backgroundColor
+          if (el.borderRadius) {
+            roundedRectPath(ctx, el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4, el.borderRadius)
+            ctx.fill()
+          } else {
+            ctx.fillRect(el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4)
+          }
+        }
         const style = el.fontStyle === "italic" ? "italic" : ""
         const weight = el.fontWeight === "bold" ? "bold" : ""
         ctx.font = `${style} ${weight} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
@@ -824,17 +887,29 @@ export function DesignEditor({
             : el.textAlign === "right"
               ? el.x + el.width
               : el.x
+        if (hasStroke) {
+          ctx.strokeStyle = el.strokeColor!
+          ctx.lineWidth = el.strokeWidth!
+          ctx.lineJoin = "round"
+          ctx.strokeText(el.content || "", textX, el.y + (el.fontSize || 16))
+        }
         ctx.fillText(el.content || "", textX, el.y + (el.fontSize || 16))
       } else if (el.type === "shape") {
         ctx.fillStyle = el.backgroundColor || "#cccccc"
+        if (hasStroke) {
+          ctx.strokeStyle = el.strokeColor!
+          ctx.lineWidth = el.strokeWidth!
+        }
         if (el.shapeType === "circle") {
           ctx.beginPath()
           ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
           ctx.fill()
+          if (hasStroke) ctx.stroke()
         } else if (el.borderRadius) {
-          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius)
+          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius, !!hasStroke)
         } else {
           ctx.fillRect(el.x, el.y, el.width, el.height)
+          if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
         }
       }
       ctx.restore()
@@ -1161,13 +1236,53 @@ export function DesignEditor({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Farba</label>
+                  <label className="mb-1 block text-sm font-medium">Farba textu</label>
                   <input
                     type="color"
                     value={selectedData.color || "#000000"}
                     onChange={(e) => updateElement({ color: e.target.value })}
                     className="h-10 w-full cursor-pointer rounded-md border border-border"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Výplň pozadia</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={selectedData.backgroundColor || "#ffffff"}
+                      onChange={(e) => updateElement({ backgroundColor: e.target.value })}
+                      className="h-10 flex-1 cursor-pointer rounded-md border border-border"
+                    />
+                    {selectedData.backgroundColor && (
+                      <button
+                        onClick={() => updateElement({ backgroundColor: undefined })}
+                        className="rounded-md border border-border px-2 py-2 text-xs hover:bg-muted"
+                        title="Odstrániť výplň"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Obvodka textu</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={selectedData.strokeColor || "#000000"}
+                      onChange={(e) => updateElement({ strokeColor: e.target.value, strokeWidth: selectedData.strokeWidth || 1 })}
+                      className="h-10 flex-1 cursor-pointer rounded-md border border-border"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={selectedData.strokeWidth || 0}
+                      onChange={(e) => updateElement({ strokeWidth: Math.max(0, parseInt(e.target.value) || 0) })}
+                      className="w-16 rounded-md border border-border px-2 py-1.5 text-sm"
+                    />
+                    <span className="text-xs text-muted-foreground">px</span>
+                  </div>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Štýl</label>
@@ -1226,13 +1341,33 @@ export function DesignEditor({
             {selectedData.type === "shape" && (
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Farba pozadia</label>
+                  <label className="mb-1 block text-sm font-medium">Výplň</label>
                   <input
                     type="color"
                     value={selectedData.backgroundColor || "#cccccc"}
                     onChange={(e) => updateElement({ backgroundColor: e.target.value })}
                     className="h-10 w-full cursor-pointer rounded-md border border-border"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Obvodka</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={selectedData.strokeColor || "#000000"}
+                      onChange={(e) => updateElement({ strokeColor: e.target.value, strokeWidth: selectedData.strokeWidth || 2 })}
+                      className="h-10 flex-1 cursor-pointer rounded-md border border-border"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={50}
+                      value={selectedData.strokeWidth || 0}
+                      onChange={(e) => updateElement({ strokeWidth: Math.max(0, parseInt(e.target.value) || 0) })}
+                      className="w-16 rounded-md border border-border px-2 py-1.5 text-sm"
+                    />
+                    <span className="text-xs text-muted-foreground">px</span>
+                  </div>
                 </div>
                 {selectedData.shapeType === "rectangle" && (
                   <div>
