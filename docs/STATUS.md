@@ -161,6 +161,21 @@
 - Используется в RSC и API: витрина `/product/[slug]` показывает `bez DPH/s DPH`, API возвращает `x-audience`/`x-audience-source`.
 - Серверный расчёт цены учитывает `AudienceContext` и возвращает `PriceResult`.
 - Навигация в хедере зависит от аудитории и показывает категории/товары, доступные для выбранного режима.
+- **Выбор режима (первое посещение):**
+  - При `source === "default"` на главной отображается `ModeSelectionPage` с карточками B2C/B2B.
+  - Выбор режима: `POST /api/audience` сохраняет cookie, затем `router.replace` на главную с `?mode=`.
+  - **Transition overlay** — анимированная заставка при переключении режима:
+    - Цвет фона зависит от выбранного режима (`--b2c-primary` / `--b2b-primary`).
+    - Анимация: fade-in → обводка контура логотипа SVG-лучом с пульсацией → morph в цветной логотип → fade-out.
+    - Фазы: `enter` (400ms) → `draw` (2000ms) → `morph` (600ms) → `exit` (1000ms), итого ~4 секунды.
+    - Текст «Pripravujeme ponuku pre vás...» с пульсирующей анимацией, размещён под логотипом.
+    - `window.scrollTo({ top: 0, behavior: "smooth" })` при появлении оверлея.
+    - Поддержка `prefers-reduced-motion`: все анимации отключаются.
+  - **Архитектура оверлея:**
+    - `lib/mode-overlay-store.ts` — module-level store (`useSyncExternalStore`) для состояния оверлея.
+    - `components/print/mode-overlay-provider.tsx` — `ModeOverlayPortal` (standalone client component, не обёртка).
+    - Портал размещён как сиблинг в `app/(site)/layout.tsx` — не оборачивает серверные компоненты, исключая hydration mismatch.
+    - Навигация запускается параллельно с анимацией — страница грузится под оверлеем (`z-index: 9999`).
 
 ## Главная страница
 - Главная использует `components/print/homepage.tsx`, подготовка данных вынесена в `lib/homepage-model.ts`.

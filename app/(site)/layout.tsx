@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { AudienceFooterNote } from "@/components/audience-footer-note"
 import { AudienceModeSwitch } from "@/components/audience-mode-switch"
 import { PageTransition } from "@/components/page-transition"
+import { ModeOverlayPortal } from "@/components/print/mode-overlay-provider"
 import { SiteHeader } from "@/components/site-header"
 import { resolveAudienceContext } from "@/lib/audience-context"
 
@@ -20,6 +21,8 @@ export default function SiteLayout({
   children: React.ReactNode
 }>) {
   return (
+    <>
+    <ModeOverlayPortal />
     <div className="flex min-h-screen flex-col">
       <a
         href="#main-content"
@@ -53,5 +56,6 @@ export default function SiteLayout({
         </div>
       </footer>
     </div>
+    </>
   )
 }

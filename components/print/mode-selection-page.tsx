@@ -1,6 +1,6 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Briefcase,
@@ -16,10 +16,12 @@ import {
 import { ModeSelectionCard } from "@/components/print/mode-selection-card"
 import type { CustomerMode } from "@/components/print/types"
 import { AUDIENCE_QUERY_PARAM } from "@/lib/audience-shared"
+import { showModeOverlay } from "@/lib/mode-overlay-store"
 
 export function ModeSelectionPage() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   const b2cFeatures = [
     "Online konfigurátor produktov",
@@ -40,9 +42,14 @@ export function ModeSelectionPage() {
   ]
 
   const handleModeSelected = (mode: CustomerMode) => {
-    if (isPending) return
+    if (isPending || isTransitioning) return
 
-    startTransition(async () => {
+    setIsTransitioning(true)
+    showModeOverlay(mode)
+
+    // Fire API call and start navigation immediately —
+    // the overlay (in layout) covers the screen so the page loads invisibly underneath
+    ;(async () => {
       try {
         const response = await fetch("/api/audience", {
           method: "POST",
@@ -50,16 +57,16 @@ export function ModeSelectionPage() {
           body: JSON.stringify({ mode }),
         })
 
-        if (!response.ok) {
-          return
+        if (response.ok) {
+          startTransition(() => {
+            router.replace(`/?${AUDIENCE_QUERY_PARAM}=${mode}`, { scroll: false })
+            router.refresh()
+          })
         }
-
-        router.replace(`/?${AUDIENCE_QUERY_PARAM}=${mode}`, { scroll: true })
-        router.refresh()
       } catch (error) {
         console.error("Mode selection error:", error)
       }
-    })
+    })()
   }
 
   return (
@@ -97,7 +104,7 @@ export function ModeSelectionPage() {
               image="/images/mode-selection/b2c.jpg"
               ctaLabel="Pokračovať súkromne"
               onSelect={() => handleModeSelected("b2c")}
-              isPending={isPending}
+              isPending={isPending || isTransitioning}
             />
 
             <ModeSelectionCard
@@ -110,7 +117,7 @@ export function ModeSelectionPage() {
               image="/images/mode-selection/b2b.jpg"
               ctaLabel="Pokračovať firemne"
               onSelect={() => handleModeSelected("b2b")}
-              isPending={isPending}
+              isPending={isPending || isTransitioning}
             />
           </div>
 
