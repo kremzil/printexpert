@@ -14,23 +14,38 @@ export function PageTransition({ children }: PageTransitionProps) {
   const [isVisible, setIsVisible] = useState(true)
   const transitionKey = `${pathname}?mode=${modeParam}`
   const prevTransitionKey = useRef(transitionKey)
+  const isFirstMount = useRef(true)
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
     if (transitionKey !== prevTransitionKey.current) {
       prevTransitionKey.current = transitionKey
       setIsVisible(false)
-      // Force a micro-task so the opacity-0 frame renders first
-      const id = requestAnimationFrame(() => {
-        setIsVisible(true)
-        window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+      // Double-rAF ensures the browser paints opacity:0 before starting fade-in
+      let cancelled = false
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (cancelled) return
+          setIsVisible(true)
+          window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+        })
       })
-      return () => cancelAnimationFrame(id)
+      return () => { cancelled = true }
     }
   }, [transitionKey])
 
   return (
     <div
-      className={`page-transition ${isVisible ? "page-transition-enter" : "page-transition-exit"}`}
+      className={`page-transition ${
+        isFirstMount.current
+          ? ""
+          : isVisible
+            ? "page-transition-enter"
+            : "page-transition-exit"
+      }`}
     >
       {children}
     </div>

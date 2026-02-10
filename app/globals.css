@@ -457,7 +457,7 @@
 }
 
 .page-transition-enter {
-  animation: page-fade-in 0.4s ease-out both;
+  animation: page-fade-in 0.3s ease-out both;
 }
 
 .page-transition-exit {
