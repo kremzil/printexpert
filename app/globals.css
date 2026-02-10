@@ -216,6 +216,11 @@
     line-height: 1.5;
   }
 
+  button:not(:disabled),
+  a[href]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
   input {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);

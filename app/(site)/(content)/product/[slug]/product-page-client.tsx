@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import {
   ChevronRight,
@@ -35,6 +36,7 @@ import {
 import { RealConfiguratorPanel } from "@/components/print/real-configurator-panel"
 import { Button } from "@/components/ui/button"
 import { DesignEditor, type DesignElement } from "@/components/print/design-editor"
+import { LoginDialog } from "@/components/auth/login-dialog"
 import { toast } from "sonner"
 
 export type DesignerConfig = {
@@ -65,6 +67,7 @@ type ProductPageClientProps = {
     images: Array<{ url: string; alt?: string | null }>
   }
   designerConfig?: DesignerConfig
+  isLoggedIn?: boolean
 }
 
 declare global {
@@ -94,6 +97,7 @@ function RealConfiguratorSection({
   onOpenDesigner,
   designData,
   designThumbnail,
+  isLoggedIn,
 }: {
   mode: CustomerMode
   data: WpConfiguratorData
@@ -106,6 +110,7 @@ function RealConfiguratorSection({
   onOpenDesigner?: () => void
   designData?: unknown
   designThumbnail?: string | null
+  isLoggedIn?: boolean
 }) {
   const {
     selections,
@@ -269,14 +274,36 @@ function RealConfiguratorSection({
                 </p>
               </div>
               <Button
-                onClick={onOpenDesigner}
+                onClick={isLoggedIn ? onOpenDesigner : undefined}
                 variant={hasDesignData ? "outline" : "default"}
                 className={hasDesignData
                   ? "border-purple-300 text-purple-700 hover:bg-purple-50"
                   : "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md hover:from-purple-700 hover:to-pink-700"}
+                asChild={!isLoggedIn}
               >
-                <Paintbrush className="mr-2 h-4 w-4" />
-                {hasDesignData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+                {isLoggedIn ? (
+                  <>
+                    <Paintbrush className="mr-2 h-4 w-4" />
+                    {hasDesignData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+                  </>
+                ) : (
+                  <LoginDialog
+                    trigger={
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2"
+                        onClick={() => {
+                          toast.info("Design Studio je dostupné len pre prihlásených používateľov", {
+                            description: "Prihláste sa alebo si vytvorte účet, aby ste mohli používať dizajnér.",
+                          })
+                        }}
+                      >
+                        <Paintbrush className="h-4 w-4" />
+                        {hasDesignData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+                      </button>
+                    }
+                  />
+                )}
               </Button>
             </div>
             {/* Design thumbnail preview */}
@@ -385,6 +412,7 @@ export function ProductPageClient({
   relatedProducts,
   product,
   designerConfig,
+  isLoggedIn,
 }: ProductPageClientProps) {
   const [fileStatus, setFileStatus] = useState<"idle" | "success">("idle")
   const [fileStatusMessage, setFileStatusMessage] = useState<string | undefined>(
@@ -472,6 +500,7 @@ export function ProductPageClient({
             onOpenDesigner={() => setShowDesigner(true)}
             designData={designData}
             designThumbnail={designThumbnail}
+            isLoggedIn={isLoggedIn}
           />
         ) : null}
         <div className="my-12">
@@ -506,9 +535,9 @@ export function ProductPageClient({
         </div>
       </div>
 
-      {/* Design Studio Fullscreen Modal */}
-      {showDesigner && designerConfig?.enabled && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* Design Studio Fullscreen Modal — rendered via portal to escape header stacking context */}
+      {showDesigner && designerConfig?.enabled && createPortal(
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-background">
           <DesignEditor
             width={designerConfig.width}
             height={designerConfig.height}
@@ -539,7 +568,8 @@ export function ProductPageClient({
               )
             }}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense, cache } from "react"
 
+import { auth } from "@/auth"
 import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product-page-client"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getRelatedProducts } from "@/lib/catalog"
@@ -64,9 +65,10 @@ async function ProductDetails({
     paramsPromise,
     searchParamsPromise ? searchParamsPromise : Promise.resolve({}),
   ])
-  const [audienceContext, product] = await Promise.all([
+  const [audienceContext, product, session] = await Promise.all([
     resolveAudienceContext({ searchParams: resolvedSearchParams }),
     getCachedProductBySlug(slug),
+    auth(),
   ])
 
   if (!product) {
@@ -127,6 +129,7 @@ async function ProductDetails({
             }
           : null
       }
+      isLoggedIn={!!session?.user}
     />
   )
 }

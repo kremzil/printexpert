@@ -21,6 +21,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignStartHorizontal,
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
   Layers,
   Sparkles,
   Palette,
@@ -50,6 +56,7 @@ export interface DesignElement {
   backgroundColor?: string
   imageUrl?: string
   shapeType?: "rectangle" | "circle"
+  borderRadius?: number
   rotation?: number
   visible?: boolean
   locked?: boolean
@@ -112,15 +119,58 @@ export function DesignEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [elements, setElements] = useState<DesignElement[]>(initialElements ?? [])
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [zoom, setZoom] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [resizeHandle, setResizeHandle] = useState<string | null>(null)
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; elX: number; elY: number; elW: number; elH: number; fontSize?: number } | null>(null)
   const [showLayers, setShowLayers] = useState(true)
+
+  // Helper: draw a rounded rectangle on any canvas context
+  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    const radius = Math.min(r, w / 2, h / 2)
+    ctx.beginPath()
+    ctx.moveTo(x + radius, y)
+    ctx.lineTo(x + w - radius, y)
+    ctx.arcTo(x + w, y, x + w, y + radius, radius)
+    ctx.lineTo(x + w, y + h - radius)
+    ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius)
+    ctx.lineTo(x + radius, y + h)
+    ctx.arcTo(x, y + h, x, y + h - radius, radius)
+    ctx.lineTo(x, y + radius)
+    ctx.arcTo(x, y, x + radius, y, radius)
+    ctx.closePath()
+    ctx.fill()
+  }
   const [showTemplates, setShowTemplates] = useState(false)
 
   const selectedData = elements.find((el) => el.id === selectedElement)
+
+  // Helpers for multi-selection
+  const selectSingle = (id: string) => {
+    setSelectedElement(id)
+    setSelectedIds(new Set([id]))
+  }
+  const clearSelection = () => {
+    setSelectedElement(null)
+    setSelectedIds(new Set())
+  }
+  const toggleInSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+        if (selectedElement === id) {
+          setSelectedElement(next.size > 0 ? [...next][next.size - 1] : null)
+        }
+      } else {
+        next.add(id)
+        setSelectedElement(id)
+      }
+      return next
+    })
+  }
 
   // ───── Draw canvas ─────
   const drawCanvas = useCallback(() => {
@@ -152,14 +202,16 @@ export function DesignEditor({
         ctx.fillStyle = element.backgroundColor || "#cccccc"
         if (element.shapeType === "circle") {
           ctx.beginPath()
-          ctx.arc(
+          ctx.ellipse(
             element.x + element.width / 2,
             element.y + element.height / 2,
-            Math.min(element.width, element.height) / 2,
-            0,
-            Math.PI * 2
+            element.width / 2,
+            element.height / 2,
+            0, 0, Math.PI * 2
           )
           ctx.fill()
+        } else if (element.borderRadius) {
+          drawRoundedRect(ctx, element.x, element.y, element.width, element.height, element.borderRadius)
         } else {
           ctx.fillRect(element.x, element.y, element.width, element.height)
         }
@@ -182,8 +234,8 @@ export function DesignEditor({
       }
 
       // selection indicator + resize handles
-      if (element.id === selectedElement) {
-        ctx.strokeStyle = "#0066cc"
+      if (selectedIds.has(element.id)) {
+        ctx.strokeStyle = element.id === selectedElement ? "#0066cc" : "#0066cc80"
         ctx.lineWidth = 2
         ctx.setLineDash([5, 5])
         ctx.strokeRect(
@@ -194,9 +246,10 @@ export function DesignEditor({
         )
         ctx.setLineDash([])
 
-        // Draw 8 resize handles
-        const hSize = 8
-        const hHalf = hSize / 2
+        // Draw resize handles only on the primary selected element
+        if (element.id === selectedElement) {
+          const hSize = 8
+          const hHalf = hSize / 2
         ctx.fillStyle = "#ffffff"
         ctx.strokeStyle = "#0066cc"
         ctx.lineWidth = 1.5
@@ -218,11 +271,35 @@ export function DesignEditor({
           ctx.fillRect(hx, hy, hSize, hSize)
           ctx.strokeRect(hx, hy, hSize, hSize)
         }
+        }
       }
 
       ctx.restore()
     }
-  }, [elements, selectedElement, width, height, bgColor])
+  }, [elements, selectedElement, selectedIds, width, height, bgColor])
+
+  // Auto-size text bounding boxes after canvas draw
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    let changed = false
+    const updated = elements.map((el) => {
+      if (el.type !== "text" || !el.content) return el
+      const font = `${el.fontStyle === "italic" ? "italic " : ""}${el.fontWeight || "normal"} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
+      ctx.font = font
+      const metrics = ctx.measureText(el.content)
+      const measuredW = Math.ceil(metrics.width) + 8 // small padding
+      const measuredH = Math.ceil((el.fontSize || 16) * 1.3) + 4
+      if (Math.abs(el.width - measuredW) > 2 || Math.abs(el.height - measuredH) > 2) {
+        changed = true
+        return { ...el, width: Math.max(measuredW, 20), height: Math.max(measuredH, 14) }
+      }
+      return el
+    })
+    if (changed) setElements(updated)
+  }, [elements])
 
   useEffect(() => {
     drawCanvas()
@@ -244,7 +321,7 @@ export function DesignEditor({
       visible: true,
     }
     setElements((prev) => [...prev, el])
-    setSelectedElement(el.id)
+    selectSingle(el.id)
   }
 
   const addShape = (shapeType: "rectangle" | "circle") => {
@@ -261,7 +338,7 @@ export function DesignEditor({
       visible: true,
     }
     setElements((prev) => [...prev, el])
-    setSelectedElement(el.id)
+    selectSingle(el.id)
   }
 
   const updateElement = (updates: Partial<DesignElement>) => {
@@ -272,23 +349,123 @@ export function DesignEditor({
   }
 
   const deleteElement = () => {
-    if (!selectedElement) return
-    setElements((prev) => prev.filter((el) => el.id !== selectedElement))
-    setSelectedElement(null)
+    if (selectedIds.size === 0) return
+    setElements((prev) => prev.filter((el) => !selectedIds.has(el.id)))
+    clearSelection()
   }
 
   const duplicateElement = () => {
-    if (!selectedElement) return
-    const src = elements.find((el) => el.id === selectedElement)
-    if (!src) return
-    const copy: DesignElement = {
-      ...src,
-      id: crypto.randomUUID(),
-      x: src.x + 20,
-      y: src.y + 20,
+    if (selectedIds.size === 0) return
+    const toDuplicate = elements.filter((el) => selectedIds.has(el.id))
+    const newIds = new Set<string>()
+    const copies = toDuplicate.map((src) => {
+      const copy: DesignElement = {
+        ...src,
+        id: crypto.randomUUID(),
+        x: src.x + 20,
+        y: src.y + 20,
+      }
+      newIds.add(copy.id)
+      return copy
+    })
+    setElements((prev) => [...prev, ...copies])
+    setSelectedIds(newIds)
+    setSelectedElement(copies.length > 0 ? copies[copies.length - 1].id : null)
+  }
+
+  // ───── Alignment helpers ─────
+  const getSelectedElements = () => elements.filter((el) => selectedIds.has(el.id))
+
+  const alignElements = (mode: "left" | "center-h" | "right" | "top" | "center-v" | "bottom") => {
+    const selected = getSelectedElements()
+    if (selected.length < 2) return
+    let updates: Map<string, Partial<DesignElement>> = new Map()
+    switch (mode) {
+      case "left": {
+        const minX = Math.min(...selected.map((el) => el.x))
+        selected.forEach((el) => updates.set(el.id, { x: minX }))
+        break
+      }
+      case "center-h": {
+        const minX = Math.min(...selected.map((el) => el.x))
+        const maxRight = Math.max(...selected.map((el) => el.x + el.width))
+        const centerX = (minX + maxRight) / 2
+        selected.forEach((el) => updates.set(el.id, { x: centerX - el.width / 2 }))
+        break
+      }
+      case "right": {
+        const maxRight = Math.max(...selected.map((el) => el.x + el.width))
+        selected.forEach((el) => updates.set(el.id, { x: maxRight - el.width }))
+        break
+      }
+      case "top": {
+        const minY = Math.min(...selected.map((el) => el.y))
+        selected.forEach((el) => updates.set(el.id, { y: minY }))
+        break
+      }
+      case "center-v": {
+        const minY = Math.min(...selected.map((el) => el.y))
+        const maxBottom = Math.max(...selected.map((el) => el.y + el.height))
+        const centerY = (minY + maxBottom) / 2
+        selected.forEach((el) => updates.set(el.id, { y: centerY - el.height / 2 }))
+        break
+      }
+      case "bottom": {
+        const maxBottom = Math.max(...selected.map((el) => el.y + el.height))
+        selected.forEach((el) => updates.set(el.id, { y: maxBottom - el.height }))
+        break
+      }
     }
-    setElements((prev) => [...prev, copy])
-    setSelectedElement(copy.id)
+    setElements((prev) =>
+      prev.map((el) => {
+        const u = updates.get(el.id)
+        return u ? { ...el, ...u } : el
+      })
+    )
+  }
+
+  const distributeElements = (axis: "horizontal" | "vertical") => {
+    const selected = getSelectedElements()
+    if (selected.length < 3) return
+    if (axis === "horizontal") {
+      const sorted = [...selected].sort((a, b) => a.x - b.x)
+      const first = sorted[0]
+      const last = sorted[sorted.length - 1]
+      const totalSpan = (last.x + last.width) - first.x
+      const totalWidth = sorted.reduce((sum, el) => sum + el.width, 0)
+      const gap = (totalSpan - totalWidth) / (sorted.length - 1)
+      let currentX = first.x
+      const updates = new Map<string, Partial<DesignElement>>()
+      sorted.forEach((el) => {
+        updates.set(el.id, { x: currentX })
+        currentX += el.width + gap
+      })
+      setElements((prev) =>
+        prev.map((el) => {
+          const u = updates.get(el.id)
+          return u ? { ...el, ...u } : el
+        })
+      )
+    } else {
+      const sorted = [...selected].sort((a, b) => a.y - b.y)
+      const first = sorted[0]
+      const last = sorted[sorted.length - 1]
+      const totalSpan = (last.y + last.height) - first.y
+      const totalHeight = sorted.reduce((sum, el) => sum + el.height, 0)
+      const gap = (totalSpan - totalHeight) / (sorted.length - 1)
+      let currentY = first.y
+      const updates = new Map<string, Partial<DesignElement>>()
+      sorted.forEach((el) => {
+        updates.set(el.id, { y: currentY })
+        currentY += el.height + gap
+      })
+      setElements((prev) =>
+        prev.map((el) => {
+          const u = updates.get(el.id)
+          return u ? { ...el, ...u } : el
+        })
+      )
+    }
   }
 
   const moveLayerUp = (id: string) => {
@@ -327,7 +504,7 @@ export function DesignEditor({
         visible: true,
       }
       setElements((prev) => [...prev, el])
-      setSelectedElement(el.id)
+      selectSingle(el.id)
     }
     reader.readAsDataURL(file)
   }
@@ -338,7 +515,7 @@ export function DesignEditor({
       builtInTemplates.find((t) => t.id === templateId)
     if (tpl) {
       setElements(tpl.elements)
-      setSelectedElement(null)
+      clearSelection()
       setShowTemplates(false)
     }
   }
@@ -408,11 +585,19 @@ export function DesignEditor({
           y <= el.y + el.height
       )
     if (clicked) {
-      setSelectedElement(clicked.id)
+      const isMulti = e.shiftKey || e.ctrlKey || e.metaKey
+      if (isMulti) {
+        toggleInSelection(clicked.id)
+      } else if (selectedIds.has(clicked.id) && selectedIds.size > 1) {
+        // Clicked on an already-selected element within a group — keep group, set primary
+        setSelectedElement(clicked.id)
+      } else {
+        selectSingle(clicked.id)
+      }
       setIsDragging(true)
       setDragOffset({ x: x - clicked.x, y: y - clicked.y })
     } else {
-      setSelectedElement(null)
+      clearSelection()
       setIsDragging(false)
     }
   }
@@ -437,6 +622,21 @@ export function DesignEditor({
       if (resizeHandle.includes("s")) { newH = Math.max(MIN_SIZE, elH + dy) }
       if (resizeHandle.includes("n")) { newH = Math.max(MIN_SIZE, elH - dy); newY = elY + elH - newH }
 
+      // Shift = proportional resize (preserve aspect ratio)
+      if (e.shiftKey && elW > 0 && elH > 0) {
+        const aspect = elW / elH
+        const isCorner = ["nw", "ne", "se", "sw"].includes(resizeHandle)
+        const isHorizontal = ["e", "w"].includes(resizeHandle)
+        if (isCorner || isHorizontal) {
+          newH = Math.max(MIN_SIZE, newW / aspect)
+        } else {
+          newW = Math.max(MIN_SIZE, newH * aspect)
+        }
+        // Recalculate position for corners that move origin
+        if (resizeHandle.includes("n")) { newY = elY + elH - newH }
+        if (resizeHandle.includes("w")) { newX = elX + elW - newW }
+      }
+
       // Scale font size proportionally for text elements
       const el = elements.find((e) => e.id === selectedElement)
       const updates: Partial<DesignElement> = { x: newX, y: newY, width: newW, height: newH }
@@ -460,12 +660,25 @@ export function DesignEditor({
       }
     }
 
-    // Drag mode
+    // Drag mode — move all selected elements
     if (!isDragging || !selectedElement) return
     const el = elements.find((e) => e.id === selectedElement)
-    const newX = Math.max(0, Math.min(width - (el?.width || 0), x - dragOffset.x))
-    const newY = Math.max(0, Math.min(height - (el?.height || 0), y - dragOffset.y))
-    updateElement({ x: newX, y: newY })
+    if (!el) return
+    const newX = Math.max(0, Math.min(width - el.width, x - dragOffset.x))
+    const newY = Math.max(0, Math.min(height - el.height, y - dragOffset.y))
+    const dx = newX - el.x
+    const dy = newY - el.y
+    if (selectedIds.size > 1) {
+      setElements((prev) =>
+        prev.map((item) =>
+          selectedIds.has(item.id)
+            ? { ...item, x: item.x + dx, y: item.y + dy }
+            : item
+        )
+      )
+    } else {
+      updateElement({ x: newX, y: newY })
+    }
   }
 
   const handleMouseUp = () => {
@@ -525,9 +738,10 @@ export function DesignEditor({
         ctx.fillStyle = el.backgroundColor || "#cccccc"
         if (el.shapeType === "circle") {
           ctx.beginPath()
-          const r = Math.min(el.width, el.height) / 2
-          ctx.arc(el.x + el.width / 2, el.y + el.height / 2, r, 0, Math.PI * 2)
+          ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
           ctx.fill()
+        } else if (el.borderRadius) {
+          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius)
         } else {
           ctx.fillRect(el.x, el.y, el.width, el.height)
         }
@@ -615,9 +829,10 @@ export function DesignEditor({
         ctx.fillStyle = el.backgroundColor || "#cccccc"
         if (el.shapeType === "circle") {
           ctx.beginPath()
-          const r = Math.min(el.width, el.height) / 2
-          ctx.arc(el.x + el.width / 2, el.y + el.height / 2, r, 0, Math.PI * 2)
+          ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
           ctx.fill()
+        } else if (el.borderRadius) {
+          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius)
         } else {
           ctx.fillRect(el.x, el.y, el.width, el.height)
         }
@@ -822,7 +1037,7 @@ export function DesignEditor({
 
           <button
             onClick={duplicateElement}
-            disabled={!selectedElement}
+            disabled={selectedIds.size === 0}
             className="rounded-lg border border-border p-2 transition-all hover:bg-muted disabled:opacity-30"
             title="Duplikovať"
           >
@@ -830,7 +1045,7 @@ export function DesignEditor({
           </button>
           <button
             onClick={deleteElement}
-            disabled={!selectedElement}
+            disabled={selectedIds.size === 0}
             className="rounded-lg border border-border p-2 transition-all hover:bg-muted disabled:opacity-30"
             title="Vymazať"
           >
@@ -892,13 +1107,22 @@ export function DesignEditor({
             <Download className="mr-1.5 h-4 w-4" />
             Stiahnuť PDF
           </Button>
+          <Button
+            variant={showLayers ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowLayers(v => !v)}
+            title="Zobraziť/skryť vrstvy"
+          >
+            <Layers className="mr-1.5 h-4 w-4" />
+            Vrstvy
+          </Button>
         </div>
       </div>
 
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar — Properties */}
-        {selectedElement && selectedData && (
+        {selectedElement && selectedData && selectedIds.size <= 1 && (
           <div className="w-72 shrink-0 overflow-y-auto border-r border-border bg-white p-4">
             <h3 className="mb-4 font-semibold">Vlastnosti</h3>
 
@@ -1000,14 +1224,40 @@ export function DesignEditor({
             )}
 
             {selectedData.type === "shape" && (
-              <div>
-                <label className="mb-1 block text-sm font-medium">Farba pozadia</label>
-                <input
-                  type="color"
-                  value={selectedData.backgroundColor || "#cccccc"}
-                  onChange={(e) => updateElement({ backgroundColor: e.target.value })}
-                  className="h-10 w-full cursor-pointer rounded-md border border-border"
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Farba pozadia</label>
+                  <input
+                    type="color"
+                    value={selectedData.backgroundColor || "#cccccc"}
+                    onChange={(e) => updateElement({ backgroundColor: e.target.value })}
+                    className="h-10 w-full cursor-pointer rounded-md border border-border"
+                  />
+                </div>
+                {selectedData.shapeType === "rectangle" && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Zaoblenie rohov</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.round(Math.min(selectedData.width, selectedData.height) / 2)}
+                        value={selectedData.borderRadius || 0}
+                        onChange={(e) => updateElement({ borderRadius: parseInt(e.target.value) })}
+                        className="flex-1"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={Math.round(Math.min(selectedData.width, selectedData.height) / 2)}
+                        value={selectedData.borderRadius || 0}
+                        onChange={(e) => updateElement({ borderRadius: Math.max(0, parseInt(e.target.value) || 0) })}
+                        className="w-16 rounded-md border border-border px-2 py-1.5 text-sm"
+                      />
+                      <span className="text-xs text-muted-foreground">px</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1055,6 +1305,104 @@ export function DesignEditor({
           </div>
         )}
 
+        {/* Multi-selection info */}
+        {selectedIds.size > 1 && (
+          <div className="w-72 shrink-0 overflow-y-auto border-r border-border bg-white p-4">
+            <h3 className="mb-4 font-semibold">Výber</h3>
+            <p className="text-sm text-muted-foreground">
+              Vybraných: <span className="font-medium text-foreground">{selectedIds.size}</span> elementov
+            </p>
+
+            {/* Alignment */}
+            <div className="mt-4">
+              <label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wide">Zarovnanie</label>
+              <div className="grid grid-cols-3 gap-1">
+                <button
+                  onClick={() => alignElements("left")}
+                  className="rounded-md border border-border p-2 transition-all hover:bg-muted"
+                  title="Zarovnať vľavo"
+                >
+                  <AlignStartVertical className="mx-auto h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => alignElements("center-h")}
+                  className="rounded-md border border-border p-2 transition-all hover:bg-muted"
+                  title="Zarovnať na stred horizontálne"
+                >
+                  <AlignCenterVertical className="mx-auto h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => alignElements("right")}
+                  className="rounded-md border border-border p-2 transition-all hover:bg-muted"
+                  title="Zarovnať vpravo"
+                >
+                  <AlignEndVertical className="mx-auto h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => alignElements("top")}
+                  className="rounded-md border border-border p-2 transition-all hover:bg-muted"
+                  title="Zarovnať nahor"
+                >
+                  <AlignStartHorizontal className="mx-auto h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => alignElements("center-v")}
+                  className="rounded-md border border-border p-2 transition-all hover:bg-muted"
+                  title="Zarovnať na stred vertikálne"
+                >
+                  <AlignCenterHorizontal className="mx-auto h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => alignElements("bottom")}
+                  className="rounded-md border border-border p-2 transition-all hover:bg-muted"
+                  title="Zarovnať nadol"
+                >
+                  <AlignEndHorizontal className="mx-auto h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Distribution */}
+            {selectedIds.size >= 3 && (
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wide">Rozloženie</label>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => distributeElements("horizontal")}
+                    className="flex items-center justify-center gap-1.5 rounded-md border border-border p-2 text-xs transition-all hover:bg-muted"
+                    title="Rozložiť horizontálne"
+                  >
+                    <AlignCenterVertical className="h-3.5 w-3.5" />
+                    Horizontálne
+                  </button>
+                  <button
+                    onClick={() => distributeElements("vertical")}
+                    className="flex items-center justify-center gap-1.5 rounded-md border border-border p-2 text-xs transition-all hover:bg-muted"
+                    title="Rozložiť vertikálne"
+                  >
+                    <AlignCenterHorizontal className="h-3.5 w-3.5" />
+                    Vertikálne
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" size="sm" onClick={duplicateElement}>
+                <Copy className="mr-1.5 h-4 w-4" />
+                Duplikovať
+              </Button>
+              <Button variant="destructive" size="sm" onClick={deleteElement}>
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                Vymazať
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Shift+klik alebo Ctrl+klik pre výber viacerých elementov
+            </p>
+          </div>
+        )}
+
         {/* Canvas */}
         <div className="flex-1 overflow-auto bg-muted/30 p-8">
           <div
@@ -1098,10 +1446,17 @@ export function DesignEditor({
                 return (
                 <button
                   key={el.id}
-                  onClick={() => setSelectedElement(el.id)}
+                  onClick={(e) => {
+                    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                      toggleInSelection(el.id)
+                    } else {
+                      selectSingle(el.id)
+                    }
+                  }}
                   className={cn(
                     "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-all hover:bg-muted",
-                    selectedElement === el.id && "border-primary ring-1 ring-primary"
+                    selectedElement === el.id && "border-primary ring-1 ring-primary",
+                    selectedIds.has(el.id) && selectedElement !== el.id && "border-primary/50 bg-primary/5"
                   )}
                 >
                   <div className="flex items-center gap-2">
