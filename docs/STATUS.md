@@ -1,7 +1,7 @@
 # Статус проекта
 
-Дата: 2026-02-08
-Версия: 0.2.6
+Дата: 2026-02-09
+Версия: 0.3.0
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
@@ -12,6 +12,11 @@
   - `OrderAsset` (файлы к заказу) + enums `OrderAssetKind`, `OrderAssetStatus`, `OrderAssetStorageProvider`.
   - `NotificationLog` + enums `NotificationType`, `NotificationStatus`.
   - `DesignTemplate` — шаблоны дизайнов (JSON с элементами, привязка к `Product`).
+  - `OrderStatusHistory` — история изменений статуса заказа (связь с `User` кто изменил).
+  - `SavedCart`, `SavedCartItem` — сохранённые корзины (для B2B клиентов).
+  - `StripeEvent` — логирование событий Stripe для идемпотентности.
+  - `ShopSettings` — настройки магазина (НДС, PDF-счета).
+  - `RateLimitEntry` — rate limiting через PostgreSQL.
 - Prisma Client генерируется в `lib/generated/prisma`, используется `@prisma/adapter-pg` + `pg` (`lib/prisma.ts`).
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
@@ -52,10 +57,13 @@
 - `/admin/orders` — список всех заказов.
 - `/admin/orders/[orderId]` — детали заказа с изменением статуса.
   - Список файлов заказа + скачивание
+  - История изменений статуса (OrderStatusHistory)
+  - Генерация и отправка PDF-счетов
 - `/admin/kategorie` — настройки категорий.
 - `/admin/vlastnosti` — свойства (атрибуты).
 - `/admin/vlastnosti/[attributeId]` — значения свойства.
 - `/admin/top-products` — управление блоком Top produkty на главной (B2B/B2C).
+- `/admin/users` — управление пользователями (список, смена роли USER/ADMIN).
 - `/admin/settings` — добавлена ручная кнопка «Obnoviť cache» для регенерации навигации и категорий.
 
 Что реализовано:
@@ -101,7 +109,7 @@
 - Роли: `UserRole` enum (USER, ADMIN)
 - Провайдеры:
   - Nodemailer (magic links через SMTP)
-  - Credentials (пароли с bcrypt)
+  - Credentials (пароли с scrypt)
 - JWT сессии (30 дней)
 - Middleware защита:
   - `/admin/*` → только ADMIN
@@ -118,18 +126,31 @@
 - Импорт JSON → DB: `scripts/import-wp-calculator-tables.js`.
 - Логика парсинга и данных матриц: `lib/wp-calculator.ts`.
 - Привязка WP продукта через `Product.wpProductId`.
-- Кэширование данных матриц и каталога: `use cache`, `cacheTag`, `cacheLife`.
+- Кэширование данных матриц и каталога: `unstable_cache` с гранулярными тегами (см. `lib/cache-tags.ts`).
 - Серверный расчёт цены: `lib/pricing.ts` (единый источник истины).
 - Endpoint для пересчёта цены: `POST /api/price` (возвращает `net/vat/gross`).
 - Поддержка внутренних матриц `PricingModel/PricingEntry` для расчёта (без `wpProductId`).
 
 ## Кэш и revalidate
 - Cache Components выключены (`cacheComponents: false`).
-- `updateTag()` в админских действиях для актуализации витрины (каталог, атрибуты, матрицы).
-- Для меню и категорий используются tag-only кэши:
-  - `nav-data` — данные для навигации в хедере.
-  - `catalog-data` — категории и счётчики товаров по категориям.
-- Кэш Top produkty: `top-products` (manual, без TTL).
+- Все теги и хелперы инвалидации вынесены в `lib/cache-tags.ts`.
+- Используется `unstable_cache` с гранулярными тегами:
+  - `catalog:categories` — список категорий.
+  - `catalog:products` — списки товаров (каталог, поиск).
+  - `catalog:counts` — счётчики товаров по категориям.
+  - `catalog:related` — блоки related products (TTL 1 час).
+  - `catalog:calculators` — бланкетный тег для всех калькуляторов.
+  - `product:{slug}` — данные одного товара (per-entity).
+  - `calculator:{id}` — калькулятор/матрицы одного товара (per-entity, TTL 1 час).
+  - `top-products` — виджет «Топ-товары».
+  - `nav-data` — навигация в хедере.
+  - `shop-settings` — настройки магазина (TTL 5 мин), покрывает и `getShopSettings()`, и `getPdfSettings()`.
+- Хелперы инвалидации (server actions вызывают эти функции):
+  - `invalidateProduct(slug, productId?)` — точечно: один товар + списки + калькулятор.
+  - `invalidateCalculator(productId)` — только калькулятор одного товара.
+  - `invalidateCategories()` — категории + зависимые списки + навигация.
+  - `invalidateAllCatalog()` — полный сброс (для импорта, ручной кнопки).
+- `updateProductDetails` при смене `categoryId`, `isActive`, `showInB2b` или `showInB2c` дополнительно вызывает `invalidateCategories()` + `revalidatePath("/kategorie")` + `revalidatePath("/catalog")` — страховка от устаревшего Full Route Cache.
 - Ручная регенерация для навигации/категорий доступна в `/admin/settings`.
 - Важно: нельзя вызывать `cookies()` или другие динамические источники данных внутри функций, помеченных `"use cache"`. Паттерн: резолвить `AudienceContext` вне кэшируемых функций (в page/route), и передавать `audience` как аргумент в `getProducts` или использовать проверку видимости на уровне страницы.
 - `getProducts` принимает опциональный `audience` и учитывает `showInB2b`/`showInB2c` при выборке; страница товара выполняет дополнительную проверку и возвращает 404 для товара, скрытого для текущей аудитории.
@@ -206,9 +227,12 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 ## Оптимизации производительности (02.02.2026)
 ### Кэширование
+- **Товар по slug** — `unstable_cache` с тегом `product:{slug}` (без TTL, точечная инвалидация).
+- **Калькулятор** — `unstable_cache` с тегом `calculator:{id}` (TTL 1 час, точечная инвалидация).
 - **Top produkty** — кэширование по тегу `top-products` (без TTL, ревалидация по изменению).
 - **Навигация** — данные категорий и товаров для меню кэшируются по тегу `nav-data` (без TTL).
-- **Категории/счётчики** — кэшируются по тегу `catalog-data` (без TTL).
+- **Категории/счётчики** — кэшируются по тегам `catalog:categories` / `catalog:counts` (без TTL).
+- **Related products** — кэшируются по тегу `catalog:related` (TTL 1 час).
 - **Хедер** — выборка товаров для меню ограничена (по 6 на подкатегорию или 12 на категорию без подкатегорий).
 
 ### Изображения
@@ -217,7 +241,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Настроены `remotePatterns` для внешних доменов (unsplash)
 
 ### Статическая генерация
-- Добавлен `generateStaticParams` для `/product/[slug]` — первые 100 товаров
+- Добавлен `generateStaticParams` для `/product/[slug]` — все активные товары
 - Уменьшение TTFB за счёт ISR
 
 ### Каталог
@@ -245,7 +269,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - UI: `/auth` (формы), `/account` (кабинет с боковым меню)
 - Личный кабинет:
   - Стандартное боковое меню (без collapsible sidebar)
-  - Навигация: Домов, Мой účet, Objednávky, Nastavenia
+  - Навигация: Domov, Objednávky, Uložené košíky (B2B), Nastavenia
   - Кнопка выхода в футере меню
 - В хедере: динамические ссылки в зависимости от сессии + badge корзины
 
@@ -320,6 +344,8 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 ## Генерация PDF-счетов (Faktúry)
 - Технология: `@react-pdf/renderer`
 - Настройки хранятся в `ShopSettings.pdfSettings` (JSON)
+- `getPdfSettings()` обёрнут в `unstable_cache` с тегом `shop-settings` (TTL 5 мин), инвалидируется вместе с НДС.
+- `updatePdfSettings()` вызывает `revalidateTag(TAGS.SHOP_SETTINGS)` — новые настройки применяются сразу.
 - Модуль: `lib/pdf/` (template, generate, settings, types)
 - Функции:
   - Автоматическая генерация при смене статуса заказа

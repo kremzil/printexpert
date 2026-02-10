@@ -1,6 +1,6 @@
 # Система корзины и заказов
 
-Дата обновления: 2026-02-04
+Дата обновления: 2026-02-09
 
 ## Общее описание
 
@@ -43,6 +43,7 @@ model CartItem {
   height          Decimal? @db.Decimal(10, 2)
   selectedOptions Json?
   priceSnapshot   Json?
+  designData      Json?    // elements from Design Studio
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   cart            Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
@@ -53,6 +54,7 @@ model CartItem {
 **Особенности:**
 - `priceSnapshot` — кэшированная цена для UI (не используется при создании заказа!)
 - `selectedOptions` — JSON с выбранными опциями калькулятора
+- `designData` — данные из Design Studio (массив элементов дизайна)
 - `width`, `height` — параметры размеров (Decimal для точности)
 
 #### Order
@@ -63,9 +65,9 @@ model Order {
   userId          String?
   audience        String
   status          OrderStatus @default(PENDING)
-  subtotal        Decimal     @db.Decimal(10, 2)
-  vatAmount       Decimal     @db.Decimal(10, 2)
-  total           Decimal     @db.Decimal(10, 2)
+  subtotal        Decimal     @db.Decimal(12, 2)
+  vatAmount       Decimal     @db.Decimal(12, 2)
+  total           Decimal     @db.Decimal(12, 2)
   customerName    String
   customerEmail   String
   customerPhone   String?
@@ -104,9 +106,9 @@ model OrderItem {
   width           Decimal? @db.Decimal(10, 2)
   height          Decimal? @db.Decimal(10, 2)
   selectedOptions Json?
-  priceNet        Decimal  @db.Decimal(10, 2)
-  priceVat        Decimal  @db.Decimal(10, 2)
-  priceGross      Decimal  @db.Decimal(10, 2)
+  priceNet        Decimal  @db.Decimal(12, 2)
+  priceVat        Decimal  @db.Decimal(12, 2)
+  priceGross      Decimal  @db.Decimal(12, 2)
   priceSnapshot   Json?
   order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product         Product  @relation(fields: [productId], references: [id])
@@ -127,6 +129,39 @@ model OrderItem {
 - `status`: PENDING | UPLOADED | APPROVED | REJECTED
 - `fileNameOriginal`, `mimeType`, `sizeBytes`
 - `bucket`, `objectKey`, `region`
+
+#### OrderStatusHistory
+История изменений статуса заказа.
+
+**Ключевые поля:**
+- `orderId` — связь с заказом
+- `fromStatus`, `toStatus` — изменение статуса
+- `changedByUserId` — кто изменил (админ)
+- `note` — комментарий к изменению
+- `createdAt` — дата изменения
+
+#### SavedCart / SavedCartItem
+Сохраненные корзины для B2B клиентов.
+
+**SavedCart:**
+- `userId` — владелец
+- `name` — название сохраненной корзины
+- `items` — список товаров
+
+**SavedCartItem:**
+- `savedCartId` — связь с корзиной
+- `productId`, `quantity`, `width`, `height`
+- `selectedOptions`, `priceSnapshot`
+
+**API endpoints:**
+- `GET /api/saved-carts` — список сохраненных корзин
+- `POST /api/saved-carts` — создание новой
+- `PATCH /api/saved-carts/[savedCartId]` — переименование
+- `DELETE /api/saved-carts/[savedCartId]` — удаление
+- `POST /api/saved-carts/[savedCartId]/load` — загрузка в активную корзину
+
+**UI:**
+- `/account/saved-carts` — страница со списком сохраненных корзин
 
 ## Server Actions
 
@@ -775,7 +810,8 @@ if (!session?.user || session.user.role !== "ADMIN") {
 ### Caching
 - PriceSnapshot кэширует расчет для UI
 - НО: всегда пересчитывается при checkout!
-- **Навигация** — `unstable_cache` с TTL 5 минут
+- **Каталог** — `unstable_cache` с гранулярными тегами (см. `lib/cache-tags.ts`)
+- **Shop settings** — `unstable_cache` с TTL 5 минут, тег `shop-settings`
 
 ### Race condition protection
 - `isPreparingRef` (useRef) предотвращает двойные вызовы `preparePayment`
@@ -801,7 +837,8 @@ if (!session?.user || session.user.role !== "ADMIN") {
 **Решение:** Используйте локальный тип или unknown вместо Prisma JsonValue
 
 ## Будущие улучшения
-- [ ] История изменений статуса
+- [x] История изменений статуса → реализовано (OrderStatusHistory)
+- [x] Сохраненные корзины → реализовано (SavedCart)
 - [ ] Фильтры в списке заказов админки
 - [ ] Export заказов в CSV/Excel
 - [x] Печать накладных → реализовано как PDF-счета (faktúry)
@@ -873,6 +910,7 @@ model StripeEvent {
 
 enum PaymentStatus {
   UNPAID
+  PENDING
   PAID
   FAILED
   REFUNDED
@@ -880,7 +918,6 @@ enum PaymentStatus {
 
 enum PaymentProvider {
   STRIPE
-  BANK_TRANSFER
 }
 ```
 

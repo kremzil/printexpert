@@ -70,6 +70,7 @@ type ProductPageClientProps = {
 declare global {
   interface Window {
     __pendingOrderUpload?: { file: File }
+    __pendingDesignPdf?: { file: File }
   }
 }
 
@@ -92,6 +93,7 @@ function RealConfiguratorSection({
   designerConfig,
   onOpenDesigner,
   designData,
+  designThumbnail,
 }: {
   mode: CustomerMode
   data: WpConfiguratorData
@@ -103,6 +105,7 @@ function RealConfiguratorSection({
   designerConfig?: DesignerConfig
   onOpenDesigner?: () => void
   designData?: unknown
+  designThumbnail?: string | null
 }) {
   const {
     selections,
@@ -129,6 +132,9 @@ function RealConfiguratorSection({
     isAddingToCart,
     serverError,
   } = useWpConfigurator({ data, productId, designData })
+
+  const elementCount = Array.isArray(designData) ? (designData as unknown[]).length : 0
+  const hasDesignData = Boolean(designData)
 
   return (
     <div className="grid gap-8 lg:grid-cols-3">
@@ -257,22 +263,32 @@ function RealConfiguratorSection({
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {designData
-                    ? `Dizajn uložený (${Array.isArray(designData) ? (designData as unknown[]).length : 0} elementov)`
+                  {hasDesignData
+                    ? `Dizajn pripravený (${elementCount} ${elementCount === 1 ? "element" : "elementov"}) — bude priložený k objednávke`
                     : "Vytvorte si vlastný dizajn priamo v prehliadači"}
                 </p>
               </div>
               <Button
                 onClick={onOpenDesigner}
-                variant={designData ? "outline" : "default"}
-                className={designData
+                variant={hasDesignData ? "outline" : "default"}
+                className={hasDesignData
                   ? "border-purple-300 text-purple-700 hover:bg-purple-50"
                   : "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md hover:from-purple-700 hover:to-pink-700"}
               >
                 <Paintbrush className="mr-2 h-4 w-4" />
-                {designData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+                {hasDesignData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
               </Button>
             </div>
+            {/* Design thumbnail preview */}
+            {hasDesignData && designThumbnail && (
+              <div className="mt-4 overflow-hidden rounded-lg border border-purple-200 bg-white">
+                <img
+                  src={designThumbnail}
+                  alt="Náhľad dizajnu"
+                  className="h-auto w-full max-h-48 object-contain"
+                />
+              </div>
+            )}
           </Card>
         )}
 
@@ -376,6 +392,7 @@ export function ProductPageClient({
   )
   const [showDesigner, setShowDesigner] = useState(false)
   const [designData, setDesignData] = useState<unknown>(null)
+  const [designThumbnail, setDesignThumbnail] = useState<string | null>(null)
 
   const handleFileSelect = (files: FileList) => {
     const file = files[0]
@@ -454,6 +471,7 @@ export function ProductPageClient({
             designerConfig={designerConfig}
             onOpenDesigner={() => setShowDesigner(true)}
             designData={designData}
+            designThumbnail={designThumbnail}
           />
         ) : null}
         <div className="my-12">
@@ -500,12 +518,24 @@ export function ProductPageClient({
             productLabel={product.name}
             initialElements={Array.isArray(designData) ? designData as DesignElement[] : undefined}
             onClose={() => setShowDesigner(false)}
-            onSave={(elements) => {
+            onSave={(elements, thumbnailDataUrl, pdfBlob) => {
               setDesignData(elements)
+              setDesignThumbnail(thumbnailDataUrl ?? null)
               setShowDesigner(false)
+
+              // Store generated PDF for upload during checkout
+              if (pdfBlob) {
+                const pdfFile = new File(
+                  [pdfBlob],
+                  `design-${product.name.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`,
+                  { type: "application/pdf" }
+                )
+                window.__pendingDesignPdf = { file: pdfFile }
+              }
+
               toast.success(
-                `Dizajn uložený (${elements.length} ${elements.length === 1 ? "element" : "elementov"})`,
-                { description: "Dizajn bude priložený k objednávke pri pridaní do košíka." }
+                `Dizajn priložený k objednávke (${elements.length} ${elements.length === 1 ? "element" : "elementov"})`,
+                { description: "PDF dizajnu sa automaticky priloží k objednávke." }
               )
             }}
           />

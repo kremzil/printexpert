@@ -23,6 +23,7 @@ export interface CartItemWithProduct {
   height: number | null;
   selectedOptions: unknown;
   priceSnapshot: PriceSnapshot | null;
+  designData?: unknown;
   quantityPresets?: number[];
   product: {
     id: string;

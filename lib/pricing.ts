@@ -1,6 +1,7 @@
 import "server-only"
 
 import { unstable_cache } from "next/cache"
+import { TAGS, calculatorTag } from "@/lib/cache-tags"
 import { getPrisma } from "@/lib/prisma"
 import type { AudienceContext } from "@/lib/audience-shared"
 import { getShopSettings } from "@/lib/shop-settings"
@@ -844,20 +845,18 @@ const buildCalculatorDataFromPricingModels = async (
   }
 }
 
-const getCachedCalculatorData = unstable_cache(
-  async (productId: string): Promise<CalculatorData | null> => {
-    return buildCalculatorDataFromPricingModels(productId)
-  },
-  ["calculator-data"],
-  { tags: ["catalog-data"] }
-)
-
 export async function getProductCalculatorData({
   productId,
 }: {
   productId: string
 }): Promise<CalculatorData | null> {
-  return getCachedCalculatorData(productId)
+  return unstable_cache(
+    async (): Promise<CalculatorData | null> => {
+      return buildCalculatorDataFromPricingModels(productId)
+    },
+    ["calculator-data", productId],
+    { tags: [calculatorTag(productId), TAGS.CALCULATORS], revalidate: 3600 }
+  )()
 }
 
 export async function calculate(

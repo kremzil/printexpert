@@ -22,6 +22,7 @@ import {
   Trash2,
   Truck,
   Upload,
+  Paintbrush,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -432,6 +433,12 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                                   <span className="font-medium">{key}:</span> {value}
                                 </div>
                               ))}
+                            </div>
+                          ) : null}
+                          {item.designData && Array.isArray(item.designData) && (item.designData as unknown[]).length > 0 ? (
+                            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-medium text-purple-700">
+                              <Paintbrush className="h-3 w-3" />
+                              Design Studio ({(item.designData as unknown[]).length} elementov)
                             </div>
                           ) : null}
                         </div>

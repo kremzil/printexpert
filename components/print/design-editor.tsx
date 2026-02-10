@@ -7,7 +7,7 @@ import {
   Square,
   Circle,
   Download,
-  Save,
+  ShoppingCart,
   Undo,
   Redo,
   ZoomIn,
@@ -25,6 +25,8 @@ import {
   Sparkles,
   Palette,
   X,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -74,8 +76,8 @@ export interface DesignEditorProps {
   bgColor?: string
   /** Predefined templates from DB */
   templates?: DesignTemplate[]
-  /** Called when user saves design */
-  onSave?: (elements: DesignElement[]) => void
+  /** Called when user clicks "Use in order" — receives elements + thumbnail data URL + PDF blob */
+  onSave?: (elements: DesignElement[], thumbnailDataUrl?: string, pdfBlob?: Blob) => void
   /** Called when closing editor */
   onClose?: () => void
   /** Pre-loaded elements (e.g. from a previous save) */
@@ -113,6 +115,8 @@ export function DesignEditor({
   const [zoom, setZoom] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null)
+  const [resizeStart, setResizeStart] = useState<{ x: number; y: number; elX: number; elY: number; elW: number; elH: number; fontSize?: number } | null>(null)
   const [showLayers, setShowLayers] = useState(true)
   const [showTemplates, setShowTemplates] = useState(false)
 
@@ -177,7 +181,7 @@ export function DesignEditor({
         }
       }
 
-      // selection indicator
+      // selection indicator + resize handles
       if (element.id === selectedElement) {
         ctx.strokeStyle = "#0066cc"
         ctx.lineWidth = 2
@@ -189,6 +193,31 @@ export function DesignEditor({
           element.height + 4
         )
         ctx.setLineDash([])
+
+        // Draw 8 resize handles
+        const hSize = 8
+        const hHalf = hSize / 2
+        ctx.fillStyle = "#ffffff"
+        ctx.strokeStyle = "#0066cc"
+        ctx.lineWidth = 1.5
+        const ex = element.x - 2
+        const ey = element.y - 2
+        const ew = element.width + 4
+        const eh = element.height + 4
+        const handlePositions = [
+          [ex - hHalf, ey - hHalf],                         // nw
+          [ex + ew / 2 - hHalf, ey - hHalf],                // n
+          [ex + ew - hHalf, ey - hHalf],                     // ne
+          [ex + ew - hHalf, ey + eh / 2 - hHalf],           // e
+          [ex + ew - hHalf, ey + eh - hHalf],               // se
+          [ex + ew / 2 - hHalf, ey + eh - hHalf],           // s
+          [ex - hHalf, ey + eh - hHalf],                     // sw
+          [ex - hHalf, ey + eh / 2 - hHalf],                // w
+        ]
+        for (const [hx, hy] of handlePositions) {
+          ctx.fillRect(hx, hy, hSize, hSize)
+          ctx.strokeRect(hx, hy, hSize, hSize)
+        }
       }
 
       ctx.restore()
@@ -219,13 +248,14 @@ export function DesignEditor({
   }
 
   const addShape = (shapeType: "rectangle" | "circle") => {
+    const size = shapeType === "circle" ? 150 : undefined
     const el: DesignElement = {
       id: crypto.randomUUID(),
       type: "shape",
       x: 50,
       y: 50,
-      width: 150,
-      height: 100,
+      width: size ?? 150,
+      height: size ?? 100,
       backgroundColor: "#0066cc",
       shapeType,
       visible: true,
@@ -261,6 +291,26 @@ export function DesignEditor({
     setSelectedElement(copy.id)
   }
 
+  const moveLayerUp = (id: string) => {
+    setElements((prev) => {
+      const idx = prev.findIndex((el) => el.id === id)
+      if (idx < 0 || idx >= prev.length - 1) return prev
+      const next = [...prev]
+      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
+      return next
+    })
+  }
+
+  const moveLayerDown = (id: string) => {
+    setElements((prev) => {
+      const idx = prev.findIndex((el) => el.id === id)
+      if (idx <= 0) return prev
+      const next = [...prev]
+      ;[next[idx], next[idx - 1]] = [next[idx - 1], next[idx]]
+      return next
+    })
+  }
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -293,6 +343,38 @@ export function DesignEditor({
     }
   }
 
+  // ───── Resize handle hit-test ─────
+  const HANDLE_SIZE = 8
+  const HANDLE_NAMES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const
+  type ResizeDir = typeof HANDLE_NAMES[number]
+
+  const getHandleAtPoint = (x: number, y: number, el: DesignElement): ResizeDir | null => {
+    const hHalf = HANDLE_SIZE / 2 + 2 // extra tolerance
+    const ex = el.x - 2
+    const ey = el.y - 2
+    const ew = el.width + 4
+    const eh = el.height + 4
+    const positions: [number, number, ResizeDir][] = [
+      [ex, ey, "nw"],
+      [ex + ew / 2, ey, "n"],
+      [ex + ew, ey, "ne"],
+      [ex + ew, ey + eh / 2, "e"],
+      [ex + ew, ey + eh, "se"],
+      [ex + ew / 2, ey + eh, "s"],
+      [ex, ey + eh, "sw"],
+      [ex, ey + eh / 2, "w"],
+    ]
+    for (const [hx, hy, dir] of positions) {
+      if (Math.abs(x - hx) <= hHalf && Math.abs(y - hy) <= hHalf) return dir
+    }
+    return null
+  }
+
+  const CURSOR_MAP: Record<ResizeDir, string> = {
+    nw: "nwse-resize", n: "ns-resize", ne: "nesw-resize", e: "ew-resize",
+    se: "nwse-resize", s: "ns-resize", sw: "nesw-resize", w: "ew-resize",
+  }
+
   // ───── Mouse interaction on canvas ─────
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -300,6 +382,19 @@ export function DesignEditor({
     const rect = canvas.getBoundingClientRect()
     const x = (e.clientX - rect.left) / zoom
     const y = (e.clientY - rect.top) / zoom
+
+    // Check resize handles on selected element first
+    if (selectedElement) {
+      const sel = elements.find((el) => el.id === selectedElement)
+      if (sel) {
+        const handle = getHandleAtPoint(x, y, sel)
+        if (handle) {
+          setResizeHandle(handle)
+          setResizeStart({ x, y, elX: sel.x, elY: sel.y, elW: sel.width, elH: sel.height, fontSize: sel.fontSize })
+          return
+        }
+      }
+    }
 
     const clicked = [...elements]
       .reverse()
@@ -323,19 +418,159 @@ export function DesignEditor({
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !selectedElement) return
     const canvas = canvasRef.current
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
     const x = (e.clientX - rect.left) / zoom
     const y = (e.clientY - rect.top) / zoom
+
+    // Resize mode
+    if (resizeHandle && resizeStart && selectedElement) {
+      const dx = x - resizeStart.x
+      const dy = y - resizeStart.y
+      const { elX, elY, elW, elH } = resizeStart
+      const MIN_SIZE = 10
+      let newX = elX, newY = elY, newW = elW, newH = elH
+
+      if (resizeHandle.includes("e")) { newW = Math.max(MIN_SIZE, elW + dx) }
+      if (resizeHandle.includes("w")) { newW = Math.max(MIN_SIZE, elW - dx); newX = elX + elW - newW }
+      if (resizeHandle.includes("s")) { newH = Math.max(MIN_SIZE, elH + dy) }
+      if (resizeHandle.includes("n")) { newH = Math.max(MIN_SIZE, elH - dy); newY = elY + elH - newH }
+
+      // Scale font size proportionally for text elements
+      const el = elements.find((e) => e.id === selectedElement)
+      const updates: Partial<DesignElement> = { x: newX, y: newY, width: newW, height: newH }
+      if (el?.type === "text" && resizeStart.fontSize) {
+        const scale = newH / elH
+        updates.fontSize = Math.max(6, Math.round(resizeStart.fontSize * scale))
+      }
+
+      setElements((prev) =>
+        prev.map((el) => el.id === selectedElement ? { ...el, ...updates } : el)
+      )
+      return
+    }
+
+    // Update cursor for handle hover
+    if (selectedElement && !isDragging) {
+      const sel = elements.find((el) => el.id === selectedElement)
+      if (sel) {
+        const handle = getHandleAtPoint(x, y, sel)
+        canvas.style.cursor = handle ? CURSOR_MAP[handle] : "crosshair"
+      }
+    }
+
+    // Drag mode
+    if (!isDragging || !selectedElement) return
     const el = elements.find((e) => e.id === selectedElement)
     const newX = Math.max(0, Math.min(width - (el?.width || 0), x - dragOffset.x))
     const newY = Math.max(0, Math.min(height - (el?.height || 0), y - dragOffset.y))
     updateElement({ x: newX, y: newY })
   }
 
-  const handleMouseUp = () => setIsDragging(false)
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setResizeHandle(null)
+    setResizeStart(null)
+  }
+
+  // ───── Generate thumbnail ─────
+  const generateThumbnail = useCallback((): string | undefined => {
+    const canvas = canvasRef.current
+    if (!canvas) return undefined
+    // Create a small thumbnail canvas
+    const thumbWidth = 400
+    const thumbHeight = Math.round((height / width) * thumbWidth)
+    const thumbCanvas = document.createElement("canvas")
+    thumbCanvas.width = thumbWidth
+    thumbCanvas.height = thumbHeight
+    const ctx = thumbCanvas.getContext("2d")
+    if (!ctx) return undefined
+    ctx.drawImage(canvas, 0, 0, thumbWidth, thumbHeight)
+    return thumbCanvas.toDataURL("image/png", 0.85)
+  }, [width, height])
+
+  // ───── Generate PDF blob ─────
+  const generatePdfBlob = useCallback((): Blob | undefined => {
+    const widthMm = (width / dpi) * 25.4
+    const heightMm = (height / dpi) * 25.4
+    const orientation = widthMm > heightMm ? "landscape" as const : "portrait" as const
+
+    const exportCanvas = document.createElement("canvas")
+    exportCanvas.width = width
+    exportCanvas.height = height
+    const ctx = exportCanvas.getContext("2d")
+    if (!ctx) return undefined
+
+    ctx.fillStyle = bgColor
+    ctx.fillRect(0, 0, width, height)
+
+    for (const el of elements) {
+      if (el.visible === false) continue
+      ctx.save()
+      if (el.type === "text") {
+        const style = el.fontStyle === "italic" ? "italic" : ""
+        const weight = el.fontWeight === "bold" ? "bold" : ""
+        ctx.font = `${style} ${weight} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
+        ctx.fillStyle = el.color || "#000000"
+        ctx.textAlign = (el.textAlign as CanvasTextAlign) || "left"
+        const textX =
+          el.textAlign === "center"
+            ? el.x + el.width / 2
+            : el.textAlign === "right"
+              ? el.x + el.width
+              : el.x
+        ctx.fillText(el.content || "", textX, el.y + (el.fontSize || 16))
+      } else if (el.type === "shape") {
+        ctx.fillStyle = el.backgroundColor || "#cccccc"
+        if (el.shapeType === "circle") {
+          ctx.beginPath()
+          const r = Math.min(el.width, el.height) / 2
+          ctx.arc(el.x + el.width / 2, el.y + el.height / 2, r, 0, Math.PI * 2)
+          ctx.fill()
+        } else {
+          ctx.fillRect(el.x, el.y, el.width, el.height)
+        }
+      }
+      ctx.restore()
+    }
+
+    const pdf = new jsPDF({ orientation, unit: "mm", format: [widthMm, heightMm], compress: true })
+    pdf.setProperties({
+      title: `Design - ${productLabel || "export"}`,
+      creator: "PrintExpert Design Studio",
+      keywords: `DPI:${dpi}, Profile:${colorProfile}`,
+    })
+    const imgData = exportCanvas.toDataURL("image/png", 1.0)
+    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST")
+
+    pdf.addPage([widthMm, heightMm], orientation)
+    pdf.setFontSize(8)
+    pdf.setTextColor(100, 100, 100)
+    pdf.text(
+      [
+        `PrintExpert Design Studio`,
+        `Produkt: ${productLabel || "-"}`,
+        `Rozmer: ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
+        `DPI: ${dpi}`,
+        `Farebný profil: ${colorProfile}`,
+        `Pixely: ${width} × ${height} px`,
+        `Dátum: ${new Date().toLocaleDateString("sk-SK")}`,
+      ],
+      10,
+      15
+    )
+
+    return pdf.output("blob")
+  }, [elements, width, height, bgColor, productLabel, dpi, colorProfile])
+
+  // ───── Use in order handler ─────
+  const handleUseInOrder = useCallback(() => {
+    if (!onSave) return
+    const thumbnail = generateThumbnail()
+    const pdfBlob = elements.length > 0 ? generatePdfBlob() : undefined
+    onSave(elements, thumbnail, pdfBlob)
+  }, [onSave, elements, generateThumbnail, generatePdfBlob])
 
   // ───── Download PDF ─────
   const handleDownloadPdf = useCallback(() => {
@@ -380,15 +615,8 @@ export function DesignEditor({
         ctx.fillStyle = el.backgroundColor || "#cccccc"
         if (el.shapeType === "circle") {
           ctx.beginPath()
-          ctx.ellipse(
-            el.x + el.width / 2,
-            el.y + el.height / 2,
-            el.width / 2,
-            el.height / 2,
-            0,
-            0,
-            Math.PI * 2
-          )
+          const r = Math.min(el.width, el.height) / 2
+          ctx.arc(el.x + el.width / 2, el.y + el.height / 2, r, 0, Math.PI * 2)
           ctx.fill()
         } else {
           ctx.fillRect(el.x, el.y, el.width, el.height)
@@ -652,14 +880,15 @@ export function DesignEditor({
             Šablóny
           </Button>
           <Button
-            variant="outline"
             size="sm"
-            onClick={() => onSave?.(elements)}
+            onClick={handleUseInOrder}
+            disabled={elements.length === 0}
+            className="bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md hover:from-purple-700 hover:to-pink-700 disabled:opacity-50"
           >
-            <Save className="mr-1.5 h-4 w-4" />
-            Uložiť dizajn
+            <ShoppingCart className="mr-1.5 h-4 w-4" />
+            Použiť v objednávke
           </Button>
-          <Button size="sm" onClick={handleDownloadPdf}>
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
             <Download className="mr-1.5 h-4 w-4" />
             Stiahnuť PDF
           </Button>
@@ -842,7 +1071,7 @@ export function DesignEditor({
               onMouseLeave={handleMouseUp}
               className={cn(
                 "bg-white shadow-lg",
-                isDragging ? "cursor-grabbing" : "cursor-crosshair"
+                isDragging ? "cursor-grabbing" : resizeHandle ? "" : "cursor-crosshair"
               )}
               style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
             />
@@ -862,7 +1091,11 @@ export function DesignEditor({
               </button>
             </div>
             <div className="space-y-1.5">
-              {[...elements].reverse().map((el) => (
+              {[...elements].reverse().map((el, revIdx) => {
+                const realIdx = elements.length - 1 - revIdx
+                const isFirst = realIdx === 0
+                const isLast = realIdx === elements.length - 1
+                return (
                 <button
                   key={el.id}
                   onClick={() => setSelectedElement(el.id)}
@@ -882,21 +1115,45 @@ export function DesignEditor({
                         (el.shapeType === "rectangle" ? "Obdĺžnik" : "Kruh")}
                     </span>
                   </div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedElement(el.id)
-                      updateElement({ visible: !el.visible })
-                    }}
-                  >
-                    {el.visible !== false ? (
-                      <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
+                  <div className="flex items-center gap-0.5">
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!isLast) moveLayerUp(el.id)
+                      }}
+                      className={cn("rounded p-0.5 hover:bg-muted-foreground/20", isLast && "pointer-events-none opacity-30")}
+                      title="Posunúť nahor"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (!isFirst) moveLayerDown(el.id)
+                      }}
+                      className={cn("rounded p-0.5 hover:bg-muted-foreground/20", isFirst && "pointer-events-none opacity-30")}
+                      title="Posunúť nadol"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedElement(el.id)
+                        updateElement({ visible: !el.visible })
+                      }}
+                      className="rounded p-0.5 hover:bg-muted-foreground/20"
+                    >
+                      {el.visible !== false ? (
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : (
+                        <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                 </button>
-              ))}
+                )
+              })}
               {elements.length === 0 && (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   Žiadne vrstvy

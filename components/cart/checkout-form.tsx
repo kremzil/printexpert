@@ -85,6 +85,7 @@ type CheckoutAddressStorage = {
 declare global {
   interface Window {
     __pendingOrderUpload?: PendingOrderUpload;
+    __pendingDesignPdf?: { file: File };
   }
 }
 
@@ -539,6 +540,47 @@ export function CheckoutForm({
         uploadFailed = true;
       } finally {
         delete window.__pendingOrderUpload;
+      }
+    }
+
+    // Upload Design Studio PDF if present
+    const pendingDesignPdf = window.__pendingDesignPdf;
+    if (pendingDesignPdf?.file) {
+      try {
+        const file = pendingDesignPdf.file;
+        const presignResponse = await fetch("/api/uploads/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+          body: JSON.stringify({
+            orderId: order.id,
+            kind: "ARTWORK",
+            fileName: file.name,
+            mimeType: file.type,
+            sizeBytes: file.size,
+          }),
+        });
+
+        if (presignResponse.ok) {
+          const presignData = await presignResponse.json();
+          const uploadResponse = await fetch(presignData.uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": file.type || "application/pdf" },
+            body: file,
+          });
+
+          if (uploadResponse.ok) {
+            await fetch("/api/uploads/confirm", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+              body: JSON.stringify({ assetId: presignData.assetId }),
+            });
+          }
+        }
+      } catch (designUploadError) {
+        console.error("Design PDF upload error:", designUploadError);
+        // Don't fail the order — design data is already saved in OrderItem.designData
+      } finally {
+        delete window.__pendingDesignPdf;
       }
     }
 

@@ -1,9 +1,10 @@
 "use server"
 
-import { revalidatePath, revalidateTag, updateTag } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
+import { invalidateAllCatalog, TAGS } from "@/lib/cache-tags"
 
 const SETTINGS_ID = "default"
 
@@ -33,12 +34,11 @@ export async function updateShopVatRate(formData: FormData) {
     update: { vatRate: normalizedVatRate, pricesIncludeVat },
   })
 
-  updateTag("shop-settings")
+  revalidateTag(TAGS.SHOP_SETTINGS, "max")
   revalidatePath("/admin/settings")
 }
 
 export async function revalidateCatalogCache() {
   await requireAdmin()
-  revalidateTag("nav-data", "max")
-  revalidateTag("catalog-data", "max")
+  invalidateAllCatalog()
 }

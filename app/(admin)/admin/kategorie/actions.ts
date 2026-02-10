@@ -1,9 +1,10 @@
 "use server"
 
-import { revalidatePath, revalidateTag, updateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
+import { invalidateCategories } from "@/lib/cache-tags"
 
 type UpdateCategoryInput = {
   categoryId: string
@@ -69,14 +70,10 @@ export async function createCategory(formData: FormData) {
     },
   })
 
-  updateTag("categories")
-  updateTag(`category:${slug}`)
+  invalidateCategories()
   revalidatePath("/kategorie")
   revalidatePath("/catalog")
   revalidatePath("/admin/kategorie")
-  revalidateTag("nav-data", "max")
-  revalidateTag("catalog-data", "max")
-  revalidateTag("top-products", "max")
 }
 
 export async function updateCategory(
@@ -140,15 +137,10 @@ export async function updateCategory(
     },
   })
 
-  updateTag("categories")
-  updateTag(`category:${category.slug}`)
-  updateTag(`category:${nextSlug}`)
+  invalidateCategories()
   revalidatePath("/kategorie")
   revalidatePath("/catalog")
   revalidatePath("/admin/kategorie")
-  revalidateTag("nav-data", "max")
-  revalidateTag("catalog-data", "max")
-  revalidateTag("top-products", "max")
 }
 
 export async function deleteCategory(input: DeleteCategoryInput) {
@@ -173,12 +165,8 @@ export async function deleteCategory(input: DeleteCategoryInput) {
 
   await prisma.category.delete({ where: { id: category.id } })
 
-  updateTag("categories")
-  updateTag(`category:${category.slug}`)
+  invalidateCategories()
   revalidatePath("/kategorie")
   revalidatePath("/catalog")
   revalidatePath("/admin/kategorie")
-  revalidateTag("nav-data", "max")
-  revalidateTag("catalog-data", "max")
-  revalidateTag("top-products", "max")
 }

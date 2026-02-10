@@ -88,3 +88,47 @@ UI использует `signOut()` из `next-auth/react`.
 
 ## 7) Примечания
 - Старые route handlers (`/api/auth/login`, `/api/auth/logout`, `/api/auth/password`, `/api/auth/magic`, `/auth/magic`) удалены, чтобы не было двух параллельных систем сессий.
+
+---
+
+## 8) Личный кабинет (Account)
+Маршруты:
+- `/account` — главная страница кабинета
+- `/account/orders` — список заказов пользователя
+- `/account/orders/[orderId]` — детали заказа
+- `/account/addresses` — управление адресами
+- `/account/saved-carts` — сохранённые корзины (B2B)
+- `/account/settings` — настройки профиля
+
+### Компоненты:
+- `account-sidebar.tsx` — боковое меню навигации
+- `account-tabs.tsx` — табы для мобильной версии
+- `account-panel.tsx` — панель быстрых действий
+
+### Сохранённые корзины (SavedCart)
+Функционал для B2B клиентов — сохранение корзины для повторных заказов.
+
+**Модели:**
+- `SavedCart` — именованная сохранённая корзина
+- `SavedCartItem` — товары в сохранённой корзине
+
+**API:**
+- `GET /api/saved-carts` — список корзин пользователя
+- `POST /api/saved-carts` — сохранить текущую корзину
+- `PATCH /api/saved-carts/[savedCartId]` — переименовать
+- `DELETE /api/saved-carts/[savedCartId]` — удалить
+- `POST /api/saved-carts/[savedCartId]/load` — загрузить в активную корзину
+
+---
+
+## 9) Управление пользователями (Admin)
+Маршрут: `/admin/users`
+
+**Возможности:**
+- Список всех пользователей
+- Просмотр: email, имя, роль, дата регистрации
+- Смена роли: USER ↔ ADMIN
+
+**Защита:**
+- Требует роль ADMIN
+- Нельзя менять собственную роль

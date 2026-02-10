@@ -79,6 +79,9 @@ export async function createOrder(
       priceVat: itemVat,
       priceGross: itemGross,
       priceSnapshot: freshPrice as unknown as Prisma.InputJsonValue,
+      designData: item.designData
+        ? (item.designData as unknown as Prisma.InputJsonValue)
+        : undefined,
     });
   }
 

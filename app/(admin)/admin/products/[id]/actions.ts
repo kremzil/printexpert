@@ -1,10 +1,16 @@
 "use server"
 
-import { revalidatePath, revalidateTag, updateTag } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { requireAdmin } from "@/lib/auth-helpers"
+import {
+  invalidateProduct,
+  invalidateCalculator,
+  invalidateCategories,
+  productTag,
+} from "@/lib/cache-tags"
 
 type UpdateMatrixPricesInput = {
   productId: string
@@ -293,7 +299,7 @@ export async function updateMatrixPrices(
     )
   }
 
-  updateTag("wp-matrix")
+  invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -372,7 +378,7 @@ export async function createMatrix(
     },
   })
 
-  updateTag("wp-matrix")
+  invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -529,7 +535,7 @@ export async function updateMatrix(
     }
   }
 
-  updateTag("wp-matrix")
+  invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -546,7 +552,7 @@ export async function updateMatrixVisibility(
     data: { isActive },
   })
 
-  updateTag("wp-matrix")
+  invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -564,7 +570,7 @@ export async function deleteMatrix(input: DeleteMatrixInput) {
     }),
   ])
 
-  updateTag("wp-matrix")
+  invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -586,15 +592,11 @@ export async function updateProductWpId(
     select: { slug: true },
   })
 
-  updateTag("products")
-  updateTag(`product-id:${input.productId}`)
   revalidatePath(`/admin/products/${input.productId}`)
   if (updated?.slug) {
-    updateTag("products")
-    updateTag(`product:${updated.slug}`)
+    invalidateProduct(updated.slug, input.productId)
     revalidatePath(`/product/${updated.slug}`)
   }
-  updateTag("wp-matrix")
 }
 
 export async function updateProductDetails(
@@ -643,12 +645,22 @@ export async function updateProductDetails(
   const excerpt = sanitizedExcerpt.trim()
   const existing = await prisma.product.findUnique({
     where: { id: input.productId },
-    select: { slug: true },
+    select: {
+      slug: true,
+      categoryId: true,
+      isActive: true,
+      showInB2b: true,
+      showInB2c: true,
+    },
   })
 
   if (!existing) {
     return
   }
+
+  const nextIsActive = isActiveRaw === "1"
+  const nextShowInB2b = showInB2bRaw === "1"
+  const nextShowInB2c = showInB2cRaw === "1"
 
   const updated = await prisma.product.update({
     where: { id: input.productId },
@@ -659,9 +671,9 @@ export async function updateProductDetails(
       excerpt: excerpt || null,
       description: description || null,
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
-      isActive: isActiveRaw === "1",
-      showInB2b: showInB2bRaw === "1",
-      showInB2c: showInB2cRaw === "1",
+      isActive: nextIsActive,
+      showInB2b: nextShowInB2b,
+      showInB2c: nextShowInB2c,
       designerEnabled: designerEnabledRaw === "1",
       designerWidth: designerWidthRaw ? parseInt(designerWidthRaw) || null : null,
       designerHeight: designerHeightRaw ? parseInt(designerHeightRaw) || null : null,
@@ -672,23 +684,31 @@ export async function updateProductDetails(
     select: { slug: true },
   })
 
-  updateTag("products")
-  updateTag(`product-id:${input.productId}`)
-  updateTag(`product:${existing.slug}`)
-  updateTag(`product:${updated.slug}`)
-  // invalidate audience-specific caches as visibility may have changed
-  updateTag("products")
-  updateTag(`audience:b2b`)
-  updateTag(`audience:b2c`)
+  invalidateProduct(existing.slug, input.productId)
+  if (updated.slug !== existing.slug) {
+    revalidateTag(productTag(updated.slug), "max")
+  }
+
+  // Если сменилась категория, видимость или isActive — страховочный сброс
+  // витринных страниц + навигации (counts могут измениться)
+  const catalogChanged =
+    (categoryId && categoryId !== existing.categoryId) ||
+    nextIsActive !== existing.isActive ||
+    nextShowInB2b !== existing.showInB2b ||
+    nextShowInB2c !== existing.showInB2c
+
+  if (catalogChanged) {
+    invalidateCategories()
+    revalidatePath("/kategorie")
+    revalidatePath("/catalog")
+  }
+
   revalidatePath("/admin")
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${existing.slug}`)
   if (updated.slug !== existing.slug) {
     revalidatePath(`/product/${updated.slug}`)
   }
-  revalidateTag("nav-data", "max")
-  revalidateTag("catalog-data", "max")
-  revalidateTag("top-products", "max")
 }
 
 export async function createMatrixPriceRows(input: DeleteMatrixInput) {
@@ -780,7 +800,7 @@ export async function createMatrixPriceRows(input: DeleteMatrixInput) {
     skipDuplicates: true,
   })
 
-  updateTag("wp-matrix")
+  invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
 
@@ -806,11 +826,9 @@ export async function addProductImage(input: AddProductImageInput) {
     },
   })
 
-  updateTag("products")
-  updateTag(`product:${product.slug}`)
+  invalidateProduct(product.slug)
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${product.slug}`)
-  revalidateTag("top-products", "max")
 }
 
 export async function deleteProductImage(input: DeleteProductImageInput) {
@@ -847,13 +865,11 @@ export async function deleteProductImage(input: DeleteProductImageInput) {
     }
   }
 
-  updateTag("products")
   if (product) {
-    updateTag(`product:${product.slug}`)
+    invalidateProduct(product.slug)
     revalidatePath(`/product/${product.slug}`)
   }
   revalidatePath(`/admin/products/${input.productId}`)
-  revalidateTag("top-products", "max")
 }
 
 export async function setProductImagePrimary(input: SetProductImagePrimaryInput) {
@@ -884,13 +900,11 @@ export async function setProductImagePrimary(input: SetProductImagePrimaryInput)
     data: { isPrimary: true, sortOrder: 0 },
   })
 
-  updateTag("products")
   if (product) {
-    updateTag(`product:${product.slug}`)
+    invalidateProduct(product.slug)
     revalidatePath(`/product/${product.slug}`)
   }
   revalidatePath(`/admin/products/${input.productId}`)
-  revalidateTag("top-products", "max")
 }
 
 export async function reorderProductImages(input: ReorderProductImagesInput) {
@@ -914,9 +928,7 @@ export async function reorderProductImages(input: ReorderProductImagesInput) {
     )
   )
 
-  updateTag("products")
-  updateTag(`product:${product.slug}`)
+  invalidateProduct(product.slug)
   revalidatePath(`/admin/products/${input.productId}`)
   revalidatePath(`/product/${product.slug}`)
-  revalidateTag("top-products", "max")
 }

@@ -499,6 +499,7 @@ model OrderItem {
   priceVat        Decimal  @db.Decimal(12, 2)
   priceGross      Decimal  @db.Decimal(12, 2)
   priceSnapshot   Json?
+  designData      Json?    // elements from Design Studio
   assets          OrderAsset[]
 
   @@index([orderId])

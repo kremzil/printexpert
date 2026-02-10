@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { Prisma, PriceType } from "@/lib/generated/prisma"
-import { revalidatePath, revalidateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
+import { invalidateAllCatalog } from "@/lib/cache-tags"
 import path from "path"
 import fs from "fs/promises"
 import sharp from "sharp"
@@ -569,9 +570,7 @@ export async function POST(request: Request) {
   if (!dryRun) {
     revalidatePath("/admin/products")
     revalidatePath("/catalog")
-    revalidateTag("nav-data", "max")
-    revalidateTag("catalog-data", "max")
-    revalidateTag("top-products", "max")
+    invalidateAllCatalog()
   }
 
   return NextResponse.json(result)
