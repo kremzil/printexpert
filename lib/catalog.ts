@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { getPrisma } from "@/lib/prisma";
 import { getAudienceFilter } from "@/lib/audience-filter";
 import { TAGS, productTag } from "@/lib/cache-tags";
+import { versionedImageUrl } from "@/lib/utils";
 
 const serializeProduct = <
   T extends {
@@ -17,7 +18,22 @@ const serializeProduct = <
   priceFrom: product.priceFrom ? product.priceFrom.toString() : null,
   vatRate: product.vatRate.toString(),
 });
-
+/** Append cache-busting ?v=updatedAt to product image URLs */
+function versionImages<
+  T extends {
+    updatedAt?: Date | string | null;
+    images?: Array<{ url: string }>;
+  },
+>(product: T): T {
+  if (!product.images || !product.updatedAt) return product;
+  return {
+    ...product,
+    images: product.images.map((img) => ({
+      ...img,
+      url: versionedImageUrl(img.url, product.updatedAt),
+    })),
+  };
+}
 const getCachedCategories = unstable_cache(
   async () => {
     const prisma = getPrisma();
@@ -82,7 +98,7 @@ const getCachedProducts = unstable_cache(
       },
     });
 
-    return products.map(serializeProduct);
+    return products.map((p) => versionImages(serializeProduct(p)));
   },
   ["catalog-products"],
   { tags: [TAGS.PRODUCTS] }
@@ -247,7 +263,7 @@ export async function getProductBySlug(slug: string) {
         },
       });
 
-      return product ? serializeProduct(product) : null;
+      return product ? versionImages(serializeProduct(product)) : null;
     },
     ["product-by-slug", slug],
     { tags: [productTag(slug), TAGS.PRODUCTS] }
@@ -312,13 +328,18 @@ const getCachedHomepageCollections = unstable_cache(
     const prisma = getPrisma();
     const audienceFilter = getAudienceFilter(audience);
 
-    return prisma.productCollection.findMany({
+    const collections = await prisma.productCollection.findMany({
       where: {
         isActive: true,
         ...audienceFilter,
       },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
+
+    return collections.map((c) => ({
+      ...c,
+      image: versionedImageUrl(c.image, c.updatedAt),
+    }));
   },
   ["homepage-collections"],
   { tags: [TAGS.COLLECTIONS] }
@@ -389,7 +410,7 @@ const getCachedCollectionProducts = unstable_cache(
     const order = new Map(orderedIds.map((id, index) => [id, index]));
     return products
       .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
-      .map(serializeProduct);
+      .map((p) => versionImages(serializeProduct(p)));
   },
   ["collection-products"],
   { tags: [TAGS.COLLECTIONS, TAGS.PRODUCTS] }
@@ -512,7 +533,7 @@ async function fetchTopProducts(audience: string, count: number) {
   const order = new Map(orderedIds.map((id, index) => [id, index]));
   return products
     .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
-    .map(serializeProduct);
+    .map((p) => versionImages(serializeProduct(p)));
 }
 
 export const getTopProducts = unstable_cache(

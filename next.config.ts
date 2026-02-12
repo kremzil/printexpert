@@ -40,6 +40,14 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    localPatterns: [
+      { pathname: "/products/**" },
+      { pathname: "/categories/**" },
+      { pathname: "/kolekcie/**" },
+      { pathname: "/homepage/**" },
+      { pathname: "/images/**" },
+      { pathname: "/**" },
+    ],
     remotePatterns: [
       {
         protocol: "https",

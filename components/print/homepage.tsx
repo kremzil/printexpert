@@ -230,7 +230,7 @@ export function Homepage({ mode, categories, featuredProducts, collections }: Ho
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:auto-rows-[160px]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:auto-rows-[165px]">
               {collections.map((collection, index) => {
                 const isLastOddCollection = hasOddCollections && index === collections.length - 1
 
@@ -238,6 +238,7 @@ export function Homepage({ mode, categories, featuredProducts, collections }: Ho
                   <CollectionCard
                     key={collection.id}
                     collection={collection}
+                    isWide={isLastOddCollection}
                     className={
                       isLastOddCollection
                         ? "col-span-1 row-span-1 lg:col-span-2 lg:row-span-2"
@@ -615,9 +616,11 @@ function CategoryCard({
 
 function CollectionCard({
   collection,
+  isWide,
   className,
 }: {
   collection: CollectionCardData
+  isWide: boolean
   className?: string
 }) {
   return (
@@ -633,19 +636,34 @@ function CollectionCard({
         alt={collection.name}
         fill
         sizes="(max-width: 768px) 100vw, 50vw"
-        className="object-cover object-bottom-left  lg:object-contain transition-transform duration-500 group-hover:scale-105"
+        className="object-cover object-bottom-left  lg:object-cover transition-transform duration-500 group-hover:scale-105"
       />
       <div className="absolute inset-0 flex items-center justify-end p-5 sm:p-6">
-        <div className="w-2/5 lg:w-1/2 text-left text-white">
-          <h3 className="mb-2 lg:mb-4 text-2xl lg:text-4xl font-semibold leading-tight ">
+        <div
+          className={cn(
+            "text-left text-white",
+            isWide ? "w-[56%] sm:w-[50%] lg:w-[40%]" : "w-[56%] sm:w-[50%] lg:w-[46%]",
+          )}
+        >
+          <h3
+            className={cn(
+              "font-semibold leading-tight",
+              isWide ? "mb-2 lg:mb-4 text-2xl lg:text-4xl" : "mb-1 lg:mb-2 text-xl lg:text-2xl",
+            )}
+          >
             {collection.name}
           </h3>
         {collection.description ? (
-            <p className="lg:pr-50 line-clamp-3 text-sm lg:text-lg leading-relaxed text-white/90 ">
+            <p
+              className={cn(
+                "leading-relaxed text-white/90",
+                isWide ? "line-clamp-3 text-sm lg:text-lg" : "line-clamp-2 text-sm lg:text-base",
+              )}
+            >
               {collection.description}
             </p>
         ) : (
-            <p className="text-sm text-white/85 ">
+            <p className={cn("text-white/85", isWide ? "text-sm lg:text-base" : "text-sm")}>
               Vybraná kolekcia produktov.
             </p>
         )}

@@ -5,10 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Loader2, Trash2, Upload } from "lucide-react";
 
 import { AdminButton } from "@/components/admin/admin-button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Combobox,
   ComboboxChip,
@@ -21,6 +18,27 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getCsrfHeader } from "@/lib/csrf";
 
@@ -86,11 +104,7 @@ const mergeSelectedProductIds = (currentIds: string[], selected: Product[]) => {
   return [...kept, ...appended];
 };
 
-const moveProductId = (
-  productIds: string[],
-  index: number,
-  direction: "up" | "down"
-) => {
+const moveProductId = (productIds: string[], index: number, direction: "up" | "down") => {
   if (direction === "up" && index <= 0) return productIds;
   if (direction === "down" && index >= productIds.length - 1) return productIds;
 
@@ -114,9 +128,13 @@ function ProductPicker({
     () => new Map(products.map((product) => [product.id, product])),
     [products]
   );
-  const selectedProducts = selectedIds
-    .map((id) => productById.get(id))
-    .filter((product): product is Product => Boolean(product));
+  const selectedProducts = useMemo(
+    () =>
+      selectedIds
+        .map((id) => productById.get(id))
+        .filter((product): product is Product => Boolean(product)),
+    [selectedIds, productById]
+  );
 
   return (
     <Combobox
@@ -138,12 +156,32 @@ function ProductPicker({
           )}
         </ComboboxValue>
       </ComboboxChips>
-      <ComboboxContent anchor={anchor}>
+      <ComboboxContent anchor={anchor} className="max-h-80">
         <ComboboxEmpty>Žiadne produkty nenájdené.</ComboboxEmpty>
-        <ComboboxList>
+        <ComboboxList
+          showScrollbar
+          className="max-h-64 overflow-y-auto"
+          onWheel={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const element = event.currentTarget as HTMLElement;
+            element.scrollTop += event.deltaY;
+          }}
+        >
           {(item: Product) => (
-            <ComboboxItem key={item.id} value={item}>
-              {item.name}
+            <ComboboxItem
+              key={item.id}
+              value={item}
+              className={`pr-2 [&>span:last-child]:hidden ${
+                selectedIds.includes(item.id)
+                  ? "bg-primary/15 text-primary font-medium"
+                  : ""
+              }`}
+            >
+              <div className="flex w-full items-center justify-between gap-2">
+                <span className="truncate">{item.name}</span>
+                <span className="text-xs text-muted-foreground">{item.slug}</span>
+              </div>
             </ComboboxItem>
           )}
         </ComboboxList>
@@ -172,7 +210,7 @@ function SelectedProductsOrder({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
       {productIds.map((productId, index) => {
         const product = productsById.get(productId);
         if (!product) return null;
@@ -180,11 +218,11 @@ function SelectedProductsOrder({
         return (
           <div
             key={productId}
-            className="flex items-center justify-between rounded-md border px-3 py-2"
+            className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2"
           >
-            <div>
-              <div className="text-sm font-medium">{product.name}</div>
-              <div className="text-xs text-muted-foreground">{product.slug}</div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium">{product.name}</div>
+              <div className="truncate text-xs text-muted-foreground">{product.slug}</div>
             </div>
             <div className="flex items-center gap-1">
               <AdminButton
@@ -221,6 +259,166 @@ function SelectedProductsOrder({
   );
 }
 
+function CollectionFormFields({
+  idPrefix,
+  draft,
+  onChange,
+  products,
+  productsById,
+  uploading,
+  onUploadImage,
+}: {
+  idPrefix: string;
+  draft: CollectionDraft;
+  onChange: (nextDraft: CollectionDraft) => void;
+  products: Product[];
+  productsById: Map<string, Product>;
+  uploading: boolean;
+  onUploadImage: (file: File) => Promise<void>;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-name`}>Názov</Label>
+          <Input
+            id={`${idPrefix}-name`}
+            value={draft.name}
+            onChange={(event) => onChange({ ...draft, name: event.target.value })}
+            placeholder="Napr. Jarná kolekcia"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-slug`}>Slug</Label>
+          <Input
+            id={`${idPrefix}-slug`}
+            value={draft.slug}
+            onChange={(event) => onChange({ ...draft, slug: event.target.value })}
+            placeholder="Voliteľné, doplní sa automaticky"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-image`}>Obrázok (URL)</Label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            id={`${idPrefix}-image`}
+            value={draft.image}
+            onChange={(event) => onChange({ ...draft, image: event.target.value })}
+            placeholder="/uploads/... alebo https://..."
+          />
+          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-sm">
+            <Upload className="h-4 w-4" />
+            {uploading ? "Nahrávam..." : "Nahrať"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploading}
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                await onUploadImage(file);
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-description`}>Popis</Label>
+        <Textarea
+          id={`${idPrefix}-description`}
+          value={draft.description}
+          onChange={(event) => onChange({ ...draft, description: event.target.value })}
+          placeholder="Krátky popis kolekcie..."
+          rows={3}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-sortOrder`}>Poradie</Label>
+          <Input
+            id={`${idPrefix}-sortOrder`}
+            type="number"
+            value={draft.sortOrder}
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                sortOrder: Number(event.target.value) || 0,
+              })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Viditeľnosť</Label>
+          <div className="flex flex-wrap gap-4 rounded-md border px-3 py-2 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={draft.isActive}
+                onChange={(event) => onChange({ ...draft, isActive: event.target.checked })}
+                className="h-4 w-4 rounded border-input accent-primary"
+              />
+              <span>Aktívna</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={draft.showInB2b}
+                onChange={(event) => onChange({ ...draft, showInB2b: event.target.checked })}
+                className="h-4 w-4 rounded border-input accent-primary"
+              />
+              <span>B2B</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={draft.showInB2c}
+                onChange={(event) => onChange({ ...draft, showInB2c: event.target.checked })}
+                className="h-4 w-4 rounded border-input accent-primary"
+              />
+              <span>B2C</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Produkty</Label>
+        <ProductPicker
+          products={products}
+          selectedIds={draft.productIds}
+          onChange={(nextIds) => onChange({ ...draft, productIds: nextIds })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Poradie produktov v kolekcii</Label>
+        <SelectedProductsOrder
+          productIds={draft.productIds}
+          productsById={productsById}
+          onMove={(index, direction) =>
+            onChange({
+              ...draft,
+              productIds: moveProductId(draft.productIds, index, direction),
+            })
+          }
+          onRemove={(productId) =>
+            onChange({
+              ...draft,
+              productIds: draft.productIds.filter((id) => id !== productId),
+            })
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminCollectionsPage() {
   const { toast } = useToast();
 
@@ -235,6 +433,8 @@ export default function AdminCollectionsPage() {
   const [collections, setCollections] = useState<ProductCollection[]>([]);
   const [createDraft, setCreateDraft] = useState<CollectionDraft>(createEmptyDraft());
   const [editDrafts, setEditDrafts] = useState<Record<string, CollectionDraft>>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogCollectionId, setEditDialogCollectionId] = useState<string | null>(null);
 
   const productsById = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
@@ -256,9 +456,7 @@ export default function AdminCollectionsPage() {
       const collectionsData = (await collectionsResponse.json()) as ProductCollection[];
       const productsData = (await productsResponse.json()) as Product[];
 
-      const normalizedCollections = Array.isArray(collectionsData)
-        ? collectionsData
-        : [];
+      const normalizedCollections = Array.isArray(collectionsData) ? collectionsData : [];
       const normalizedProducts = Array.isArray(productsData) ? productsData : [];
 
       setCollections(normalizedCollections);
@@ -285,27 +483,78 @@ export default function AdminCollectionsPage() {
     void loadData();
   }, [loadData]);
 
-  const uploadImage = useCallback(
+  const uploadImage = useCallback(async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("kind", "image");
+
+    const response = await fetch("/api/uploads", {
+      method: "POST",
+      headers: getCsrfHeader(),
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      throw new Error(payload.error || "Nepodarilo sa nahrať obrázok.");
+    }
+
+    const payload = (await response.json()) as { url: string };
+    return payload.url;
+  }, []);
+
+  const handleCreateUpload = useCallback(
     async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("kind", "image");
-
-      const response = await fetch("/api/uploads", {
-        method: "POST",
-        headers: getCsrfHeader(),
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error || "Nepodarilo sa nahrať obrázok.");
+      setUploadingCreate(true);
+      try {
+        const url = await uploadImage(file);
+        setCreateDraft((prev) => ({ ...prev, image: url }));
+        toast({
+          title: "Nahraté",
+          description: "Obrázok bol úspešne nahraný.",
+        });
+      } catch (error) {
+        toast({
+          title: "Chyba",
+          description:
+            error instanceof Error ? error.message : "Nepodarilo sa nahrať obrázok.",
+          variant: "destructive",
+        });
+      } finally {
+        setUploadingCreate(false);
       }
-
-      const payload = (await response.json()) as { url: string };
-      return payload.url;
     },
-    []
+    [toast, uploadImage]
+  );
+
+  const handleEditUpload = useCallback(
+    async (collectionId: string, file: File) => {
+      setUploadingById((prev) => ({ ...prev, [collectionId]: true }));
+      try {
+        const url = await uploadImage(file);
+        setEditDrafts((prev) => ({
+          ...prev,
+          [collectionId]: {
+            ...prev[collectionId],
+            image: url,
+          },
+        }));
+        toast({
+          title: "Nahraté",
+          description: "Obrázok bol úspešne nahraný.",
+        });
+      } catch (error) {
+        toast({
+          title: "Chyba",
+          description:
+            error instanceof Error ? error.message : "Nepodarilo sa nahrať obrázok.",
+          variant: "destructive",
+        });
+      } finally {
+        setUploadingById((prev) => ({ ...prev, [collectionId]: false }));
+      }
+    },
+    [toast, uploadImage]
   );
 
   const handleCreate = async () => {
@@ -342,14 +591,13 @@ export default function AdminCollectionsPage() {
         description: "Kolekcia bola vytvorená.",
       });
       setCreateDraft(createEmptyDraft());
+      setCreateDialogOpen(false);
       await loadData();
     } catch (error) {
       toast({
         title: "Chyba",
         description:
-          error instanceof Error
-            ? error.message
-            : "Nepodarilo sa vytvoriť kolekciu.",
+          error instanceof Error ? error.message : "Nepodarilo sa vytvoriť kolekciu.",
         variant: "destructive",
       });
     } finally {
@@ -360,6 +608,7 @@ export default function AdminCollectionsPage() {
   const handleUpdate = async (collectionId: string) => {
     const draft = editDrafts[collectionId];
     if (!draft) return;
+
     if (!draft.name.trim() || !draft.image.trim()) {
       toast({
         title: "Chyba",
@@ -392,14 +641,13 @@ export default function AdminCollectionsPage() {
         title: "Uložené",
         description: "Kolekcia bola aktualizovaná.",
       });
+      setEditDialogCollectionId(null);
       await loadData();
     } catch (error) {
       toast({
         title: "Chyba",
         description:
-          error instanceof Error
-            ? error.message
-            : "Nepodarilo sa uložiť kolekciu.",
+          error instanceof Error ? error.message : "Nepodarilo sa uložiť kolekciu.",
         variant: "destructive",
       });
     } finally {
@@ -408,9 +656,7 @@ export default function AdminCollectionsPage() {
   };
 
   const handleDelete = async (collectionId: string, collectionName: string) => {
-    const confirmed = window.confirm(
-      `Naozaj chcete odstrániť kolekciu „${collectionName}“?`
-    );
+    const confirmed = window.confirm(`Naozaj chcete odstrániť kolekciu „${collectionName}“?`);
     if (!confirmed) return;
 
     setDeletingById((prev) => ({ ...prev, [collectionId]: true }));
@@ -434,9 +680,7 @@ export default function AdminCollectionsPage() {
       toast({
         title: "Chyba",
         description:
-          error instanceof Error
-            ? error.message
-            : "Nepodarilo sa odstrániť kolekciu.",
+          error instanceof Error ? error.message : "Nepodarilo sa odstrániť kolekciu.",
         variant: "destructive",
       });
     } finally {
@@ -456,526 +700,218 @@ export default function AdminCollectionsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Kolekcie</h1>
-        <p className="text-muted-foreground">
-          Spravujte kolekcie produktov pre B2B a B2C režim.
-        </p>
-      </div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Kolekcie</h1>
+          <p className="text-muted-foreground">
+            Spravujte kolekcie produktov pre B2B a B2C režim.
+          </p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nová kolekcia</CardTitle>
-          <CardDescription>
-            Vytvorte novú kolekciu, vyberte produkty a poradie zobrazenia.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="create-name">Názov</Label>
-              <Input
-                id="create-name"
-                value={createDraft.name}
-                onChange={(event) =>
-                  setCreateDraft((prev) => ({ ...prev, name: event.target.value }))
-                }
-                placeholder="Napr. Jarná kolekcia"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="create-slug">Slug</Label>
-              <Input
-                id="create-slug"
-                value={createDraft.slug}
-                onChange={(event) =>
-                  setCreateDraft((prev) => ({ ...prev, slug: event.target.value }))
-                }
-                placeholder="Voliteľné, doplní sa automaticky"
-              />
-            </div>
-          </div>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <AdminButton type="button">+ Nová kolekcia</AdminButton>
+          </DialogTrigger>
+          <DialogContent size="lg" className="max-h-[96vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Nová kolekcia</DialogTitle>
+              <DialogDescription>
+                Vyplňte údaje kolekcie, vyberte produkty a nastavte ich poradie.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-2">
-            <Label htmlFor="create-image">Obrázok (URL)</Label>
-            <div className="flex gap-2">
-              <Input
-                id="create-image"
-                value={createDraft.image}
-                onChange={(event) =>
-                  setCreateDraft((prev) => ({ ...prev, image: event.target.value }))
-                }
-                placeholder="/uploads/... alebo https://..."
-              />
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm">
-                <Upload className="h-4 w-4" />
-                Nahrať
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploadingCreate}
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0];
-                    event.currentTarget.value = "";
-                    if (!file) return;
-
-                    setUploadingCreate(true);
-                    try {
-                      const url = await uploadImage(file);
-                      setCreateDraft((prev) => ({ ...prev, image: url }));
-                      toast({
-                        title: "Nahraté",
-                        description: "Obrázok bol úspešne nahraný.",
-                      });
-                    } catch (error) {
-                      toast({
-                        title: "Chyba",
-                        description:
-                          error instanceof Error
-                            ? error.message
-                            : "Nepodarilo sa nahrať obrázok.",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setUploadingCreate(false);
-                    }
-                  }}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="create-description">Popis</Label>
-            <Textarea
-              id="create-description"
-              value={createDraft.description}
-              onChange={(event) =>
-                setCreateDraft((prev) => ({
-                  ...prev,
-                  description: event.target.value,
-                }))
-              }
-              placeholder="Krátky popis kolekcie..."
-              rows={3}
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="create-sortOrder">Poradie</Label>
-              <Input
-                id="create-sortOrder"
-                type="number"
-                value={createDraft.sortOrder}
-                onChange={(event) =>
-                  setCreateDraft((prev) => ({
-                    ...prev,
-                    sortOrder: Number(event.target.value) || 0,
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Viditeľnosť</Label>
-              <div className="flex flex-wrap gap-4 rounded-md border px-3 py-2 text-sm">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={createDraft.isActive}
-                    onChange={(event) =>
-                      setCreateDraft((prev) => ({
-                        ...prev,
-                        isActive: event.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span>Aktívna</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={createDraft.showInB2b}
-                    onChange={(event) =>
-                      setCreateDraft((prev) => ({
-                        ...prev,
-                        showInB2b: event.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span>B2B</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={createDraft.showInB2c}
-                    onChange={(event) =>
-                      setCreateDraft((prev) => ({
-                        ...prev,
-                        showInB2c: event.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span>B2C</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Produkty</Label>
-            <ProductPicker
+            <CollectionFormFields
+              idPrefix="create-collection"
+              draft={createDraft}
+              onChange={setCreateDraft}
               products={products}
-              selectedIds={createDraft.productIds}
-              onChange={(nextIds) =>
-                setCreateDraft((prev) => ({ ...prev, productIds: nextIds }))
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Poradie produktov v kolekcii</Label>
-            <SelectedProductsOrder
-              productIds={createDraft.productIds}
               productsById={productsById}
-              onMove={(index, direction) =>
-                setCreateDraft((prev) => ({
-                  ...prev,
-                  productIds: moveProductId(prev.productIds, index, direction),
-                }))
-              }
-              onRemove={(productId) =>
-                setCreateDraft((prev) => ({
-                  ...prev,
-                  productIds: prev.productIds.filter((id) => id !== productId),
-                }))
-              }
+              uploading={uploadingCreate}
+              onUploadImage={handleCreateUpload}
             />
-          </div>
 
-          <AdminButton
-            type="button"
-            onClick={handleCreate}
-            disabled={savingCreate || uploadingCreate}
-          >
-            {savingCreate ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Ukladám...
-              </span>
-            ) : (
-              "Vytvoriť kolekciu"
-            )}
-          </AdminButton>
-        </CardContent>
-      </Card>
+            <DialogFooter>
+              <AdminButton
+                type="button"
+                variant="outline"
+                onClick={() => setCreateDialogOpen(false)}
+                disabled={savingCreate || uploadingCreate}
+              >
+                Zrušiť
+              </AdminButton>
+              <AdminButton
+                type="button"
+                onClick={() => void handleCreate()}
+                disabled={savingCreate || uploadingCreate}
+              >
+                {savingCreate ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Ukladám...
+                  </span>
+                ) : (
+                  "Vytvoriť kolekciu"
+                )}
+              </AdminButton>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Existujúce kolekcie</CardTitle>
           <CardDescription>Celkom kolekcií: {collections.length}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
           {collections.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Zatiaľ nie sú vytvorené žiadne kolekcie.
             </p>
           ) : (
-            collections.map((collection) => {
-              const draft = editDrafts[collection.id];
-              if (!draft) return null;
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kolekcia</TableHead>
+                  <TableHead>Stav a režim</TableHead>
+                  <TableHead>Poradie</TableHead>
+                  <TableHead>Produkty</TableHead>
+                  <TableHead className="text-right">Akcie</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {collections.map((collection) => {
+                  const draft = editDrafts[collection.id];
+                  if (!draft) return null;
 
-              const isSaving = Boolean(savingById[collection.id]);
-              const isDeleting = Boolean(deletingById[collection.id]);
-              const isUploading = Boolean(uploadingById[collection.id]);
+                  const isSaving = Boolean(savingById[collection.id]);
+                  const isDeleting = Boolean(deletingById[collection.id]);
+                  const isUploading = Boolean(uploadingById[collection.id]);
+                  const previewProducts = draft.productIds
+                    .map((id) => productsById.get(id))
+                    .filter((item): item is Product => Boolean(item))
+                    .slice(0, 3);
+                  const moreProducts = Math.max(draft.productIds.length - previewProducts.length, 0);
 
-              return (
-                <div key={collection.id} className="space-y-4 rounded-lg border p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-base font-semibold">{collection.name}</h3>
-                    <div className="text-xs text-muted-foreground">
-                      ID: {collection.id}
-                    </div>
-                  </div>
+                  return (
+                    <TableRow key={collection.id}>
+                      <TableCell className="align-top whitespace-normal">
+                        <div className="font-medium">{draft.name}</div>
+                        <div className="text-xs text-muted-foreground">{draft.slug}</div>
+                      </TableCell>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Názov</Label>
-                      <Input
-                        value={draft.name}
-                        onChange={(event) =>
-                          setEditDrafts((prev) => ({
-                            ...prev,
-                            [collection.id]: {
-                              ...prev[collection.id],
-                              name: event.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Slug</Label>
-                      <Input
-                        value={draft.slug}
-                        onChange={(event) =>
-                          setEditDrafts((prev) => ({
-                            ...prev,
-                            [collection.id]: {
-                              ...prev[collection.id],
-                              slug: event.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
+                      <TableCell className="align-top whitespace-normal">
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge variant={draft.isActive ? "default" : "secondary"}>
+                            {draft.isActive ? "Aktívna" : "Neaktívna"}
+                          </Badge>
+                          {draft.showInB2b ? <Badge variant="outline">B2B</Badge> : null}
+                          {draft.showInB2c ? <Badge variant="outline">B2C</Badge> : null}
+                          {!draft.showInB2b && !draft.showInB2c ? (
+                            <Badge variant="secondary">Skryté</Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
 
-                  <div className="space-y-2">
-                    <Label>Obrázok (URL)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={draft.image}
-                        onChange={(event) =>
-                          setEditDrafts((prev) => ({
-                            ...prev,
-                            [collection.id]: {
-                              ...prev[collection.id],
-                              image: event.target.value,
-                            },
-                          }))
-                        }
-                      />
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm">
-                        <Upload className="h-4 w-4" />
-                        Nahrať
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={async (event) => {
-                            const file = event.target.files?.[0];
-                            event.currentTarget.value = "";
-                            if (!file) return;
+                      <TableCell className="align-top whitespace-normal">
+                        {draft.sortOrder}
+                      </TableCell>
 
-                            setUploadingById((prev) => ({
-                              ...prev,
-                              [collection.id]: true,
-                            }));
-                            try {
-                              const url = await uploadImage(file);
-                              setEditDrafts((prev) => ({
-                                ...prev,
-                                [collection.id]: {
-                                  ...prev[collection.id],
-                                  image: url,
-                                },
-                              }));
-                              toast({
-                                title: "Nahraté",
-                                description: "Obrázok bol úspešne nahraný.",
-                              });
-                            } catch (error) {
-                              toast({
-                                title: "Chyba",
-                                description:
-                                  error instanceof Error
-                                    ? error.message
-                                    : "Nepodarilo sa nahrať obrázok.",
-                                variant: "destructive",
-                              });
-                            } finally {
-                              setUploadingById((prev) => ({
-                                ...prev,
-                                [collection.id]: false,
-                              }));
+                      <TableCell className="max-w-[340px] align-top whitespace-normal">
+                        <div className="text-sm font-medium">{draft.productIds.length} produktov</div>
+                        {previewProducts.length > 0 ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {previewProducts.map((product) => product.name).join(", ")}
+                            {moreProducts > 0 ? ` +${moreProducts}` : ""}
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-xs text-muted-foreground">Bez produktov</div>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="align-top">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Dialog
+                            open={editDialogCollectionId === collection.id}
+                            onOpenChange={(open) =>
+                              setEditDialogCollectionId(open ? collection.id : null)
                             }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
+                          >
+                            <DialogTrigger asChild>
+                              <AdminButton type="button" variant="outline" size="sm">
+                                Upraviť
+                              </AdminButton>
+                            </DialogTrigger>
+                            <DialogContent size="lg" className="max-h-[96vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>Upraviť kolekciu</DialogTitle>
+                              </DialogHeader>
 
-                  <div className="space-y-2">
-                    <Label>Popis</Label>
-                    <Textarea
-                      rows={3}
-                      value={draft.description}
-                      onChange={(event) =>
-                        setEditDrafts((prev) => ({
-                          ...prev,
-                          [collection.id]: {
-                            ...prev[collection.id],
-                            description: event.target.value,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
+                              <CollectionFormFields
+                                idPrefix={`edit-${collection.id}`}
+                                draft={draft}
+                                onChange={(nextDraft) =>
+                                  setEditDrafts((prev) => ({
+                                    ...prev,
+                                    [collection.id]: nextDraft,
+                                  }))
+                                }
+                                products={products}
+                                productsById={productsById}
+                                uploading={isUploading}
+                                onUploadImage={(file) => handleEditUpload(collection.id, file)}
+                              />
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Poradie</Label>
-                      <Input
-                        type="number"
-                        value={draft.sortOrder}
-                        onChange={(event) =>
-                          setEditDrafts((prev) => ({
-                            ...prev,
-                            [collection.id]: {
-                              ...prev[collection.id],
-                              sortOrder: Number(event.target.value) || 0,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Viditeľnosť</Label>
-                      <div className="flex flex-wrap gap-4 rounded-md border px-3 py-2 text-sm">
-                        <label className="inline-flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={draft.isActive}
-                            onChange={(event) =>
-                              setEditDrafts((prev) => ({
-                                ...prev,
-                                [collection.id]: {
-                                  ...prev[collection.id],
-                                  isActive: event.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-4 w-4 rounded border-input accent-primary"
-                          />
-                          <span>Aktívna</span>
-                        </label>
-                        <label className="inline-flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={draft.showInB2b}
-                            onChange={(event) =>
-                              setEditDrafts((prev) => ({
-                                ...prev,
-                                [collection.id]: {
-                                  ...prev[collection.id],
-                                  showInB2b: event.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-4 w-4 rounded border-input accent-primary"
-                          />
-                          <span>B2B</span>
-                        </label>
-                        <label className="inline-flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={draft.showInB2c}
-                            onChange={(event) =>
-                              setEditDrafts((prev) => ({
-                                ...prev,
-                                [collection.id]: {
-                                  ...prev[collection.id],
-                                  showInB2c: event.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-4 w-4 rounded border-input accent-primary"
-                          />
-                          <span>B2C</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
+                              <DialogFooter>
+                                <AdminButton
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setEditDialogCollectionId(null)}
+                                  disabled={isSaving || isDeleting || isUploading}
+                                >
+                                  Zrušiť
+                                </AdminButton>
+                                <AdminButton
+                                  type="button"
+                                  onClick={() => void handleUpdate(collection.id)}
+                                  disabled={isSaving || isDeleting || isUploading}
+                                >
+                                  {isSaving ? (
+                                    <span className="inline-flex items-center gap-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Ukladám...
+                                    </span>
+                                  ) : (
+                                    "Uložiť zmeny"
+                                  )}
+                                </AdminButton>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
 
-                  <div className="space-y-2">
-                    <Label>Produkty</Label>
-                    <ProductPicker
-                      products={products}
-                      selectedIds={draft.productIds}
-                      onChange={(nextIds) =>
-                        setEditDrafts((prev) => ({
-                          ...prev,
-                          [collection.id]: {
-                            ...prev[collection.id],
-                            productIds: nextIds,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Poradie produktov v kolekcii</Label>
-                    <SelectedProductsOrder
-                      productIds={draft.productIds}
-                      productsById={productsById}
-                      onMove={(index, direction) =>
-                        setEditDrafts((prev) => ({
-                          ...prev,
-                          [collection.id]: {
-                            ...prev[collection.id],
-                            productIds: moveProductId(
-                              prev[collection.id].productIds,
-                              index,
-                              direction
-                            ),
-                          },
-                        }))
-                      }
-                      onRemove={(productId) =>
-                        setEditDrafts((prev) => ({
-                          ...prev,
-                          [collection.id]: {
-                            ...prev[collection.id],
-                            productIds: prev[collection.id].productIds.filter(
-                              (id) => id !== productId
-                            ),
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AdminButton
-                      type="button"
-                      onClick={() => void handleUpdate(collection.id)}
-                      disabled={isSaving || isDeleting || isUploading}
-                    >
-                      {isSaving ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Ukladám...
-                        </span>
-                      ) : (
-                        "Uložiť zmeny"
-                      )}
-                    </AdminButton>
-                    <AdminButton
-                      type="button"
-                      variant="outline"
-                      onClick={() => void handleDelete(collection.id, collection.name)}
-                      disabled={isSaving || isDeleting}
-                    >
-                      {isDeleting ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Odstraňujem...
-                        </span>
-                      ) : (
-                        "Odstrániť"
-                      )}
-                    </AdminButton>
-                  </div>
-                </div>
-              );
-            })
+                          <AdminButton
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleDelete(collection.id, collection.name)}
+                            disabled={isSaving || isDeleting}
+                          >
+                            {isDeleting ? (
+                              <span className="inline-flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Odstraňujem...
+                              </span>
+                            ) : (
+                              "Odstrániť"
+                            )}
+                          </AdminButton>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
