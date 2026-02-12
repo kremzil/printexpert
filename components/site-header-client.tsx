@@ -81,7 +81,7 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
           ${isAtTop ? 'shadow-none' : 'shadow-sm'}
         `}
       >
-        <div className="mx-auto w-full max-w-480 px-10">
+        <div className="mx-auto w-full max-w-480 lg:px-8">
           <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
             {topBar}
           </div>
@@ -94,13 +94,13 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
           sticky top-16 z-40
           hidden lg:block
           bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60
-          border-b border-border/30
+          border-b border-border/30 shadow-sm
           transition-opacity duration-200 ease-out
           ${hideNav ? 'opacity-0 pointer-events-none' : 'opacity-100'}
         `}
         aria-hidden={hideNav}
       >
-        <div className="mx-auto w-full max-w-480  px-10">
+        <div className="mx-auto w-full max-w-480">
           <div className="flex h-12 items-center px-4 sm:px-6 md:px-8">
             {navBar}
           </div>

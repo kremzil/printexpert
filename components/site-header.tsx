@@ -168,7 +168,7 @@ async function AudienceNavigation({
 
             return (
               <NavigationMenuItem key={category.id}>
-                <NavigationMenuTrigger className="bg-transparent hover:bg-secondary/50 data-[state=open]:bg-secondary/50 font-medium">
+                <NavigationMenuTrigger className="hover:bg-secondary/50 data-[state=open]:bg-secondary/50 font-medium">
                   {category.name}
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
@@ -285,7 +285,12 @@ async function MobileMenu({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <ModeButton variant="ghost" size="icon" className="lg:hidden">
+        <ModeButton
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          mode={audienceContext.audience}
+        >
           <Menu className="h-5 w-5" />
           <span className="sr-only">Otvoriť menu</span>
         </ModeButton>
@@ -393,11 +398,11 @@ async function MobileMenu({
 
 import { HeaderSearch } from "@/components/header-search"
 
-function MobileSearch() {
+function MobileSearch({ mode }: { mode: AudienceContext["audience"] }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <ModeButton variant="ghost" size="icon" className="lg:hidden">
+        <ModeButton variant="ghost" size="icon" className="lg:hidden" mode={mode}>
           <Search className="h-5 w-5" />
           <span className="sr-only">Hľadať</span>
         </ModeButton>
@@ -460,7 +465,7 @@ export async function SiteHeader() {
               <span className="sr-only">PrintExpert</span>
             </Link>
             <div className="flex items-center gap-1 lg:hidden">
-              <MobileSearch />
+              <MobileSearch mode={audienceContext.audience} />
               <div className="mr-3">
                 <CartButton
                   mode={audienceContext.audience}

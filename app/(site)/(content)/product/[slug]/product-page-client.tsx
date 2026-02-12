@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import {
   ChevronRight,
+  Facebook,
   Home,
+  Linkedin,
+  Mail,
   Package,
   Settings,
   Star,
@@ -85,6 +88,156 @@ function StaticBadge() {
   )
 }
 
+type ShareTarget = "facebook" | "x" | "linkedin" | "mail"
+
+const toPlainText = (value?: string | null) =>
+  value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : null
+
+const normalizeShareText = (value: string) => value.replace(/\s+/g, " ").trim()
+const clampShareText = (value: string, maxLength: number) =>
+  value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value
+
+function ProductShareButtons({
+  productName,
+  shortDescription,
+  imageUrl,
+  quantity,
+  summaryItems,
+  price,
+}: {
+  productName: string
+  shortDescription?: string | null
+  imageUrl?: string | null
+  quantity: number
+  summaryItems: Array<{ label: string; value: string }>
+  price: number | null
+}) {
+  const shareProduct = (target: ShareTarget) => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const pageUrl = new URL(window.location.href)
+    const imageAbsoluteUrl = imageUrl
+      ? new URL(imageUrl, window.location.origin).toString()
+      : null
+    const descriptionText = normalizeShareText(toPlainText(shortDescription) ?? "")
+    const shareTitle = clampShareText(normalizeShareText(productName), 120)
+    const shareDescription = descriptionText
+      ? clampShareText(descriptionText, 180)
+      : ""
+    const configurationText = [
+      `Množstvo: ${quantity} ks`,
+      ...summaryItems.map((item) => `${item.label}: ${item.value}`),
+    ].join("; ")
+    const shareConfiguration = clampShareText(
+      normalizeShareText(configurationText),
+      220
+    )
+    const priceText =
+      price === null
+        ? "Cena: podľa konfigurácie"
+        : `Cena: ${new Intl.NumberFormat("sk-SK", {
+            style: "currency",
+            currency: "EUR",
+          }).format(price)}`
+    const sharePrice = clampShareText(normalizeShareText(priceText), 80)
+
+    pageUrl.searchParams.set("st", shareTitle)
+    if (shareDescription) {
+      pageUrl.searchParams.set("sd", shareDescription)
+    } else {
+      pageUrl.searchParams.delete("sd")
+    }
+    pageUrl.searchParams.set("sc", shareConfiguration)
+    pageUrl.searchParams.set("sp", sharePrice)
+    if (imageAbsoluteUrl) {
+      pageUrl.searchParams.set("si", imageAbsoluteUrl)
+    } else {
+      pageUrl.searchParams.delete("si")
+    }
+    const sharePageUrl = pageUrl.toString()
+    const shareDetails = [
+      `Názov: ${shareTitle}`,
+      shareDescription ? `Popis: ${shareDescription}` : null,
+      `Konfigurácia: ${shareConfiguration}`,
+      sharePrice,
+      imageAbsoluteUrl ? `Obrázok: ${imageAbsoluteUrl}` : null,
+    ].filter((value): value is string => Boolean(value))
+
+    const socialText = shareDetails.join(" | ")
+    const encodedUrl = encodeURIComponent(sharePageUrl)
+    const encodedName = encodeURIComponent(shareTitle)
+    const encodedText = encodeURIComponent(socialText)
+
+    let shareUrl = ""
+    if (target === "facebook") {
+      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`
+    }
+    if (target === "x") {
+      shareUrl = `https://x.com/intent/post?url=${encodedUrl}&text=${encodedText}`
+    }
+    if (target === "linkedin") {
+      shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`
+    }
+    if (target === "mail") {
+      const mailBody = encodeURIComponent(
+        `${shareDetails.join("\n")}\nURL: ${sharePageUrl}`
+      )
+      shareUrl = `mailto:?subject=${encodedName}&body=${mailBody}`
+      window.location.href = shareUrl
+      return
+    }
+
+    window.open(shareUrl, "_blank", "noopener,noreferrer")
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        type="button"
+        size="icon"
+        aria-label="Zdieľať na Facebooku"
+        title="Facebook"
+        className="border-transparent bg-[#1877F2] text-white hover:bg-[#166FE5]"
+        onClick={() => shareProduct("facebook")}
+      >
+        <Facebook className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        size="icon"
+        aria-label="Zdieľať na X"
+        title="X"
+        className="border-transparent bg-black text-white hover:bg-neutral-800"
+        onClick={() => shareProduct("x")}
+      >
+        <span className="text-sm font-semibold leading-none">X</span>
+      </Button>
+      <Button
+        type="button"
+        size="icon"
+        aria-label="Zdieľať na LinkedIn"
+        title="LinkedIn"
+        className="border-transparent bg-[#0A66C2] text-white hover:bg-[#095AAE]"
+        onClick={() => shareProduct("linkedin")}
+      >
+        <Linkedin className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        size="icon"
+        aria-label="Zdieľať e-mailom"
+        title="Mail"
+        className="border-transparent bg-[#EA4335] text-white hover:bg-[#D73A2D]"
+        onClick={() => shareProduct("mail")}
+      >
+        <Mail className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
 function RealConfiguratorSection({
   mode,
   data,
@@ -98,6 +251,7 @@ function RealConfiguratorSection({
   designData,
   designThumbnail,
   isLoggedIn,
+  showFloatingBar,
 }: {
   mode: CustomerMode
   data: WpConfiguratorData
@@ -111,6 +265,7 @@ function RealConfiguratorSection({
   designData?: unknown
   designThumbnail?: string | null
   isLoggedIn?: boolean
+  showFloatingBar: boolean
 }) {
   const {
     selections,
@@ -140,10 +295,39 @@ function RealConfiguratorSection({
 
   const elementCount = Array.isArray(designData) ? (designData as unknown[]).length : 0
   const hasDesignData = Boolean(designData)
+  const topShareRef = useRef<HTMLDivElement | null>(null)
+  const [isTopShareVisible, setIsTopShareVisible] = useState(true)
+
+  useEffect(() => {
+    const target = topShareRef.current
+    if (!target) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsTopShareVisible(entry.isIntersecting)
+      },
+      { threshold: 0.05 }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="space-y-8 lg:col-span-2">
+        <div ref={topShareRef}>
+          <ProductShareButtons
+            productName={product.name}
+            shortDescription={product.excerptHtml}
+            imageUrl={product.images[0]?.url ?? null}
+            quantity={quantity}
+            summaryItems={summaryItems}
+            price={total}
+          />
+        </div>
         <ProductGallery images={product.images} productName={product.name} />
 
         <Card className="p-6">
@@ -399,6 +583,19 @@ function RealConfiguratorSection({
           getTotalForQuantity={getTotalForQuantity}
           activeQuantity={quantity}
           onAddToCart={addToCart}
+          showFloatingBar={showFloatingBar}
+          shareSection={
+            isTopShareVisible ? null : (
+              <ProductShareButtons
+                productName={product.name}
+                shortDescription={product.excerptHtml}
+                imageUrl={product.images[0]?.url ?? null}
+                quantity={quantity}
+                summaryItems={summaryItems}
+                price={total}
+              />
+            )
+          }
         />
       </div>
     </div>
@@ -421,6 +618,28 @@ export function ProductPageClient({
   const [showDesigner, setShowDesigner] = useState(false)
   const [designData, setDesignData] = useState<unknown>(null)
   const [designThumbnail, setDesignThumbnail] = useState<string | null>(null)
+  const productTitleRef = useRef<HTMLHeadingElement | null>(null)
+  const [showFloatingBar, setShowFloatingBar] = useState(false)
+
+  useEffect(() => {
+    const target = productTitleRef.current
+    if (!target) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowFloatingBar(!entry.isIntersecting)
+      },
+      {
+        threshold: 0,
+        rootMargin: "-64px 0px 0px 0px",
+      }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [])
 
   const handleFileSelect = (files: FileList) => {
     const file = files[0]
@@ -461,7 +680,7 @@ export function ProductPageClient({
             <Badge variant="outline">Expedícia do 48h</Badge>
             {mode === "b2b" && <Badge variant="outline">B2B ceny</Badge>}
           </div>
-          <h1 className="mb-2 text-3xl font-bold md:text-4xl">
+          <h1 ref={productTitleRef} className="mb-2 text-3xl font-bold md:text-4xl">
             {product.name}
           </h1>
           {product.excerptHtml ? (
@@ -501,6 +720,7 @@ export function ProductPageClient({
             designData={designData}
             designThumbnail={designThumbnail}
             isLoggedIn={isLoggedIn}
+            showFloatingBar={showFloatingBar}
           />
         ) : null}
         <div className="my-12">

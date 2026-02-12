@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react"
 import { usePathname, useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
+import { showModeOverlay } from "@/lib/mode-overlay-store"
 import { Building2, User } from "lucide-react"
 
 type AudienceModeSwitchProps = {
@@ -26,6 +27,7 @@ export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps)
     }
     const previous = mode
     setMode(nextMode)
+    showModeOverlay(nextMode)
     startTransition(async () => {
       try {
         const response = await fetch("/api/audience", {
