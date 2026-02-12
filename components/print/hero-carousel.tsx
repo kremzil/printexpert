@@ -24,7 +24,7 @@ type HeroCarouselProps = {
 export function HeroCarousel({ slides, activeColor }: HeroCarouselProps) {
   const [api, setApi] = React.useState<CarouselApi | null>(null)
   const [selectedIndex, setSelectedIndex] = React.useState(0)
-  const [snapCount, setSnapCount] = React.useState(0)
+  const [snapCount, setSnapCount] = React.useState(slides.length)
   const [isPaused, setIsPaused] = React.useState(false)
 
   React.useEffect(() => {

@@ -11,7 +11,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const modeParam = searchParams.get("mode") ?? ""
-  const [isVisible, setIsVisible] = useState<boolean | null>(null)
+  const [isVisible, setIsVisible] = useState<boolean | null>(true)
   const transitionKey = `${pathname}?mode=${modeParam}`
   const prevTransitionKey = useRef(transitionKey)
 

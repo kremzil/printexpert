@@ -19,6 +19,7 @@ const workSans = localFont({
   ],
   variable: "--font-work-sans",
   display: "swap",
+  adjustFontFallback: "Arial",
 })
 
 const playfairDisplay = localFont({
@@ -56,6 +57,7 @@ const playfairDisplay = localFont({
   ],
   variable: "--font-playfair-display",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 })
 
 const geistMono = localFont({
@@ -73,6 +75,7 @@ const geistMono = localFont({
   ],
   variable: "--font-geist-mono",
   display: "swap",
+  adjustFontFallback: false,
 })
 
 export const metadata: Metadata = {
