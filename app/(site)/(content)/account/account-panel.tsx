@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { getCsrfHeader } from "@/lib/csrf"
 
 const passwordSchema = z
   .object({
@@ -74,7 +75,7 @@ export function AccountPanel({ name, email, hasPassword }: AccountPanelProps) {
     try {
       const response = await fetch("/api/account/set-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify(values),
       })
       if (!response.ok) {

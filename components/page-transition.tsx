@@ -11,22 +11,18 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const modeParam = searchParams.get("mode") ?? ""
-  const [isVisible, setIsVisible] = useState(true)
+  const [isVisible, setIsVisible] = useState<boolean | null>(null)
   const transitionKey = `${pathname}?mode=${modeParam}`
   const prevTransitionKey = useRef(transitionKey)
-  const isFirstMount = useRef(true)
 
   useEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false
-      return
-    }
     if (transitionKey !== prevTransitionKey.current) {
       prevTransitionKey.current = transitionKey
-      setIsVisible(false)
       // Double-rAF ensures the browser paints opacity:0 before starting fade-in
       let cancelled = false
       requestAnimationFrame(() => {
+        if (cancelled) return
+        setIsVisible(false)
         requestAnimationFrame(() => {
           if (cancelled) return
           setIsVisible(true)
@@ -40,7 +36,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <div
       className={`page-transition ${
-        isFirstMount.current
+        isVisible === null
           ? ""
           : isVisible
             ? "page-transition-enter"

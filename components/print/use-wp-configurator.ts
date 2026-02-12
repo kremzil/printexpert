@@ -636,7 +636,7 @@ export function useWpConfigurator({
 
       const priceResponse = await fetch("/api/price", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           productId,
           params: {

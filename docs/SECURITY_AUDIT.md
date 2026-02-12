@@ -155,20 +155,24 @@ export async function updateProductDetails(formData: FormData) {
 
 **Что сделано:**
 - `proxy.ts` (middleware) добавляет:
-  1) Проверку `Origin` (и `Referer`, если он есть) для всех unsafe запросов на `/api/*`, кроме `/api/stripe/webhook`.
-  2) Double-submit CSRF: cookie `pe_csrf` + заголовок `X-CSRF-Token` для unsafe запросов к:
-     - `/api/admin/*`
-     - `/api/uploads/*`
-     - `/api/cart/*`
-     - `/api/checkout`
+  1) Проверку `Origin` (и `Referer`, если он есть) для всех unsafe запросов на `/api/*`, кроме `/api/auth/*` и `/api/stripe/webhook`.
+  2) Double-submit CSRF: cookie `pe_csrf` + заголовок `X-CSRF-Token` для всех unsafe запросов на `/api/*`, кроме `/api/auth/*` и `/api/stripe/webhook`.
+- Реестр исключений вынесен в `lib/csrf.ts` (`CSRF_EXCLUDED_API_PREFIXES`) и используется в `proxy.ts`.
+- Таблица исключений (источник — `lib/csrf.ts`):
+
+| Prefix | Причина исключения | CSRF (double-submit) | Origin/Referer check |
+|---|---|---|---|
+| `/api/auth/*` | Маршруты Auth.js/NextAuth со своей CSRF и callback-логикой | Не применяется | Не применяется в `proxy.ts` |
+| `/api/stripe/webhook` | Сервер-сервер webhook, верификация по `stripe-signature` | Не применяется | Не применяется в `proxy.ts` |
+
 - Ошибки возвращаются как JSON 403 с текстом на словацком:
   - `{ "error": "Neplatný CSRF token." }`
   - `{ "error": "Neplatný pôvod požiadavky." }`
 - На клиенте добавлен helper `lib/csrf.ts`, который читает cookie и добавляет header, и обновлены вызовы fetch в компонентах корзины/чекаута.
 
 **Рекомендации:**
-- Не расширять “белый список” исключений из проверок Origin/CSRF (сейчас исключение только для Stripe webhook и `api/auth` matcher).
-- Если появятся новые state-changing public endpoints — сразу добавлять их в CSRF-guard.
+- Не расширять “белый список” исключений из проверок Origin/CSRF (сейчас исключения только `/api/auth/*` и `/api/stripe/webhook`).
+- Для новых клиентских unsafe запросов сразу добавлять `X-CSRF-Token` через `getCsrfHeader()`.
 
 ---
 

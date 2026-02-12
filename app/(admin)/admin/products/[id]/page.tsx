@@ -312,7 +312,7 @@ async function AdminProductDetails({
           <CardContent className="py-6">
             <DesignTemplatesManager
               productId={product.id}
-              templates={(product as any).designTemplates ?? []}
+              templates={product.designTemplates ?? []}
             />
           </CardContent>
         </Card>

@@ -628,7 +628,7 @@ export function PriceCalculatorLetaky({
       // Сначала получаем актуальную цену с сервера
       const priceResponse = await fetch("/api/price", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           productId,
           params: {

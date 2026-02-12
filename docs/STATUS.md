@@ -331,7 +331,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - `GET /api/assets/[assetId]/download` — 302 redirect на presigned GET
 
 ### Защита API (корзина/checkout):
-- CSRF: unsafe запросы на `/api/cart/*` и `/api/checkout` требуют `X-CSRF-Token` (cookie `pe_csrf`), проверяется в `proxy.ts`.
+- CSRF: все unsafe запросы на `/api/*` требуют `X-CSRF-Token` (cookie `pe_csrf`), проверяется в `proxy.ts`.
+- Явные исключения из double-submit CSRF: `/api/auth/*` и `/api/stripe/webhook`.
+- Реестр исключений хранится в `lib/csrf.ts` (`CSRF_EXCLUDED_API_PREFIXES`).
 - Anti-spam: `POST /api/checkout` rate limited (5/15мин на IP), 429 + `Retry-After`.
 
 ### PDF-счета (Faktúry):

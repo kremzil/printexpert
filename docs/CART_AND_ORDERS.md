@@ -280,7 +280,9 @@ return orders.map(order => ({
 - `POST /api/cart/clear` — очистка корзины
 
 **CSRF (важно):**
-- Для всех unsafe методов (`POST`, `PATCH`, `DELETE`) на `/api/cart/*` и `/api/checkout` требуется заголовок `X-CSRF-Token`, равный cookie `pe_csrf` (double-submit CSRF).
+- Для всех unsafe методов (`POST`, `PUT`, `PATCH`, `DELETE`) на `/api/*` требуется заголовок `X-CSRF-Token`, равный cookie `pe_csrf` (double-submit CSRF).
+- Явные исключения: `/api/auth/*` и `/api/stripe/webhook`.
+- Реестр исключений хранится в `lib/csrf.ts` (`CSRF_EXCLUDED_API_PREFIXES`).
 - Без него вернётся `403 { "error": "Neplatný CSRF token." }`.
 
 **Пример ответа GET /api/cart:**
@@ -628,7 +630,7 @@ const addToCart = async (uploadNow: boolean) => {
   // 1. Получаем серверную цену
   const priceResponse = await fetch("/api/price", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getCsrfHeader() },
     body: JSON.stringify({
       productId: product.id,
       quantity: formData.quantity,

@@ -5,6 +5,7 @@ import { Layers, Plus, Trash2, Star, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { getCsrfHeader } from "@/lib/csrf"
 
 interface Template {
   id: string
@@ -32,7 +33,7 @@ export function DesignTemplatesManager({
     startTransition(async () => {
       const res = await fetch("/api/design-templates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           productId,
           name: newName.trim(),
@@ -52,6 +53,7 @@ export function DesignTemplatesManager({
     startTransition(async () => {
       const res = await fetch(`/api/design-templates/${id}`, {
         method: "DELETE",
+        headers: { ...getCsrfHeader() },
       })
       if (res.ok) {
         setTemplates((prev) => prev.filter((t) => t.id !== id))
@@ -63,7 +65,7 @@ export function DesignTemplatesManager({
     startTransition(async () => {
       const res = await fetch(`/api/design-templates/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({ isDefault: true }),
       })
       if (res.ok) {

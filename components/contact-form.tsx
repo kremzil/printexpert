@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { getCsrfHeader } from "@/lib/csrf"
 
 const formSchema = z.object({
   name: z.string().min(2, "Zadajte meno."),
@@ -45,7 +46,7 @@ export function ContactForm() {
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify(values),
       })
       if (!response.ok) {

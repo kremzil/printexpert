@@ -1,0 +1,256 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@chevrotain/cst-dts-gen": {
+      "name": "@chevrotain/cst-dts-gen",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@chevrotain/gast",
+        "lodash"
+      ],
+      "effects": [],
+      "range": "10.0.0 - 10.5.0",
+      "nodes": [
+        "node_modules/@chevrotain/cst-dts-gen"
+      ],
+      "fixAvailable": true
+    },
+    "@chevrotain/gast": {
+      "name": "@chevrotain/gast",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "lodash"
+      ],
+      "effects": [],
+      "range": "<=10.5.0",
+      "nodes": [
+        "node_modules/@chevrotain/gast"
+      ],
+      "fixAvailable": true
+    },
+    "@mrleebo/prisma-ast": {
+      "name": "@mrleebo/prisma-ast",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "chevrotain"
+      ],
+      "effects": [
+        "@prisma/dev"
+      ],
+      "range": ">=0.4.2",
+      "nodes": [
+        "node_modules/@mrleebo/prisma-ast"
+      ],
+      "fixAvailable": {
+        "name": "prisma",
+        "version": "6.19.2",
+        "isSemVerMajor": true
+      }
+    },
+    "@prisma/dev": {
+      "name": "@prisma/dev",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@mrleebo/prisma-ast",
+        "hono"
+      ],
+      "effects": [
+        "prisma"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@prisma/dev"
+      ],
+      "fixAvailable": {
+        "name": "prisma",
+        "version": "6.19.2",
+        "isSemVerMajor": true
+      }
+    },
+    "chevrotain": {
+      "name": "chevrotain",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@chevrotain/cst-dts-gen",
+        "@chevrotain/gast",
+        "lodash"
+      ],
+      "effects": [
+        "@mrleebo/prisma-ast"
+      ],
+      "range": "10.0.0 - 10.5.0",
+      "nodes": [
+        "node_modules/chevrotain"
+      ],
+      "fixAvailable": {
+        "name": "prisma",
+        "version": "6.19.2",
+        "isSemVerMajor": true
+      }
+    },
+    "hono": {
+      "name": "hono",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112644,
+          "name": "hono",
+          "dependency": "hono",
+          "title": "Hono vulnerable to XSS through ErrorBoundary component ",
+          "url": "https://github.com/advisories/GHSA-9r54-q6cx-xmh5",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss": {
+            "score": 4.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:L/I:L/A:N"
+          },
+          "range": "<4.11.7"
+        },
+        {
+          "source": 1112677,
+          "name": "hono",
+          "dependency": "hono",
+          "title": "Hono cache middleware ignores \"Cache-Control: private\" leading to Web Cache Deception",
+          "url": "https://github.com/advisories/GHSA-6wqw-2p9w-4vw4",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-524",
+            "CWE-613"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+          },
+          "range": "<4.11.7"
+        },
+        {
+          "source": 1112678,
+          "name": "hono",
+          "dependency": "hono",
+          "title": "Hono IPv4 address validation bypass in IP Restriction Middleware allows IP spoofing",
+          "url": "https://github.com/advisories/GHSA-r354-f388-2fhh",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-185"
+          ],
+          "cvss": {
+            "score": 4.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": "<4.11.7"
+        },
+        {
+          "source": 1112911,
+          "name": "hono",
+          "dependency": "hono",
+          "title": "Hono has an Arbitrary Key Read in Serve static Middleware (Cloudflare Workers Adapter)",
+          "url": "https://github.com/advisories/GHSA-w332-q679-j88p",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-200",
+            "CWE-284",
+            "CWE-668"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+          },
+          "range": "<4.11.7"
+        }
+      ],
+      "effects": [
+        "@prisma/dev"
+      ],
+      "range": "<=4.11.6",
+      "nodes": [
+        "node_modules/hono"
+      ],
+      "fixAvailable": {
+        "name": "prisma",
+        "version": "6.19.2",
+        "isSemVerMajor": true
+      }
+    },
+    "lodash": {
+      "name": "lodash",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112455,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
+          "url": "https://github.com/advisories/GHSA-xxjr-mmjv-4gpg",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
+          },
+          "range": ">=4.0.0 <=4.17.22"
+        }
+      ],
+      "effects": [
+        "@chevrotain/cst-dts-gen",
+        "@chevrotain/gast",
+        "chevrotain"
+      ],
+      "range": "4.0.0 - 4.17.21",
+      "nodes": [
+        "node_modules/lodash"
+      ],
+      "fixAvailable": {
+        "name": "prisma",
+        "version": "6.19.2",
+        "isSemVerMajor": true
+      }
+    },
+    "prisma": {
+      "name": "prisma",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@prisma/dev"
+      ],
+      "effects": [],
+      "range": ">=6.20.0-dev.1",
+      "nodes": [
+        "node_modules/prisma"
+      ],
+      "fixAvailable": {
+        "name": "prisma",
+        "version": "6.19.2",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 8,
+      "high": 0,
+      "critical": 0,
+      "total": 8
+    },
+    "dependencies": {
+      "prod": 541,
+      "dev": 594,
+      "optional": 98,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 1186
+    }
+  }
+}

@@ -410,7 +410,7 @@ export function DesignEditor({
   const alignElements = (mode: "left" | "center-h" | "right" | "top" | "center-v" | "bottom") => {
     const selected = getSelectedElements()
     if (selected.length < 2) return
-    let updates: Map<string, Partial<DesignElement>> = new Map()
+    const updates: Map<string, Partial<DesignElement>> = new Map()
     switch (mode) {
       case "left": {
         const minX = Math.min(...selected.map((el) => el.x))

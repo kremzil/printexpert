@@ -17,6 +17,7 @@ import { ModeSelectionCard } from "@/components/print/mode-selection-card"
 import type { CustomerMode } from "@/components/print/types"
 import { AUDIENCE_QUERY_PARAM } from "@/lib/audience-shared"
 import { showModeOverlay } from "@/lib/mode-overlay-store"
+import { getCsrfHeader } from "@/lib/csrf"
 
 export function ModeSelectionPage() {
   const router = useRouter()
@@ -53,7 +54,7 @@ export function ModeSelectionPage() {
       try {
         const response = await fetch("/api/audience", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({ mode }),
         })
 

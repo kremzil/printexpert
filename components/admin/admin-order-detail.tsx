@@ -244,6 +244,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
     try {
       const response = await fetch(`/api/orders/${order.id}/invoice/send`, {
         method: "POST",
+        headers: { ...getCsrfHeader() },
       });
 
       if (!response.ok) {
@@ -267,6 +268,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
     try {
       const response = await fetch(`/api/orders/${order.id}/invoice/create`, {
         method: "POST",
+        headers: { ...getCsrfHeader() },
       });
 
       if (!response.ok) {

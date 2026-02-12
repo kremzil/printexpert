@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 
 import { ModeButton } from "@/components/print/mode-button"
+import { getCsrfHeader } from "@/lib/csrf"
 
 type Props = {
   /**
@@ -25,7 +26,7 @@ export function AudienceModeCards({ redirectTo }: Props) {
       try {
         const res = await fetch("/api/audience", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({ mode: audience }),
         })
 

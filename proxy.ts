@@ -8,8 +8,12 @@ import {
   AUDIENCE_QUERY_PARAM,
   parseAudience,
 } from "@/lib/audience-shared"
+import {
+  CSRF_COOKIE_NAME,
+  isCsrfExcludedApiPath,
+  isUnsafeHttpMethod,
+} from "@/lib/csrf"
 
-const CSRF_COOKIE_NAME = "pe_csrf"
 const CSRF_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 const createCsrfToken = () => randomBytes(32).toString("base64url")
@@ -43,17 +47,11 @@ export async function proxy(request: NextRequest) {
   const { nextUrl } = request
   
   const isApiRoute = nextUrl.pathname.startsWith("/api/")
-  const isWebhook = nextUrl.pathname.startsWith("/api/stripe/webhook")
-  const isUnsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(request.method)
-  const needsCsrfToken =
-    isUnsafeMethod &&
-    (nextUrl.pathname.startsWith("/api/admin") ||
-      nextUrl.pathname.startsWith("/api/uploads") ||
-      nextUrl.pathname.startsWith("/api/cart") ||
-      nextUrl.pathname.startsWith("/api/checkout")) &&
-    !isWebhook
+  const isCsrfExcludedRoute = isCsrfExcludedApiPath(nextUrl.pathname)
+  const isUnsafeMethod = isUnsafeHttpMethod(request.method)
+  const needsCsrfToken = isApiRoute && isUnsafeMethod && !isCsrfExcludedRoute
 
-  if (isApiRoute && isUnsafeMethod && !isWebhook) {
+  if (isApiRoute && isUnsafeMethod && !isCsrfExcludedRoute) {
     const origin = request.headers.get("origin")
     if (origin && origin !== nextUrl.origin) {
       console.warn("proxy blocked request: origin mismatch", {

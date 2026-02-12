@@ -15,6 +15,7 @@ import {
 
 import { Card } from "@/components/ui/card"
 import { ModeButton } from "@/components/print/mode-button"
+import { getCsrfHeader } from "@/lib/csrf"
 import type { CustomerMode } from "@/components/print/types"
 
 const formSchema = z.object({
@@ -89,7 +90,7 @@ export function ContactForm({ mode }: ContactFormProps) {
 
       const response = await fetch("/api/contact", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           name: values.name,
           email: values.email,

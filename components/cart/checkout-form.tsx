@@ -622,7 +622,7 @@ export function CheckoutForm({
 
       const checkoutResponse = await fetch("/api/stripe/payment-intent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           orderId: createdOrderId,
           saveCard,

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
 import { showModeOverlay } from "@/lib/mode-overlay-store"
+import { getCsrfHeader } from "@/lib/csrf"
 import { Building2, User } from "lucide-react"
 
 type AudienceModeSwitchProps = {
@@ -32,7 +33,7 @@ export function AudienceModeSwitch({ initialAudience }: AudienceModeSwitchProps)
       try {
         const response = await fetch("/api/audience", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({ mode: nextMode }),
         })
         if (!response.ok) {
