@@ -575,6 +575,23 @@ model TopProducts {
   createdAt    DateTime        @default(now())
 }
 
+model ProductCollection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  image       String
+  description String?
+  productIds  String[]
+  isActive    Boolean  @default(true)
+  showInB2b   Boolean  @default(true)
+  showInB2c   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 model DesignTemplate {
   id          String   @id @default(uuid()) @db.Uuid
   productId   String   @db.Uuid

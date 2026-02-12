@@ -304,6 +304,111 @@ export async function getRelatedProducts(
   return getCachedRelatedProducts(categorySlug, audience, excludeId);
 }
 
+const normalizeProductIds = (productIds: string[]) =>
+  Array.from(new Set(productIds.map((id) => id.trim()).filter(Boolean)));
+
+const getCachedHomepageCollections = unstable_cache(
+  async (audience?: string | null) => {
+    const prisma = getPrisma();
+    const audienceFilter = getAudienceFilter(audience);
+
+    return prisma.productCollection.findMany({
+      where: {
+        isActive: true,
+        ...audienceFilter,
+      },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
+  },
+  ["homepage-collections"],
+  { tags: [TAGS.COLLECTIONS] }
+);
+
+export async function getHomepageCollections(audience?: string | null) {
+  return getCachedHomepageCollections(audience ?? null);
+}
+
+export async function getCollectionBySlug(
+  slug: string,
+  audience?: string | null
+) {
+  return unstable_cache(
+    async () => {
+      const prisma = getPrisma();
+      const audienceFilter = getAudienceFilter(audience);
+      return prisma.productCollection.findFirst({
+        where: {
+          slug,
+          isActive: true,
+          ...audienceFilter,
+        },
+      });
+    },
+    ["collection-by-slug", slug, audience ?? "all"],
+    { tags: [TAGS.COLLECTIONS] }
+  )();
+}
+
+const getCachedCollectionProducts = unstable_cache(
+  async ({
+    productIds,
+    audience,
+  }: {
+    productIds: string[];
+    audience?: string | null;
+  }) => {
+    const orderedIds = normalizeProductIds(productIds);
+    if (orderedIds.length === 0) {
+      return [];
+    }
+
+    const prisma = getPrisma();
+    const audienceFilter = getAudienceFilter(audience);
+    const categoryAudienceFilter = audienceFilter;
+    const products = await prisma.product.findMany({
+      where: {
+        id: { in: orderedIds },
+        isActive: true,
+        ...audienceFilter,
+        category: {
+          isActive: true,
+          ...categoryAudienceFilter,
+        },
+      },
+      include: {
+        images: {
+          orderBy: [
+            { isPrimary: "desc" },
+            { sortOrder: "asc" },
+            { id: "asc" },
+          ],
+        },
+      },
+    });
+
+    const order = new Map(orderedIds.map((id, index) => [id, index]));
+    return products
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+      .map(serializeProduct);
+  },
+  ["collection-products"],
+  { tags: [TAGS.COLLECTIONS, TAGS.PRODUCTS] }
+);
+
+export async function getCollectionProducts(
+  productIds: string[],
+  audience?: string | null
+) {
+  const orderedIds = normalizeProductIds(productIds);
+  if (orderedIds.length === 0) {
+    return [];
+  }
+  return getCachedCollectionProducts({
+    productIds: orderedIds,
+    audience: audience ?? null,
+  });
+}
+
 export async function getAdminCategories() {
   const prisma = getPrisma();
   return prisma.category.findMany({

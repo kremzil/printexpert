@@ -18,6 +18,7 @@ export default function AdminLayout({
   const getPageTitle = () => {
     if (pathname === "/admin") return "Dashboard"
     if (pathname.startsWith("/admin/products")) return "Produkty"
+    if (pathname.startsWith("/admin/kolekcie")) return "Kolekcie"
     if (pathname.startsWith("/admin/orders")) return "Objednávky"
     if (pathname.startsWith("/admin/users")) return "Používatelia"
     if (pathname.startsWith("/admin/kategorie")) return "Kategórie"

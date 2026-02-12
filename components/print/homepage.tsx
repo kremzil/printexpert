@@ -30,6 +30,7 @@ import {
 import { ProductCard } from "@/components/product/product-card"
 import type { CustomerMode } from "@/components/print/types"
 import { HeroCarousel } from "@/components/print/hero-carousel"
+import { cn } from "@/lib/utils"
 
 type CategoryCardData = {
   id: string
@@ -50,10 +51,19 @@ type FeaturedProduct = {
   images?: Array<{ url: string; alt?: string | null }>
 }
 
+type CollectionCardData = {
+  id: string
+  slug: string
+  name: string
+  image: string
+  description?: string | null
+}
+
 type HomepageProps = {
   mode: CustomerMode
   categories: CategoryCardData[]
   featuredProducts: FeaturedProduct[]
+  collections: CollectionCardData[]
 }
 
 type ProcessStep = {
@@ -71,10 +81,11 @@ type Testimonial = {
   rating: number
 }
 
-export function Homepage({ mode, categories, featuredProducts }: HomepageProps) {
+export function Homepage({ mode, categories, featuredProducts, collections }: HomepageProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
   const mutedSectionBg = "bg-[rgba(236,236,240,0.3)]"
+  const hasOddCollections = collections.length % 2 !== 0
 
   const steps: ProcessStep[] =
     mode === "b2c"
@@ -208,6 +219,33 @@ export function Homepage({ mode, categories, featuredProducts }: HomepageProps) 
             <CarouselNext className= "-right-4" />
           </Carousel>
         </section>
+
+        {collections.length > 0 && (
+          <section className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 pb-16">
+            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="mb-2 text-3xl font-bold md:text-4xl">Kolekcie</h2>
+                <p className="max-w-2xl text-muted-foreground">
+                  Vybrané tematické kolekcie produktov pre rýchlejší výber.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 md:auto-rows-[160px]">
+              {collections.map((collection, index) => {
+                const isLastOddCollection = hasOddCollections && index === collections.length - 1
+
+                return (
+                  <CollectionCard
+                    key={collection.id}
+                    collection={collection}
+                    modeColor={modeColor}
+                    className={isLastOddCollection ? "md:col-span-2 md:row-span-2" : undefined}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         <section
           className={`relative left-1/2 right-1/2 w-screen -translate-x-1/2 ${mutedSectionBg} py-16`}
@@ -567,6 +605,49 @@ function CategoryCard({
             <span className="transition-transform group-hover:translate-x-1">→</span>
           </span>
         </div>
+      </div>
+    </Link>
+  )
+}
+
+function CollectionCard({
+  collection,
+  modeColor,
+  className,
+}: {
+  collection: CollectionCardData
+  modeColor: string
+  className?: string
+}) {
+  return (
+    <Link
+      href={`/kolekcie/${collection.slug}`}
+      className={cn(
+        "group relative block h-64 overflow-hidden rounded-xl border border-border transition-all hover:border-muted-foreground hover:shadow-lg md:h-full",
+        className,
+      )}
+    >
+      <Image
+        src={collection.image}
+        alt={collection.name}
+        fill
+        sizes="(max-width: 768px) 100vw, 50vw"
+        className="object-contain transition-transform duration-500 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+      <div className="absolute inset-0 flex flex-col justify-end p-5 text-white">
+        <h3 className="mb-2 text-xl font-semibold">{collection.name}</h3>
+        {collection.description ? (
+          <p className="line-clamp-2 text-sm text-white/85">{collection.description}</p>
+        ) : (
+          <p className="text-sm text-white/80">Vybraná kolekcia produktov.</p>
+        )}
+        <span
+          className="mt-4 inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold"
+          style={{ backgroundColor: modeColor }}
+        >
+          Zobraziť kolekciu
+        </span>
       </div>
     </Link>
   )

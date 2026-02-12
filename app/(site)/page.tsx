@@ -3,7 +3,7 @@ import { Suspense } from "react"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { ModeSelectionPage } from "@/components/print/mode-selection-page"
 import { Homepage } from "@/components/print/homepage"
-import { getCategories, getProducts, getTopProducts } from "@/lib/catalog"
+import { getCategories, getHomepageCollections, getProducts, getTopProducts } from "@/lib/catalog"
 import { buildHomepageModel } from "@/lib/homepage-model"
 
 type HomePageProps = {
@@ -30,10 +30,11 @@ async function HomeContent({
     return <ModeSelectionPage />
   }
 
-  const [categories, products, topProducts] = await Promise.all([
+  const [categories, products, topProducts, collections] = await Promise.all([
     getCategories(),
     getProducts({ audience: mode }),
     getTopProducts(mode, 8),
+    getHomepageCollections(mode),
   ])
 
   const { homepageCategories, featuredProducts } = buildHomepageModel({
@@ -49,6 +50,7 @@ async function HomeContent({
       mode={mode}
       categories={homepageCategories}
       featuredProducts={featuredProducts}
+      collections={collections}
     />
   )
 }

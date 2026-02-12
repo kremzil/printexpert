@@ -7,6 +7,8 @@ import { revalidateTag } from "next/cache"
 export const TAGS = {
   /** Список категорий */
   CATEGORIES: "catalog:categories",
+  /** Подборки/коллекции товаров */
+  COLLECTIONS: "catalog:collections",
   /** Списки продуктов (getProducts, getCatalogProducts) */
   PRODUCTS: "catalog:products",
   /** Агрегация "кол-во товаров в категории" */
@@ -40,6 +42,7 @@ export const calculatorTag = (productId: string) => `calculator:${productId}`
  */
 export function invalidateProduct(slug: string, productId?: string) {
   revalidateTag(productTag(slug), "max")
+  revalidateTag(TAGS.COLLECTIONS, "max")
   revalidateTag(TAGS.PRODUCTS, "max")
   revalidateTag(TAGS.PRODUCT_COUNTS, "max")
   revalidateTag(TAGS.RELATED, "max")
@@ -59,11 +62,20 @@ export function invalidateCalculator(productId: string) {
 }
 
 /**
+ * Инвалидировать только кэш коллекций.
+ * Вызывать при создании/обновлении/удалении коллекций.
+ */
+export function invalidateCollections() {
+  revalidateTag(TAGS.COLLECTIONS, "max")
+}
+
+/**
  * Инвалидировать категории + все зависимые кэши.
  * Вызывать при: создании/обновлении/удалении категории.
  */
 export function invalidateCategories() {
   revalidateTag(TAGS.CATEGORIES, "max")
+  revalidateTag(TAGS.COLLECTIONS, "max")
   revalidateTag(TAGS.PRODUCTS, "max")
   revalidateTag(TAGS.PRODUCT_COUNTS, "max")
   revalidateTag(TAGS.RELATED, "max")
@@ -77,6 +89,7 @@ export function invalidateCategories() {
  */
 export function invalidateAllCatalog() {
   revalidateTag(TAGS.CATEGORIES, "max")
+  revalidateTag(TAGS.COLLECTIONS, "max")
   revalidateTag(TAGS.PRODUCTS, "max")
   revalidateTag(TAGS.PRODUCT_COUNTS, "max")
   revalidateTag(TAGS.RELATED, "max")

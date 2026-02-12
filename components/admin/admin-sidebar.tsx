@@ -40,6 +40,11 @@ const menuItems = [
         url: "/admin/products",
       },
       {
+        id: "collections",
+        title: "Kolekcie",
+        url: "/admin/kolekcie",
+      },
+      {
         id: "top-products",
         title: "Top produkty",
         url: "/admin/top-products",
