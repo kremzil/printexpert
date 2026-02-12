@@ -230,7 +230,7 @@ export function Homepage({ mode, categories, featuredProducts, collections }: Ho
                 </p>
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 md:auto-rows-[160px]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:auto-rows-[160px]">
               {collections.map((collection, index) => {
                 const isLastOddCollection = hasOddCollections && index === collections.length - 1
 
@@ -238,8 +238,11 @@ export function Homepage({ mode, categories, featuredProducts, collections }: Ho
                   <CollectionCard
                     key={collection.id}
                     collection={collection}
-                    modeColor={modeColor}
-                    className={isLastOddCollection ? "md:col-span-2 md:row-span-2" : undefined}
+                    className={
+                      isLastOddCollection
+                        ? "col-span-1 row-span-1 lg:col-span-2 lg:row-span-2"
+                        : "col-span-1 row-span-1"
+                    }
                   />
                 )
               })}
@@ -612,18 +615,16 @@ function CategoryCard({
 
 function CollectionCard({
   collection,
-  modeColor,
   className,
 }: {
   collection: CollectionCardData
-  modeColor: string
   className?: string
 }) {
   return (
     <Link
       href={`/kolekcie/${collection.slug}`}
       className={cn(
-        "group relative block h-64 overflow-hidden rounded-xl border border-border transition-all hover:border-muted-foreground hover:shadow-lg md:h-full",
+        "group relative block h-[150px] overflow-hidden rounded-xl border border-border transition-all hover:border-muted-foreground hover:shadow-lg lg:h-full",
         className,
       )}
     >
@@ -632,22 +633,23 @@ function CollectionCard({
         alt={collection.name}
         fill
         sizes="(max-width: 768px) 100vw, 50vw"
-        className="object-contain transition-transform duration-500 group-hover:scale-105"
+        className="object-cover object-bottom-left  lg:object-contain transition-transform duration-500 group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
-      <div className="absolute inset-0 flex flex-col justify-end p-5 text-white">
-        <h3 className="mb-2 text-xl font-semibold">{collection.name}</h3>
+      <div className="absolute inset-0 flex items-center justify-end p-5 sm:p-6">
+        <div className="w-2/5 lg:w-1/2 text-left text-white">
+          <h3 className="mb-2 lg:mb-4 text-2xl lg:text-4xl font-semibold leading-tight ">
+            {collection.name}
+          </h3>
         {collection.description ? (
-          <p className="line-clamp-2 text-sm text-white/85">{collection.description}</p>
+            <p className="lg:pr-50 line-clamp-3 text-sm lg:text-lg leading-relaxed text-white/90 ">
+              {collection.description}
+            </p>
         ) : (
-          <p className="text-sm text-white/80">Vybraná kolekcia produktov.</p>
+            <p className="text-sm text-white/85 ">
+              Vybraná kolekcia produktov.
+            </p>
         )}
-        <span
-          className="mt-4 inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold"
-          style={{ backgroundColor: modeColor }}
-        >
-          Zobraziť kolekciu
-        </span>
+        </div>
       </div>
     </Link>
   )
