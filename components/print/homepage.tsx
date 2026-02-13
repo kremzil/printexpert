@@ -638,7 +638,10 @@ function CollectionCard({
         sizes="(max-width: 768px) 100vw, 50vw"
         className="object-cover object-bottom-left  lg:object-cover transition-transform duration-500 group-hover:scale-105"
       />
-      <div className="absolute inset-0 flex items-center justify-end p-5 sm:p-6">
+      <div className="absolute inset-x-0 top-0 bg-black/60 px-4 py-2.5 sm:hidden">
+        <h3 className="text-base font-semibold leading-tight text-white">{collection.name}</h3>
+      </div>
+      <div className="absolute inset-0 hidden items-center justify-end p-5 sm:flex sm:p-6">
         <div
           className={cn(
             "text-left text-white",
@@ -653,7 +656,7 @@ function CollectionCard({
           >
             {collection.name}
           </h3>
-        {collection.description ? (
+          {collection.description ? (
             <p
               className={cn(
                 "leading-relaxed text-white/90",
@@ -662,11 +665,11 @@ function CollectionCard({
             >
               {collection.description}
             </p>
-        ) : (
+          ) : (
             <p className={cn("text-white/85", isWide ? "text-sm lg:text-base" : "text-sm")}>
               Vybraná kolekcia produktov.
             </p>
-        )}
+          )}
         </div>
       </div>
     </Link>
