@@ -75,10 +75,14 @@ async function CatalogContent({
   const audienceContext = await resolveAudienceContext({
     searchParams: resolvedSearchParams,
   })
+  const shouldFilterByAudience = audienceContext.source !== "default"
+  const catalogAudience = shouldFilterByAudience ? audienceContext.audience : null
   const mode = audienceContext?.audience === "b2b" ? "b2b" : "b2c"
-  const visibleCategories = categories.filter((category) =>
-    mode === "b2b" ? category.showInB2b !== false : category.showInB2c !== false
-  )
+  const visibleCategories = shouldFilterByAudience
+    ? categories.filter((category) =>
+        mode === "b2b" ? category.showInB2b !== false : category.showInB2c !== false
+      )
+    : categories
   const categoryBySlug = new Map(
     visibleCategories.map((category) => [category.slug, category])
   )
@@ -101,7 +105,7 @@ async function CatalogContent({
 
   const [catalogData, productCountByCategoryId] = await Promise.all([
     getCatalogProducts({
-      audience: audienceContext?.audience,
+      audience: catalogAudience,
       categoryIds: selectedCategoryIds,
       query: searchQuery,
       sort: sortBy,
@@ -109,7 +113,7 @@ async function CatalogContent({
       pageSize,
       includeHidden: Boolean(searchQuery),
     }),
-    getCategoryProductCounts({ audience: audienceContext?.audience }),
+    getCategoryProductCounts({ audience: catalogAudience }),
   ])
 
   const catalogCategories = visibleCategories.map((category) => ({

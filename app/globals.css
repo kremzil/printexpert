@@ -339,6 +339,33 @@
   .stagger-item:nth-child(4) { animation-delay: 0.4s; }
   .stagger-item:nth-child(5) { animation-delay: 0.5s; }
   .stagger-item:nth-child(6) { animation-delay: 0.6s; }
+
+  /* Tracking in expand animation for hero/headline text */
+  @keyframes tracking-in-expand {
+    0% {
+      letter-spacing: -0.5em;
+      opacity: 0;
+    }
+    40% {
+      opacity: 0.6;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .tracking-in-expand {
+    animation: tracking-in-expand 0.7s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+    will-change: letter-spacing, opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tracking-in-expand {
+      animation: none;
+      letter-spacing: normal;
+      opacity: 1;
+    }
+  }
   
   /* Логотип меньше на мобилках */
   @media (max-width: 768px) {

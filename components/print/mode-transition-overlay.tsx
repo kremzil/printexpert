@@ -154,9 +154,12 @@ function LogoBeamScene({
   const showFilled = phase === "morph" || phase === "exit"
 
   const beamRef = React.useRef<SVGPathElement | null>(null)
+  const particleRef = React.useRef<SVGCircleElement | null>(null)
+  const rafRef = React.useRef<number>(0)
   const [len, setLen] = React.useState<number>(1000)
   const gradientId = React.useId()
   const glowId = React.useId()
+  const particleGlowId = React.useId()
 
   React.useEffect(() => {
     if (!beamRef.current) return
@@ -167,6 +170,57 @@ function LogoBeamScene({
       // fallback: keep default length
     }
   }, [])
+
+  // Motion path + line drawing (anime.js-style)
+  React.useEffect(() => {
+    if (!drawing || reducedMotion) return
+    const path = beamRef.current
+    const particle = particleRef.current
+    if (!path) return
+
+    const duration = timings.draw
+
+    // initial stroke state — fully hidden
+    path.style.strokeDasharray = `${len}`
+    path.style.strokeDashoffset = `${len}`
+
+    let start = 0
+
+    const tick = (ts: number) => {
+      if (!start) start = ts
+      const t = Math.min((ts - start) / duration, 1)
+
+      // ease-out cubic for natural deceleration
+      const eased = 1 - Math.pow(1 - t, 3)
+
+      // line drawing — stroke reveals behind the particle
+      path.style.strokeDashoffset = `${len * (1 - eased)}`
+
+      // motion path — particle travels along the contour
+      if (particle) {
+        try {
+          const pt = path.getPointAtLength(eased * len)
+          particle.setAttribute("cx", `${pt.x}`)
+          particle.setAttribute("cy", `${pt.y}`)
+          particle.style.opacity = t < 0.01 ? "0" : "1"
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else if (particle) {
+        particle.style.opacity = "0"
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [drawing, reducedMotion, len, timings.draw])
 
   return (
     <div
@@ -193,17 +247,27 @@ function LogoBeamScene({
       >
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="var(--fg)" stopOpacity="0" />
-            <stop offset="42%" stopColor="var(--fg)" stopOpacity="0.2" />
-            <stop offset="55%" stopColor="var(--fg)" stopOpacity="1" />
-            <stop offset="66%" stopColor="var(--fg)" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="var(--fg)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--fg)" stopOpacity="0.25" />
+            <stop offset="40%" stopColor="var(--fg)" stopOpacity="0.6" />
+            <stop offset="60%" stopColor="var(--fg)" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="var(--fg)" stopOpacity="0.25" />
           </linearGradient>
 
           <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="1.8" result="b" />
             <feMerge>
               <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <filter id={particleGlowId} x="-300%" y="-300%" width="700%" height="700%">
+            <feGaussianBlur stdDeviation="4.5" result="b1" />
+            <feGaussianBlur stdDeviation="1.5" in="SourceGraphic" result="b2" />
+            <feMerge>
+              <feMergeNode in="b1" />
+              <feMergeNode in="b1" />
+              <feMergeNode in="b2" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
@@ -222,6 +286,16 @@ function LogoBeamScene({
           stroke={`url(#${gradientId})`}
           filter={`url(#${glowId})`}
           d="M60.42,140.29c-1.82,0-3.67-.1-5.51-.3-5.76-.62-11.22-2.2-16.21-4.71-7.06-3.54-12.73-8.46-16.85-14.63-2.09-3.12-3.63-6.24-4.67-9.44-.96-.16-1.9-.4-2.82-.71-6.71-2.25-11.35-6.96-13.41-13.62-1.71-5.5-1.12-11.04,1.7-16.08v-7.91c0-6.92,0-13.83,0-20.75,0-4.05.74-8.07,2.18-11.96,2.35-6.35,6.32-11.82,11.79-16.28,2.64-2.15,5.56-3.97,8.69-5.43,3.61-5.43,8.45-9.82,14.4-13.06C46.34,1.82,53.54,0,61.15,0c1.11,0,2.24.04,3.37.12,8.21.56,15.72,3.17,22.31,7.75,4.84,3.36,8.73,7.56,11.59,12.49,4.8,2.68,8.87,6.16,12.12,10.34,4.19,5.4,6.7,11.55,7.44,18.28.21,1.89.2,3.68.19,5.41,0,.49,0,.99,0,1.48.02,2.44.01,4.87,0,7.31v6.34c0,3.66,0,7.32,0,10.99,4.36,7.86,3.1,17.79-3.15,24.36-3.19,3.35-7.06,5.41-11.53,6.13-2.47,7.68-7.15,14.24-13.92,19.53-5.21,4.06-11.24,6.92-17.94,8.48-3.67.86-7.44,1.29-11.22,1.29Z"
+        />
+
+        {/* Particle that travels along the contour */}
+        <circle
+          ref={particleRef}
+          className="beamParticle"
+          r="3"
+          fill="var(--fg)"
+          filter={`url(#${particleGlowId})`}
+          style={{ opacity: 0 }}
         />
 
         <g className="filled">
@@ -310,8 +384,16 @@ function LogoBeamScene({
         }
 
         .isDrawing .outlineBeam {
-          animation: draw var(--draw-ms) ease-out forwards,
-            pulse var(--shimmer-ms) ease-in-out infinite;
+          animation: pulse var(--shimmer-ms) ease-in-out infinite;
+        }
+
+        .beamParticle {
+          transition: opacity 150ms ease-out;
+        }
+
+        .showFill .beamParticle {
+          opacity: 0 !important;
+          transition: opacity 220ms ease-out;
         }
 
         .filled {

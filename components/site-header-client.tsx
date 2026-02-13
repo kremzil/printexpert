@@ -6,9 +6,16 @@ import { usePathname } from "next/navigation"
 type SiteHeaderClientProps = {
   topBar: ReactNode
   navBar: ReactNode
+  centerBar?: ReactNode
+  showNav?: boolean
 }
 
-export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
+export function SiteHeaderClient({
+  topBar,
+  navBar,
+  centerBar,
+  showNav = true,
+}: SiteHeaderClientProps) {
   const pathname = usePathname()
   const [hideNav, setHideNav] = useState(false)
   const [isAtTop, setIsAtTop] = useState(true)
@@ -82,30 +89,37 @@ export function SiteHeaderClient({ topBar, navBar }: SiteHeaderClientProps) {
         `}
       >
         <div className="mx-auto w-full max-w-480 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
+          <div className="relative flex h-16 items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
+            {centerBar ? (
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                {centerBar}
+              </div>
+            ) : null}
             {topBar}
           </div>
         </div>
       </div>
 
       {/* Nav bar - fades out completely */}
-      <div 
-        className={`
-          sticky top-16 z-40
-          hidden lg:block
-          bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60
-          border-b border-border/30 shadow-sm
-          transition-opacity duration-200 ease-out
-          ${hideNav ? 'opacity-0 pointer-events-none' : 'opacity-100'}
-        `}
-        aria-hidden={hideNav}
-      >
-        <div className="mx-auto w-full max-w-480">
-          <div className="flex h-12 items-center px-4 sm:px-6 md:px-8">
-            {navBar}
+      {showNav ? (
+        <div 
+          className={`
+            sticky top-16 z-40
+            hidden lg:block
+            bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60
+            border-b border-border/30 shadow-sm
+            transition-opacity duration-200 ease-out
+            ${hideNav ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+          `}
+          aria-hidden={hideNav}
+        >
+          <div className="mx-auto w-full max-w-480">
+            <div className="flex h-12 items-center px-4 sm:px-6 md:px-8">
+              {navBar}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </>
   )
 }

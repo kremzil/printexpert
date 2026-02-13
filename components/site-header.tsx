@@ -425,6 +425,7 @@ export async function SiteHeader() {
     auth(),
     resolveAudienceContext(),
   ])
+  const isModeSelectionPage = audienceContext.source === "default"
   const authHoverClass =
     audienceContext.audience === "b2b"
       ? "hover:bg-[color:var(--b2b-accent)]"
@@ -435,6 +436,26 @@ export async function SiteHeader() {
       : "text-[color:var(--b2c-primary)]"
   return (
     <SiteHeaderClient
+      showNav={!isModeSelectionPage}
+      centerBar={
+        isModeSelectionPage ? (
+          <Link
+            href="/catalog"
+            className="group inline-flex items-center gap-1 text-sm font-semibold text-foreground/80 transition-colors hover:text-foreground md:text-base"
+            aria-label="Prejsť do katalógu"
+          >
+            <span className="transition-transform duration-200 ease-out group-hover:-translate-x-0.5">
+              Katalóg
+            </span>
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-200 ease-out group-hover:translate-x-0.5"
+            >
+              →
+            </span>
+          </Link>
+        ) : null
+      }
       topBar={
         <>
           {/* Left: Mobile actions + Logo + Search */}

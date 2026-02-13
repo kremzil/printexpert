@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -14,6 +15,7 @@ import {
 } from "lucide-react"
 
 import { ModeSelectionCard } from "@/components/print/mode-selection-card"
+import { Button } from "@/components/ui/button"
 import type { CustomerMode } from "@/components/print/types"
 import { AUDIENCE_QUERY_PARAM } from "@/lib/audience-shared"
 import { showModeOverlay } from "@/lib/mode-overlay-store"
@@ -80,7 +82,7 @@ export function ModeSelectionPage() {
               Tlač online • rýchlo • spoľahlivo
             </div>
 
-            <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-8xl">
+            <h1 className="tracking-in-expand mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-8xl">
               Vyberte si tlač
               <br />
               <span className="bg-gradient-to-r from-red-600 via-orange-600 to-blue-600 bg-clip-text text-transparent">
@@ -120,6 +122,24 @@ export function ModeSelectionPage() {
               onSelect={() => handleModeSelected("b2b")}
               isPending={isPending || isTransitioning}
             />
+          </div>
+
+          <div className="mx-auto -mt-2 mb-8 w-full max-w-3xl rounded-2xl border border-border bg-card/80 p-6 text-center shadow-sm backdrop-blur-sm md:p-8">
+            <p className="mb-4 text-base text-muted-foreground md:text-lg">
+              Ak sa neviete rozhodnúť, môžete si jednoducho vybrať produkty v
+              našom katalógu.
+            </p>
+            <Button asChild size="lg" className="group rounded-full px-7">
+              <Link href="/catalog" className="inline-flex items-center gap-1.5">
+                Prejsť do katalógu
+                <span
+                  aria-hidden="true"
+                  className="transition-transform duration-200 ease-out group-hover:translate-x-1"
+                >
+                  →
+                </span>
+              </Link>
+            </Button>
           </div>
 
 
