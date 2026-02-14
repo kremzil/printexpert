@@ -541,3 +541,25 @@ export const getTopProducts = unstable_cache(
   ["top-products"],
   { tags: [TAGS.TOP_PRODUCTS] }
 );
+
+async function fetchTopProductIds(audience: string) {
+  const prisma = getPrisma();
+
+  let config;
+  try {
+    config = await prisma.topProducts.findUnique({
+      where: { audience },
+      select: { productIds: true },
+    });
+  } catch {
+    config = null;
+  }
+
+  return normalizeProductIds(config?.productIds ?? []);
+}
+
+export const getTopProductIds = unstable_cache(
+  fetchTopProductIds,
+  ["top-product-ids"],
+  { tags: [TAGS.TOP_PRODUCTS] }
+);

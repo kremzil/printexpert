@@ -7,6 +7,7 @@ import { MessageSquare, ShoppingCart } from "lucide-react"
 import { ModeButton } from "@/components/print/mode-button"
 import { PriceDisplay } from "@/components/print/price-display"
 import type { CustomerMode } from "@/components/print/types"
+import { Badge } from "@/components/ui/badge"
 
 type Props = {
   product: {
@@ -19,6 +20,7 @@ type Props = {
       url: string
       alt?: string | null
     }>
+    isTopProduct?: boolean
   }
   mode?: CustomerMode
 }
@@ -39,6 +41,11 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
       <div className="relative aspect-square overflow-hidden bg-muted">
+        {product.isTopProduct ? (
+          <Badge className="absolute left-3 top-3 z-10 bg-green-100 text-green-700">
+            NAJPREDÁVANEJŠIE
+          </Badge>
+        ) : null}
         {primaryImage?.url ? (
           <Image
             src={primaryImage.url}

@@ -68,6 +68,7 @@ type ProductPageClientProps = {
     excerptHtml?: string | null
     descriptionHtml?: string | null
     images: Array<{ url: string; alt?: string | null }>
+    isTopProduct?: boolean
   }
   designerConfig?: DesignerConfig
   isLoggedIn?: boolean
@@ -503,6 +504,37 @@ function RealConfiguratorSection({
           </Card>
         )}
 
+      </div>
+
+      <div className="lg:col-span-1">
+        <RealConfiguratorPanel
+          mode={mode}
+          summaryItems={summaryItems}
+          price={total}
+          hasUnavailable={hasUnavailable}
+          isAddingToCart={isAddingToCart}
+          serverError={serverError}
+          quantityPresets={quantityPresets}
+          getTotalForQuantity={getTotalForQuantity}
+          activeQuantity={quantity}
+          onAddToCart={addToCart}
+          showFloatingBar={showFloatingBar}
+          shareSection={
+            isTopShareVisible ? null : (
+              <ProductShareButtons
+                productName={product.name}
+                shortDescription={product.excerptHtml}
+                imageUrl={product.images[0]?.url ?? null}
+                quantity={quantity}
+                summaryItems={summaryItems}
+                price={total}
+              />
+            )
+          }
+        />
+      </div>
+
+      <div className="lg:col-span-2">
         <Tabs defaultValue="specs" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="specs">Popis produktu</TabsTrigger>
@@ -510,7 +542,6 @@ function RealConfiguratorSection({
           </TabsList>
 
           <TabsContent value="specs" className="mt-6">
-       
             <Card className="p-6">
               {product.descriptionHtml ? (
                 <div>
@@ -569,34 +600,6 @@ function RealConfiguratorSection({
             </Accordion>
           </TabsContent>
         </Tabs>
-      </div>
-
-      <div className="lg:col-span-1">
-        <RealConfiguratorPanel
-          mode={mode}
-          summaryItems={summaryItems}
-          price={total}
-          hasUnavailable={hasUnavailable}
-          isAddingToCart={isAddingToCart}
-          serverError={serverError}
-          quantityPresets={quantityPresets}
-          getTotalForQuantity={getTotalForQuantity}
-          activeQuantity={quantity}
-          onAddToCart={addToCart}
-          showFloatingBar={showFloatingBar}
-          shareSection={
-            isTopShareVisible ? null : (
-              <ProductShareButtons
-                productName={product.name}
-                shortDescription={product.excerptHtml}
-                imageUrl={product.images[0]?.url ?? null}
-                quantity={quantity}
-                summaryItems={summaryItems}
-                price={total}
-              />
-            )
-          }
-        />
       </div>
     </div>
   )
@@ -674,9 +677,11 @@ export function ProductPageClient({
 
         <div className="mb-8">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge className="bg-green-100 text-green-700">
-              NAJPREDÁVANEJŠIE
-            </Badge>
+            {product.isTopProduct ? (
+              <Badge className="bg-green-100 text-green-700">
+                NAJPREDÁVANEJŠIE
+              </Badge>
+            ) : null}
             <Badge variant="outline">Expedícia do 48h</Badge>
             {mode === "b2b" && <Badge variant="outline">B2B ceny</Badge>}
           </div>

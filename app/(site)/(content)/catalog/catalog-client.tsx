@@ -27,6 +27,7 @@ type CatalogProduct = {
   priceFrom?: string | null
   images?: Array<{ url: string; alt?: string | null }>
   categoryId: string
+  isTopProduct?: boolean
 }
 
 type CatalogClientProps = {

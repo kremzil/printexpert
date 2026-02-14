@@ -5,7 +5,7 @@ import { Suspense, cache } from "react"
 import { auth } from "@/auth"
 import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product-page-client"
 import { resolveAudienceContext } from "@/lib/audience-context"
-import { getProductBySlug, getRelatedProducts } from "@/lib/catalog"
+import { getProductBySlug, getRelatedProducts, getTopProductIds } from "@/lib/catalog"
 import { getProductCalculatorData } from "@/lib/pricing"
 
 type ProductSearchParams = {
@@ -162,7 +162,9 @@ async function ProductDetails({
     notFound()
   }
 
-  const [calculatorData, relatedSource] = await Promise.all([
+  const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
+
+  const [calculatorData, relatedSource, topProductIds] = await Promise.all([
     getProductCalculatorData({
       productId: product.id,
     }),
@@ -173,7 +175,9 @@ async function ProductDetails({
           product.id
         )
       : Promise.resolve([]),
+    getTopProductIds(mode),
   ])
+  const isTopProduct = topProductIds.includes(product.id)
   const relatedProducts = relatedSource
     .slice(0, 3)
     .map((item) => {
@@ -191,7 +195,6 @@ async function ProductDetails({
     })
   const descriptionHtml = product.description ?? null
   const excerptHtml = product.excerpt ?? null
-  const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
   return (
     <ProductPageClient
       mode={mode}
@@ -203,6 +206,7 @@ async function ProductDetails({
         excerptHtml,
         descriptionHtml,
         images: product.images ?? [],
+        isTopProduct,
       }}
       designerConfig={
         product.designerEnabled

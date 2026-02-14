@@ -6,6 +6,7 @@ import {
   getCategories,
   getCatalogProducts,
   getCategoryProductCounts,
+  getTopProductIds,
   type CatalogSort,
 } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
@@ -103,7 +104,7 @@ async function CatalogContent({
       ]
     : null
 
-  const [catalogData, productCountByCategoryId] = await Promise.all([
+  const [catalogData, productCountByCategoryId, topProductIds] = await Promise.all([
     getCatalogProducts({
       audience: catalogAudience,
       categoryIds: selectedCategoryIds,
@@ -114,7 +115,9 @@ async function CatalogContent({
       includeHidden: Boolean(searchQuery),
     }),
     getCategoryProductCounts({ audience: catalogAudience }),
+    getTopProductIds(mode),
   ])
+  const topProductIdSet = new Set(topProductIds)
 
   const catalogCategories = visibleCategories.map((category) => ({
     id: category.id,
@@ -133,6 +136,7 @@ async function CatalogContent({
     priceFrom: product.priceFrom,
     images: product.images ?? [],
     categoryId: product.categoryId,
+    isTopProduct: topProductIdSet.has(product.id),
   }))
 
   return (

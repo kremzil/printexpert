@@ -77,14 +77,6 @@ export function ConfiguratorOption({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{option.label}</span>
-                  {option.recommended && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
-                      style={{ backgroundColor: modeColor }}
-                    >
-                      Odporúčané
-                    </span>
-                  )}
                 </div>
                 {option.description && (
                   <p className="mt-1 text-sm text-muted-foreground">
