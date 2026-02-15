@@ -25,6 +25,7 @@ export function RealConfiguratorPanel({
   shipmentDateLabel,
   shipmentDateText,
   showFloatingBar,
+  showVolumeDiscounts = true,
   shareSection,
 }: {
   mode: CustomerMode
@@ -43,11 +44,19 @@ export function RealConfiguratorPanel({
   shipmentDateLabel: string
   shipmentDateText: string
   showFloatingBar: boolean
+  showVolumeDiscounts?: boolean
   shareSection?: ReactNode
 }) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
   const isAddToCartDisabled = isAddingToCart || hasUnavailable || price === null
+  const basePresetQuantity = quantityPresets[0] ?? null
+  const basePresetTotal =
+    basePresetQuantity !== null ? getTotalForQuantity(basePresetQuantity) : null
+  const baseUnitPrice =
+    basePresetTotal !== null && basePresetQuantity !== null && basePresetQuantity > 0
+      ? basePresetTotal / basePresetQuantity
+      : null
   const buyButtonRef = useRef<HTMLDivElement | null>(null)
   const [isBuyButtonVisible, setIsBuyButtonVisible] = useState(false)
 
@@ -203,33 +212,62 @@ export function RealConfiguratorPanel({
 
         {shareSection ? <Card className="p-4">{shareSection}</Card> : null}
 
-        <Card className="p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-semibold">Objemové zľavy</h4>
-            <span className="text-xs text-muted-foreground">Podľa konfigurácie</span>
-          </div>
-          <div className="space-y-1 text-xs">
-            {quantityPresets.map((qty) => {
-              const computedPrice = getTotalForQuantity(qty)
-              const isSelected = activeQuantity === qty
-              return (
-                <div
-                  key={qty}
-                  className={`flex justify-between rounded px-2 py-1 ${isSelected ? "font-medium" : ""}`}
-                  style={{
-                    backgroundColor: isSelected ? modeAccent : "transparent",
-                    color: isSelected ? modeColor : undefined,
-                  }}
-                >
-                  <span>{qty} ks</span>
-                  <span>
-                    {computedPrice === null ? "—" : `${computedPrice.toFixed(2)} €`}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </Card>
+        {showVolumeDiscounts ? (
+          <Card className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-sm font-semibold">Objemové zľavy</h4>
+              <span className="text-xs text-muted-foreground">Podľa konfigurácie</span>
+            </div>
+            <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-2 py-1 text-[11px] font-medium text-muted-foreground">
+              <span>Množstvo</span>
+              <span>Cena</span>
+              <span>Zľava/ks</span>
+            </div>
+            <div className="space-y-1 text-xs">
+              {quantityPresets.map((qty) => {
+                const computedPrice = getTotalForQuantity(qty)
+                const isSelected = activeQuantity === qty
+                const isBasePreset = basePresetQuantity === qty
+                const unitPrice =
+                  computedPrice !== null && qty > 0 ? computedPrice / qty : null
+                const savingsPercentPerUnit =
+                  baseUnitPrice !== null &&
+                  baseUnitPrice > 0 &&
+                  unitPrice !== null
+                    ? ((baseUnitPrice - unitPrice) / baseUnitPrice) * 100
+                    : null
+                const discountPercent =
+                  isBasePreset
+                    ? 0
+                    : savingsPercentPerUnit !== null && savingsPercentPerUnit > 0.01
+                      ? savingsPercentPerUnit
+                      : null
+                return (
+                  <div
+                    key={qty}
+                    className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded px-2 py-1 ${isSelected ? "font-medium" : ""}`}
+                    style={{
+                      backgroundColor: isSelected ? modeAccent : "transparent",
+                      color: isSelected ? modeColor : undefined,
+                    }}
+                  >
+                    <span>{qty} ks</span>
+                    <span>{computedPrice === null ? "—" : `${computedPrice.toFixed(2)} €`}</span>
+                    <span
+                      className={
+                        discountPercent !== null && !isSelected
+                          ? "text-emerald-600"
+                          : undefined
+                      }
+                    >
+                      {discountPercent === null ? "—" : `${discountPercent.toFixed(1)} %`}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        ) : null}
       </div>
     </>
   )

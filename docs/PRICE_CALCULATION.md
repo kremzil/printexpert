@@ -148,6 +148,41 @@
 - `0` — поле ввода (input)
 - `1` — выпадающий список (select, значения берутся из breakpoints)
 
+## UI: блок `Objemové zľavy` на странице товара
+
+Блок в правой колонке (`components/print/real-configurator-panel.tsx`) показывается
+**только** если количество выбирается из брейкпоинтов базовой матрицы:
+
+- `useQuantitySelect = true`
+- условие в `components/print/use-wp-configurator.ts`:
+  - `baseNumStyle === 1`
+  - `baseNumType === 0`
+  - `baseBreakpoints.length > 0`
+
+Если условие не выполнено (ручной ввод количества или нет брейкпоинтов), блок
+`Objemové zľavy` не рендерится.
+
+### Колонки таблицы
+
+- `Množstvo` — quantity (брейкпоинт)
+- `Cena` — итоговая цена для этого quantity
+- `Zľava/ks` — удешевление цены **за единицу** в процентах
+
+### Как считается `Zľava/ks`
+
+Сравнение делается относительно **первого варианта** (первого брейкпоинта), а не
+относительно текущего выбранного пользователем количества:
+
+1) `basePresetQuantity = quantityPresets[0]`
+2) `baseUnitPrice = getTotalForQuantity(basePresetQuantity) / basePresetQuantity`
+3) `rowUnitPrice = getTotalForQuantity(qty) / qty`
+4) `discountPct = ((baseUnitPrice - rowUnitPrice) / baseUnitPrice) * 100`
+
+Отображение:
+- для первого варианта: `0.0 %`
+- если значение невалидно или удешевления нет: `—`
+- иначе: процент с точностью до 1 знака после запятой.
+
 ## Список товаров для проверки a_unit
 Источник: `data/wp/wpDB/kpkp_wp2print_table_wp_print_products_matrix_types.json`  
 Критерий: `num_type` ∈ {2, 3, 4} (площадь/периметр/ширина).

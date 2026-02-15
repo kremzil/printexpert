@@ -576,6 +576,7 @@ function RealConfiguratorSection({
           shipmentDateLabel={shipmentDateLabel}
           shipmentDateText={shipmentDateText}
           showFloatingBar={showFloatingBar}
+          showVolumeDiscounts={useQuantitySelect}
           shareSection={
             isTopShareVisible ? null : (
               <ProductShareButtons
