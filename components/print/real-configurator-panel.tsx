@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Clock, FileCheck, ShoppingCart, Truck } from "lucide-react"
+import { Clock, FileCheck, MessageSquare, ShoppingCart, Truck } from "lucide-react"
 
 import { Card } from "@/components/ui/card"
 import { ModeButton } from "@/components/print/mode-button"
@@ -19,6 +19,8 @@ export function RealConfiguratorPanel({
   getTotalForQuantity,
   activeQuantity,
   onAddToCart,
+  onAddQuoteRequest,
+  isQuoteRequestDisabled,
   showFloatingBar,
   shareSection,
 }: {
@@ -32,6 +34,8 @@ export function RealConfiguratorPanel({
   getTotalForQuantity: (quantity: number) => number | null
   activeQuantity: number
   onAddToCart: () => void
+  onAddQuoteRequest?: () => void
+  isQuoteRequestDisabled?: boolean
   showFloatingBar: boolean
   shareSection?: ReactNode
 }) {
@@ -170,6 +174,19 @@ export function RealConfiguratorPanel({
                 <ShoppingCart className="h-5 w-5" />
                 Pridať do košíka
               </ModeButton>
+              {mode === "b2b" && onAddQuoteRequest ? (
+                <ModeButton
+                  mode={mode}
+                  variant="outline"
+                  size="md"
+                  onClick={onAddQuoteRequest}
+                  className="mt-2 w-full"
+                  disabled={isQuoteRequestDisabled}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Cenová ponuka
+                </ModeButton>
+              ) : null}
             </div>
           </div>
         </Card>

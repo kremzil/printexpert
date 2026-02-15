@@ -202,6 +202,7 @@ async function ProductDetails({
       calculatorData={calculatorData}
       relatedProducts={relatedProducts}
       product={{
+        slug: product.slug,
         name: product.name,
         excerptHtml,
         descriptionHtml,

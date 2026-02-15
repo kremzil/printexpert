@@ -168,7 +168,7 @@ export async function updateProductDetails(formData: FormData) {
 - Ошибки возвращаются как JSON 403 с текстом на словацком:
   - `{ "error": "Neplatný CSRF token." }`
   - `{ "error": "Neplatný pôvod požiadavky." }`
-- На клиенте добавлен helper `lib/csrf.ts`, который читает cookie и добавляет header, и обновлены вызовы fetch в компонентах корзины/чекаута.
+- На клиенте добавлен helper `lib/csrf.ts`, который читает cookie и добавляет header, и обновлены вызовы fetch в компонентах корзины/чекаута и B2B dopytu (`/api/quote-request`).
 
 **Рекомендации:**
 - Не расширять “белый список” исключений из проверок Origin/CSRF (сейчас исключения только `/api/auth/*` и `/api/stripe/webhook`).
@@ -276,6 +276,7 @@ logger.info({
   - `POST /api/price`
   - `POST /api/contact`
   - `POST /api/checkout`
+  - `POST /api/quote-request` (5 запросов / 15 минут на IP, `429` + `Retry-After`)
 
 **Рекомендации:**
 - Если `/api/price` станет дорогим по CPU/DB — добавить кэширование (на уровне данных или результата).

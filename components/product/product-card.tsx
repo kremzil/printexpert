@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { MessageSquare, ShoppingCart } from "lucide-react"
@@ -8,6 +9,11 @@ import { ModeButton } from "@/components/print/mode-button"
 import { PriceDisplay } from "@/components/print/price-display"
 import type { CustomerMode } from "@/components/print/types"
 import { Badge } from "@/components/ui/badge"
+import {
+  isQuoteRequestItem,
+  QUOTE_REQUEST_UPDATED_EVENT,
+  upsertQuoteRequestItem,
+} from "@/lib/quote-request-store"
 
 type Props = {
   product: {
@@ -27,6 +33,27 @@ type Props = {
 
 export function ProductCard({ product, mode = "b2c" }: Props) {
   const primaryImage = product.images?.[0]
+  const [isInQuoteList, setIsInQuoteList] = useState(false)
+
+  const imageAlt = primaryImage?.alt ?? product.name
+
+  useEffect(() => {
+    if (mode !== "b2b") return
+
+    const sync = () => {
+      setIsInQuoteList(isQuoteRequestItem(product.slug))
+    }
+
+    sync()
+    window.addEventListener(QUOTE_REQUEST_UPDATED_EVENT, sync)
+    window.addEventListener("storage", sync)
+
+    return () => {
+      window.removeEventListener(QUOTE_REQUEST_UPDATED_EVENT, sync)
+      window.removeEventListener("storage", sync)
+    }
+  }, [mode, product.slug])
+
   const shortDescription =
     product.excerpt ||
     (product.description
@@ -37,6 +64,18 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
 
   const priceValue = Number(product.priceFrom)
   const hasPrice = Number.isFinite(priceValue) && priceValue > 0
+
+  const handleQuoteRequestAdd = () => {
+    upsertQuoteRequestItem({
+      slug: product.slug,
+      name: product.name,
+      imageUrl: primaryImage?.url ?? "",
+      imageAlt,
+      addedAt: new Date().toISOString(),
+    })
+    setIsInQuoteList(true)
+    window.dispatchEvent(new Event(QUOTE_REQUEST_UPDATED_EVENT))
+  }
 
   return (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
@@ -49,7 +88,7 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
         {primaryImage?.url ? (
           <Image
             src={primaryImage.url}
-            alt={primaryImage.alt ?? product.name}
+            alt={imageAlt}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -79,7 +118,7 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           {mode === "b2c" ? (
             <ModeButton
               asChild
@@ -96,16 +135,15 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
           ) : (
             <>
               <ModeButton
-                asChild
                 mode={mode}
-                variant="outline"
+                variant={isInQuoteList ? "secondary" : "outline"}
                 size="md"
                 className="flex-1"
+                type="button"
+                onClick={handleQuoteRequestAdd}
               >
-                <Link href={`/product/${product.slug}`}>
-                  <MessageSquare className="h-4 w-4" />
-                  Cenová ponuka
-                </Link>
+                <MessageSquare className="h-4 w-4" />
+                {isInQuoteList ? "V zozname" : "Cenová ponuka"}
               </ModeButton>
               <ModeButton
                 asChild

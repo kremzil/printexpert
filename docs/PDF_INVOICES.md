@@ -345,6 +345,9 @@ export const defaultPdfSettings: PdfSettings = {
 
 Для B2B клиентов доступна генерация PDF с предварительным расчётом цены из корзины.
 
+> Важно: этот раздел описывает только PDF-понуку из корзины (`GET /api/cart/quote`).
+> Отдельный B2B flow "dopyt менеджеру" (без PDF) использует `POST /api/quote-request` и хранит список в `localStorage`.
+
 ### API
 
 `GET /api/cart/quote` — скачивание PDF с ценовой понукой

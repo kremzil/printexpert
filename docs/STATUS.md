@@ -191,6 +191,11 @@
 - Форма обратной связи (если включена): `/api/contact`.
 - Валидация: Zod.
 - Защита: honeypot + rate limit.
+- B2B dopyt na cenovú ponuku (письмо менеджеру): `POST /api/quote-request`.
+  - Источник: кнопки `Cenová ponuka` в карточке товара и на странице товара.
+  - UI: индикатор рядом с корзиной (только B2B, появляется после первого товара) + `Sheet` со списком и формой.
+  - Хранение на клиенте: `localStorage` (`printexpert_quote_request_v1`, `printexpert_quote_contact_v1`).
+  - Валидация/защита: Zod + honeypot + rate limit.
 
 ## Оптимизации UI/доступность
 - Добавлен skip‑link к основному контенту.
@@ -322,6 +327,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - `DELETE /api/cart/[itemId]` — удаление товара
 - `POST /api/cart/clear` — очистка корзины
 - `POST /api/checkout` — создание заказа
+- `POST /api/quote-request` — отправка B2B dopytu на цену менеджеру
 - `GET /api/orders` — список заказов пользователя
 - `GET /api/orders/[orderId]` — детали заказа
 - `PATCH /api/admin/orders/[orderId]/status` — изменение статуса (только ADMIN)
@@ -335,6 +341,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Явные исключения из double-submit CSRF: `/api/auth/*` и `/api/stripe/webhook`.
 - Реестр исключений хранится в `lib/csrf.ts` (`CSRF_EXCLUDED_API_PREFIXES`).
 - Anti-spam: `POST /api/checkout` rate limited (5/15мин на IP), 429 + `Retry-After`.
+- Anti-spam: `POST /api/quote-request` rate limited (5/15мин на IP), 429 + `Retry-After`.
 
 ### PDF-счета (Faktúry):
 - `GET /api/orders/[orderId]/invoice` — скачивание PDF-счёта
@@ -351,6 +358,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 ### Компоненты:
 - `cart-button.tsx` — badge в хедере с количеством товаров
+- `quote-request-button.tsx` — B2B индикатор dopytu с `Sheet` (список товаров + форма отправки)
 - `cart-content.tsx` — отображение корзины
 - `checkout-form.tsx` — форма чекаута с валидацией
 - `orders-list.tsx` — список заказов
@@ -372,16 +380,22 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Отправка email: Nodemailer с PDF-вложением
 - UI настроек: `/admin/settings` → таб "PDF / Faktúry"
 - Шаблон: словацкий формат, данные компании, банковские реквизиты, подпись
-- **Cenová ponuka (B2B):** Предварительный расчёт цены из корзины
+- **Cenová ponuka (B2B, PDF из корзины):** Предварительный расчёт цены
   - API: `GET /api/cart/quote`
   - Кнопка в корзине для B2B пользователей
   - Подробная таблица с конфигурацией каждого товара
+- **B2B dopyt na cenovú ponuku (email менеджеру):**
+  - API: `POST /api/quote-request`
+  - Список собирается из карточек/страницы товара, отправка через `Sheet` в хедере
 - Документация: `docs/PDF_INVOICES.md`
 
 ### Интеграция с товарами:
-- Страница товара `/product/[slug]`: обе кнопки калькулятора добавляют товар в корзину
-- После добавления — автоматический переход на `/cart`
+- Страница товара `/product/[slug]`: `Pridať do košíka` добавляет товар в корзину и переводит на `/cart`.
+- Страница товара `/product/[slug]` (B2B): `Cenová ponuka` добавляет текущую конфигурацию в список dopytu.
+- Карточка товара (B2B): `Cenová ponuka` добавляет товар в список dopytu без дублей (dedupe по `slug`).
 - Badge корзины обновляется через `window.dispatchEvent("cart-updated")`
+- Badge dopytu обновляется через `window.dispatchEvent("quote-request-updated")`
+- После успешного `POST /api/quote-request` список dopytu очищается, контактные поля остаются в `localStorage`.
 - Кнопка “Nahrať grafiku a objednať” позволяет выбрать файл, который отображается в корзине и загружается после оформления заказа
 
 ### Ключевые особенности:

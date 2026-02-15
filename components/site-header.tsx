@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/sheet"
 import { CartButton } from "@/components/cart/cart-button"
 import { LoginDialog } from "@/components/auth/login-dialog"
+import { QuoteRequestButton } from "@/components/quote/quote-request-button"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import type { AudienceContext } from "@/lib/audience-shared"
 import { getAudienceFilter } from "@/lib/audience-filter"
@@ -487,11 +488,18 @@ export async function SiteHeader() {
             </Link>
             <div className="flex items-center gap-1 lg:hidden">
               <MobileSearch mode={audienceContext.audience} />
-              <div className="mr-3">
+              <div className="mr-3 flex items-center gap-1">
                 <CartButton
                   mode={audienceContext.audience}
                   userId={session?.user?.id ?? null}
                 />
+                {audienceContext.audience === "b2b" ? (
+                  <QuoteRequestButton
+                    mode={audienceContext.audience}
+                    initialName={session?.user?.name ?? ""}
+                    initialEmail={session?.user?.email ?? ""}
+                  />
+                ) : null}
               </div>
               <Suspense fallback={null}>
               <MobileMenu audienceContext={audienceContext} session={session} />
@@ -519,12 +527,19 @@ export async function SiteHeader() {
                   Potrebujete pomoc?
                 </Link>
               </div>
-              <div className="mr-4">
-              <CartButton
-                mode={audienceContext.audience}
-                userId={session?.user?.id ?? null}
-              />
-               </div>
+              <div className="mr-4 flex items-center gap-2">
+                <CartButton
+                  mode={audienceContext.audience}
+                  userId={session?.user?.id ?? null}
+                />
+                {audienceContext.audience === "b2b" ? (
+                  <QuoteRequestButton
+                    mode={audienceContext.audience}
+                    initialName={session?.user?.name ?? ""}
+                    initialEmail={session?.user?.email ?? ""}
+                  />
+                ) : null}
+              </div>
               {!session?.user ? (
                 <>
                   <ModeButton

@@ -46,6 +46,7 @@
 - `app/(site)/page.tsx` — экран выбора режима при первом визите.
 - `app/(site)/layout.tsx` — аудитория‑зависимые header/footer в `<Suspense>`.
 - `components/audience-mode-switch.tsx` — интерактивный переключатель в хедере.
+- `components/quote/quote-request-button.tsx` — B2B `Sheet` со списком dopytu и формой отправки.
 
 **Server Pricing**
 - `app/api/price/route.ts` — серверный пересчёт цены.
@@ -100,6 +101,12 @@
 
 ## B2B-специфичный функционал
 - **Сохранённые корзины (SavedCart):** B2B клиенты могут сохранять корзины для повторных заказов
+- **Cenová ponuka (dopyt менеджеру):** список товаров для запроса цены по email
+  - Добавление: кнопка `Cenová ponuka` в карточке товара и в конфигураторе на `/product/[slug]`
+  - Хранение: `localStorage` (`printexpert_quote_request_v1`, `printexpert_quote_contact_v1`)
+  - UI: индикатор в хедере рядом с корзиной (показывается только при `items > 0`), по клику открывается `Sheet`
+  - Отправка: `POST /api/quote-request` (`contact`, `items`, optional `note`, optional `website` honeypot)
+  - Для товара со страницы конфигуратора в dopyt передаются выбранные параметры (množstvo, rozmery, voľby, cena)
 - **Cenová ponuka (PDF):** Генерация предварительного расчёта цены из корзины
   - API: `GET /api/cart/quote`
   - Кнопка в корзине для B2B пользователей

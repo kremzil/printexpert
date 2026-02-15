@@ -41,6 +41,10 @@ import { Button } from "@/components/ui/button"
 import { DesignEditor, type DesignElement } from "@/components/print/design-editor"
 import { LoginDialog } from "@/components/auth/login-dialog"
 import { toast } from "sonner"
+import {
+  QUOTE_REQUEST_UPDATED_EVENT,
+  upsertQuoteRequestItem,
+} from "@/lib/quote-request-store"
 
 export type DesignerConfig = {
   enabled: boolean
@@ -64,6 +68,7 @@ type ProductPageClientProps = {
     images: Array<{ url: string; alt?: string | null }>
   }>
   product: {
+    slug: string
     name: string
     excerptHtml?: string | null
     descriptionHtml?: string | null
@@ -316,6 +321,33 @@ function RealConfiguratorSection({
     return () => observer.disconnect()
   }, [])
 
+  const handleAddQuoteRequest = () => {
+    if (mode !== "b2b" || hasUnavailable || total === null) {
+      return
+    }
+
+    const dimensions =
+      width !== null && height !== null ? `${width} × ${height} ${dimUnit}` : null
+
+    upsertQuoteRequestItem({
+      slug: product.slug,
+      name: product.name,
+      imageUrl: product.images[0]?.url ?? "",
+      imageAlt: product.images[0]?.alt ?? product.name,
+      addedAt: new Date().toISOString(),
+      configuration: {
+        quantity,
+        dimensions,
+        options: summaryItems,
+        totalPrice: total,
+      },
+    })
+    window.dispatchEvent(new Event(QUOTE_REQUEST_UPDATED_EVENT))
+    toast.success("Produkt bol pridaný do dopytu", {
+      description: "Konfigurácia je uložená v zozname cenovej ponuky.",
+    })
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="space-y-8 lg:col-span-2">
@@ -518,6 +550,8 @@ function RealConfiguratorSection({
           getTotalForQuantity={getTotalForQuantity}
           activeQuantity={quantity}
           onAddToCart={addToCart}
+          onAddQuoteRequest={handleAddQuoteRequest}
+          isQuoteRequestDisabled={hasUnavailable || total === null}
           showFloatingBar={showFloatingBar}
           shareSection={
             isTopShareVisible ? null : (
