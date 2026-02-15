@@ -290,6 +290,12 @@ function RealConfiguratorSection({
     useQuantitySelect,
     visibleMatrices,
     total,
+    productionSpeedOptions,
+    productionSpeedId,
+    setProductionSpeedId,
+    productionLeadTimeLabel,
+    shipmentDateLabel,
+    shipmentDateText,
     hasUnavailable,
     summaryItems,
     quantityPresets,
@@ -420,6 +426,20 @@ function RealConfiguratorSection({
                   </label>
                 </div>
               ) : null}
+
+              <ConfiguratorOption
+                mode={mode}
+                label="Rýchlosť výroby"
+                selected={productionSpeedId}
+                onSelect={(value) =>
+                  setProductionSpeedId(value as "standard" | "accelerated")
+                }
+                options={productionSpeedOptions.map((option) => ({
+                  id: option.id,
+                  label: option.label,
+                  recommended: option.id === "standard",
+                }))}
+              />
             </div>
 
             {visibleMatrices.map((matrix) => (
@@ -552,6 +572,9 @@ function RealConfiguratorSection({
           onAddToCart={addToCart}
           onAddQuoteRequest={handleAddQuoteRequest}
           isQuoteRequestDisabled={hasUnavailable || total === null}
+          leadTimeLabel={productionLeadTimeLabel}
+          shipmentDateLabel={shipmentDateLabel}
+          shipmentDateText={shipmentDateText}
           showFloatingBar={showFloatingBar}
           shareSection={
             isTopShareVisible ? null : (

@@ -21,6 +21,9 @@ export function RealConfiguratorPanel({
   onAddToCart,
   onAddQuoteRequest,
   isQuoteRequestDisabled,
+  leadTimeLabel,
+  shipmentDateLabel,
+  shipmentDateText,
   showFloatingBar,
   shareSection,
 }: {
@@ -36,12 +39,14 @@ export function RealConfiguratorPanel({
   onAddToCart: () => void
   onAddQuoteRequest?: () => void
   isQuoteRequestDisabled?: boolean
+  leadTimeLabel: string
+  shipmentDateLabel: string
+  shipmentDateText: string
   showFloatingBar: boolean
   shareSection?: ReactNode
 }) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
-  const leadTime = "2-3 pracovné dni"
   const isAddToCartDisabled = isAddingToCart || hasUnavailable || price === null
   const buyButtonRef = useRef<HTMLDivElement | null>(null)
   const [isBuyButtonVisible, setIsBuyButtonVisible] = useState(false)
@@ -147,7 +152,12 @@ export function RealConfiguratorPanel({
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Dodanie:</span>
-                <span className="font-medium">{leadTime}</span>
+                <span className="font-medium">{leadTimeLabel}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">{shipmentDateLabel}:</span>
+                <span className="font-medium">{shipmentDateText}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Truck className="h-4 w-4 text-muted-foreground" />

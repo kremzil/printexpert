@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getCsrfHeader } from "@/lib/csrf"
+import { calculateShipmentDate } from "@/lib/shipment-date"
 
 export type WpConfiguratorData = {
   product_id: string
@@ -48,9 +49,36 @@ type PriceResult = {
 const DEFAULT_PRESETS = [100, 250, 500, 1000, 2500]
 
 type MatrixSelectionMap = Record<string, Record<string, string>>
+type ProductionSpeedId = "standard" | "accelerated"
+type ProductionSpeedOption = {
+  id: ProductionSpeedId
+  label: string
+  percent: number
+  days: number
+}
 
 const FALLBACK_DIM_UNIT = "cm"
 const FALLBACK_A_UNIT = 1
+const PRODUCTION_SPEED_OPTIONS: ProductionSpeedOption[] = [
+  {
+    id: "standard",
+    label: "Štandardná (do 5 dní)",
+    percent: 0,
+    days: 5,
+  },
+  {
+    id: "accelerated",
+    label: "Zrýchlene (do 2 dní)",
+    percent: 30,
+    days: 2,
+  },
+]
+const SHIPMENT_DATE_LABEL = "U Vás na adrese"
+const SHIPMENT_CUTOFF_HOUR = 13
+const SHIPMENT_CUTOFF_MINUTE = 0
+const SHIPMENT_EXCLUDE_WEEKEND_DAYS = true
+const SHIPMENT_TIME_ZONE = "Europe/Bratislava"
+const SHIPMENT_DELIVERY_DAYS = 1
 
 function parseNumber(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") {
@@ -334,10 +362,30 @@ export function useWpConfigurator({
   const [height, setHeight] = useState<number | null>(
     hasAreaSizing ? minHeight : null
   )
+  const [productionSpeedId, setProductionSpeedId] =
+    useState<ProductionSpeedId>("standard")
   const [serverError, setServerError] = useState<string | null>(null)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
 
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
+  const productionSpeedOptions = PRODUCTION_SPEED_OPTIONS
+  const selectedProductionSpeed = useMemo(
+    () =>
+      productionSpeedOptions.find((option) => option.id === productionSpeedId) ??
+      productionSpeedOptions[0],
+    [productionSpeedId, productionSpeedOptions]
+  )
+  const productionLeadTimeLabel = selectedProductionSpeed.label
+
+  const shipmentDateText = useMemo(() => {
+    return calculateShipmentDate({
+      productionDays: selectedProductionSpeed.days + SHIPMENT_DELIVERY_DAYS,
+      cutoffHour: SHIPMENT_CUTOFF_HOUR,
+      cutoffMinute: SHIPMENT_CUTOFF_MINUTE,
+      excludeWeekendDays: SHIPMENT_EXCLUDE_WEEKEND_DAYS,
+      timeZone: SHIPMENT_TIME_ZONE,
+    }).formattedDate
+  }, [selectedProductionSpeed.days])
 
   useEffect(() => {
     setQuantity(initialQuantity)
@@ -564,8 +612,12 @@ export function useWpConfigurator({
       return null
     }
 
-    return perMatrix.reduce((sum, entry) => sum + (entry.price ?? 0), 0)
-  }, [perMatrix])
+    let totalPrice = perMatrix.reduce((sum, entry) => sum + (entry.price ?? 0), 0)
+    if (selectedProductionSpeed.percent !== 0) {
+      totalPrice += totalPrice * (selectedProductionSpeed.percent / 100)
+    }
+    return totalPrice
+  }, [perMatrix, selectedProductionSpeed.percent])
 
   const hasUnavailable = perMatrix.some((entry) => entry.price === -1)
   const visibleMatrices = useMemo(
@@ -586,8 +638,9 @@ export function useWpConfigurator({
         items.push({ label: select.label, value: option.label })
       }
     }
+    items.push({ label: "Rýchlosť výroby", value: selectedProductionSpeed.label })
     return items
-  }, [selections, visibleMatrices])
+  }, [selections, selectedProductionSpeed.label, visibleMatrices])
 
   const quantityPresets = useMemo(() => {
     if (baseBreakpoints.length > 0) {
@@ -605,7 +658,11 @@ export function useWpConfigurator({
     if (list.some((entry) => entry.price === -1 || entry.price === null)) {
       return null
     }
-    return list.reduce((sum, entry) => sum + (entry.price ?? 0), 0)
+    let totalPrice = list.reduce((sum, entry) => sum + (entry.price ?? 0), 0)
+    if (selectedProductionSpeed.percent !== 0) {
+      totalPrice += totalPrice * (selectedProductionSpeed.percent / 100)
+    }
+    return totalPrice
   }
 
   const addToCart = async () => {
@@ -633,6 +690,7 @@ export function useWpConfigurator({
           }
         }
       }
+      selectedAttributes["Rýchlosť výroby"] = selectedProductionSpeed.label
 
       const priceResponse = await fetch("/api/price", {
         method: "POST",
@@ -644,6 +702,7 @@ export function useWpConfigurator({
             width,
             height,
             selections,
+            productionSpeedPercent: selectedProductionSpeed.percent,
           },
         }),
       })
@@ -679,6 +738,7 @@ export function useWpConfigurator({
           selectedOptions: {
             ...selections,
             _attributes: selectedAttributes,
+            _productionSpeed: selectedProductionSpeed,
           },
           priceSnapshot: {
             ...perUnitPrice,
@@ -723,6 +783,12 @@ export function useWpConfigurator({
     useQuantitySelect,
     visibleMatrices,
     total,
+    productionSpeedOptions,
+    productionSpeedId,
+    setProductionSpeedId,
+    productionLeadTimeLabel,
+    shipmentDateLabel: SHIPMENT_DATE_LABEL,
+    shipmentDateText,
     hasUnavailable,
     summaryItems,
     quantityPresets,

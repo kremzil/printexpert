@@ -1,6 +1,6 @@
 # Система корзины и заказов
 
-Дата обновления: 2026-02-09
+Дата обновления: 2026-02-15
 
 ## Общее описание
 
@@ -54,6 +54,9 @@ model CartItem {
 **Особенности:**
 - `priceSnapshot` — кэшированная цена для UI (не используется при создании заказа!)
 - `selectedOptions` — JSON с выбранными опциями калькулятора
+- `selectedOptions` также может содержать служебные поля:
+  - `_attributes` — человекочитаемые подписи для UI/админки
+  - `_productionSpeed` — выбранная скорость производства (`id`, `label`, `percent`, `days`)
 - `designData` — данные из Design Studio (массив элементов дизайна)
 - `width`, `height` — параметры размеров (Decimal для точности)
 
@@ -213,6 +216,9 @@ const existingItem = cart.items.find(
 );
 ```
 
+Товары с одинаковыми параметрами, но разной `Rýchlosť výroby`, не объединяются
+в одну строку корзины, так как `selectedOptions` отличается.
+
 ### lib/orders.ts
 
 **Функции для управления заказами:**
@@ -251,6 +257,28 @@ const itemNet = new Prisma.Decimal(freshPrice.net);
 const itemVat = new Prisma.Decimal(freshPrice.vatAmount);
 const itemGross = new Prisma.Decimal(freshPrice.gross);
 ```
+
+### Rýchlosť výroby в серверном пересчёте
+
+Скорость производства хранится в `selectedOptions._productionSpeed` и при
+оформлении/оплате передаётся в `calculate(...)` как `productionSpeedPercent`.
+
+Задействованные места:
+- `lib/orders.ts`
+- `app/api/stripe/checkout-session/route.ts`
+- `app/api/stripe/payment-intent/route.ts`
+
+Для старых записей без `_productionSpeed` используется значение `0`.
+
+### Display Shipment date (страница товара)
+
+На странице товара показывается строка `U Vás na adrese` с датой доставки.
+Расчёт выполняется в `lib/shipment-date.ts` по правилам:
+
+- исключаются выходные (суббота/воскресенье)
+- после `13:00` старт считается со следующего рабочего дня
+- таймзона: `Europe/Bratislava`
+- к сроку производства добавляется `+1` день доставки
 
 **Сериализация Decimal для клиента:**
 ```typescript
@@ -618,7 +646,7 @@ export interface OrderData {
 
 ## Интеграция с калькулятором цен
 
-### Страница товара (components/product/price-calculator-letaky.tsx)
+### Страница товара (актуально: `components/print/use-wp-configurator.ts` и `app/(site)/(content)/product/[slug]/product-page-client.tsx`)
 
 **Обе кнопки добавляют в корзину:**
 - Кнопка “Nahrať grafiku a objednať” позволяет выбрать файл, который отображается в корзине и загружается после оформления заказа.
@@ -637,6 +665,7 @@ const addToCart = async (uploadNow: boolean) => {
       width: formData.customWidth,
       height: formData.customHeight,
       selectedOptions: formData.options,
+      productionSpeedPercent: formData.productionSpeedPercent,
     }),
   });
   
@@ -652,6 +681,9 @@ const addToCart = async (uploadNow: boolean) => {
       width: formData.customWidth,
       height: formData.customHeight,
       selectedOptions: formData.options,
+      // включая служебные поля:
+      // _attributes["Rýchlosť výroby"]
+      // _productionSpeed { id, label, percent, days }
       priceSnapshot: {
         net: priceData.net,
         vatAmount: priceData.vatAmount,

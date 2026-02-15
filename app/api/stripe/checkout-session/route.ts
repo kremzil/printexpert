@@ -18,6 +18,38 @@ const resolveAudience = (value: string): Audience => {
   return value === "b2b" ? "b2b" : "b2c";
 };
 
+const parseSelectionsFromOptions = (
+  selectedOptions: unknown
+): Record<string, Record<string, string>> | undefined => {
+  if (!selectedOptions || typeof selectedOptions !== "object" || Array.isArray(selectedOptions)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(selectedOptions as Record<string, unknown>).filter(
+    ([key, value]) => !key.startsWith("_") && Boolean(value) && typeof value === "object" && !Array.isArray(value)
+  );
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries) as Record<string, Record<string, string>>;
+};
+
+const parseProductionSpeedPercent = (selectedOptions: unknown): number => {
+  if (!selectedOptions || typeof selectedOptions !== "object" || Array.isArray(selectedOptions)) {
+    return 0;
+  }
+
+  const raw = (selectedOptions as Record<string, unknown>)._productionSpeed;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return 0;
+  }
+
+  const percent = Number((raw as { percent?: unknown }).percent ?? 0);
+  return Number.isFinite(percent) ? percent : 0;
+};
+
 export async function POST(req: NextRequest) {
   try {
     if (!stripe || !stripeSecretKey) {
@@ -79,12 +111,8 @@ export async function POST(req: NextRequest) {
     let total = new Prisma.Decimal(0);
 
     for (const item of order.items) {
-      const selections =
-        item.selectedOptions &&
-        typeof item.selectedOptions === "object" &&
-        !Array.isArray(item.selectedOptions)
-          ? (item.selectedOptions as Record<string, Record<string, string>>)
-          : undefined;
+      const selections = parseSelectionsFromOptions(item.selectedOptions);
+      const productionSpeedPercent = parseProductionSpeedPercent(item.selectedOptions);
 
       const freshPrice = await calculate(
         item.productId,
@@ -93,6 +121,7 @@ export async function POST(req: NextRequest) {
           width: item.width ? Number(item.width) : null,
           height: item.height ? Number(item.height) : null,
           selections,
+          productionSpeedPercent,
         },
         audienceContext
       );

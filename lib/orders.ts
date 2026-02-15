@@ -17,6 +17,38 @@ function generateOrderNumber(): string {
   return `ORD-${timestamp}-${random}`;
 }
 
+function parseSelectionsFromOptions(
+  selectedOptions: unknown
+): Record<string, Record<string, string>> | undefined {
+  if (!selectedOptions || typeof selectedOptions !== "object" || Array.isArray(selectedOptions)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(selectedOptions as Record<string, unknown>).filter(
+    ([key, value]) => !key.startsWith("_") && Boolean(value) && typeof value === "object" && !Array.isArray(value)
+  );
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries) as Record<string, Record<string, string>>;
+}
+
+function parseProductionSpeedPercent(selectedOptions: unknown): number {
+  if (!selectedOptions || typeof selectedOptions !== "object" || Array.isArray(selectedOptions)) {
+    return 0;
+  }
+
+  const raw = (selectedOptions as Record<string, unknown>)._productionSpeed;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return 0;
+  }
+
+  const percent = Number((raw as { percent?: unknown }).percent ?? 0);
+  return Number.isFinite(percent) ? percent : 0;
+}
+
 /**
  * Создать заказ из корзины
  */
@@ -42,10 +74,8 @@ export async function createOrder(
 
   for (const item of cart.items) {
     // Серверный пересчёт цены
-    const selections =
-      item.selectedOptions && typeof item.selectedOptions === "object" && !Array.isArray(item.selectedOptions)
-        ? (item.selectedOptions as Record<string, Record<string, string>>)
-        : undefined;
+    const selections = parseSelectionsFromOptions(item.selectedOptions);
+    const productionSpeedPercent = parseProductionSpeedPercent(item.selectedOptions);
 
     const freshPrice = await calculate(
       item.productId,
@@ -54,6 +84,7 @@ export async function createOrder(
         width: item.width ? parseFloat(item.width.toString()) : null,
         height: item.height ? parseFloat(item.height.toString()) : null,
         selections,
+        productionSpeedPercent,
       },
       audienceContext
     );

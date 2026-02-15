@@ -37,6 +37,56 @@
    - production speed (%)
    - user discount (%)
 
+## Rýchlosť výroby (текущее поведение)
+
+В текущем конфигураторе (`components/print/use-wp-configurator.ts`) используется
+статический список скоростей:
+
+- `Štandardná (do 5 dní)` → `0%`
+- `Zrýchlene (do 2 dní)` → `+30%`
+
+### Как применяется к цене
+
+- На клиенте (предпросмотр) надбавка применяется к сумме матриц:
+  `total += total * (productionSpeedPercent / 100)`
+- На сервере (source of truth) надбавка также применяется в `calculate(...)`
+  через `params.productionSpeedPercent`.
+
+### Где сервер берет productionSpeedPercent
+
+Выбранная скорость сохраняется в `selectedOptions` как служебное поле:
+
+```json
+{
+  "_productionSpeed": {
+    "id": "accelerated",
+    "label": "Zrýchlene (do 2 dní)",
+    "percent": 30,
+    "days": 2
+  }
+}
+```
+
+При оформлении заказа и Stripe-пересчёте это поле читается и передается в:
+
+- `lib/orders.ts` → `calculate(...)`
+- `app/api/stripe/checkout-session/route.ts` → `calculate(...)`
+- `app/api/stripe/payment-intent/route.ts` → `calculate(...)`
+
+Если поле отсутствует (старые записи), используется `0%`.
+
+## Display Shipment date (UI)
+
+Отображение даты `U Vás na adrese` рассчитывается отдельно от цены и не меняет
+`net/vat/gross`.
+
+Логика находится в `lib/shipment-date.ts`:
+
+- исключаются выходные (сб/вс)
+- если заказ после `13:00`, старт со следующего рабочего дня
+- таймзона `Europe/Bratislava`
+- к сроку производства добавляется `+1` день на доставку
+
 ## Выбор цен по матрице
 
 Для каждого `nmbVal`:
