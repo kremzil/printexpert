@@ -134,6 +134,7 @@ async function CatalogContent({
     excerpt: product.excerpt,
     description: product.description,
     priceFrom: product.priceFrom,
+    priceAfterDiscountFrom: product.priceAfterDiscountFrom,
     images: product.images ?? [],
     categoryId: product.categoryId,
     isTopProduct: topProductIdSet.has(product.id),

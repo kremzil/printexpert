@@ -295,6 +295,17 @@ async function AdminProductDetails({
                   DPH sa nastavuje globálne v Nastavenia &gt; Obchod.
                 </p>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="priceAfterDiscountFrom">Cena po zľave od</Label>
+                <Input
+                  id="priceAfterDiscountFrom"
+                  name="priceAfterDiscountFrom"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  defaultValue={product.priceAfterDiscountFrom?.toString() ?? ""}
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-between text-sm text-muted-foreground">

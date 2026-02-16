@@ -400,7 +400,9 @@ designerConfig={product.designerEnabled ? {
 ### Client Component (`product-page-client.tsx`)
 
 Если `designerConfig` не null:
-1. После блока «Nahrajte podklady» показывает карточку с кнопкой **«Otvoriť dizajnér»**.
+1. В блоке конфигурации товара показывает карточку с кнопкой **«Otvoriť dizajnér»**.
+   - Для товаров с матрицами — после блока «Nahrajte podklady».
+   - Для товаров без матриц — без блока загрузки файла.
 2. **Гейт авторизации:** если `isLoggedIn=false`, кнопка оборачивается в `LoginDialog` — при клике открывается диалог входа с toast-уведомлением «Design Studio je dostupné len pre prihlásených používateľov». Если `isLoggedIn=true` — кнопка открывает редактор напрямую.
 3. Кнопка переключает `showDesigner` state.
 4. Overlay рендерится через **`createPortal(…, document.body)`** с `z-[9999]` — обход stacking context заголовка (`sticky top-0 z-50`).
@@ -461,7 +463,7 @@ SQL миграция (`add_order_item_design_data`):
 |----------|-----------|
 | Админ включает чекбокс | Раскрываются настройки canvas + секция шаблонов |
 | Админ сохраняет форму | Все designer-поля пишутся в Product |
-| Клиент открывает товар | Видит кнопку «Otvoriť dizajnér» после блока загрузки файлов |
+| Клиент открывает товар | Видит кнопку «Otvoriť dizajnér» в блоке конфигурации (для матричных — после загрузки файлов) |
 | Неавторизованный клиент нажимает кнопку | Открывается диалог входа + toast-уведомление |
 | Авторизованный клиент нажимает кнопку | Открывается полноэкранный canvas-редактор (portal в body) |
 | Клиент добавляет текст | Элемент появляется на canvas, в панели слоёв, в properties |

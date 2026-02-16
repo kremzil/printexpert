@@ -190,6 +190,7 @@ async function ProductDetails({
         name: item.name,
         excerpt: excerptText,
         priceFrom: item.priceFrom,
+        priceAfterDiscountFrom: item.priceAfterDiscountFrom,
         images: item.images ?? [],
       }
     })
@@ -204,6 +205,8 @@ async function ProductDetails({
       product={{
         slug: product.slug,
         name: product.name,
+        priceFrom: product.priceFrom ?? null,
+        priceAfterDiscountFrom: product.priceAfterDiscountFrom ?? null,
         excerptHtml,
         descriptionHtml,
         images: product.images ?? [],

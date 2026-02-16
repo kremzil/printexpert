@@ -870,6 +870,7 @@ export async function calculate(
     select: {
       priceType: true,
       priceFrom: true,
+      priceAfterDiscountFrom: true,
       wpProductId: true,
     },
   })
@@ -881,16 +882,24 @@ export async function calculate(
   const settings = await getShopSettings()
   const vatRate = settings.vatRate
   const pricesIncludeVat = settings.pricesIncludeVat
+  const safeQuantity =
+    typeof params.quantity === "number" && params.quantity > 0
+      ? params.quantity
+      : 1
+  const baseUnitNetDecimal = product.priceAfterDiscountFrom ?? product.priceFrom
+  const baseUnitNet = baseUnitNetDecimal
+    ? Number(baseUnitNetDecimal.toString())
+    : null
   let net = null as number | null
 
   if (product.priceType === "FIXED") {
-    net = product.priceFrom ? Number(product.priceFrom.toString()) : null
+    net = baseUnitNet === null ? null : baseUnitNet * safeQuantity
   } else {
     const calculatorData = await buildCalculatorDataFromPricingModels(productId)
     if (calculatorData) {
       net = calculateMatrixTotal(calculatorData, params)
     } else {
-      net = product.priceFrom ? Number(product.priceFrom.toString()) : null
+      net = baseUnitNet === null ? null : baseUnitNet * safeQuantity
     }
   }
 

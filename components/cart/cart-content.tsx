@@ -115,6 +115,9 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
   const totalWithVAT = initialCart.totals.total + shippingCost;
   const vatAmount = initialCart.totals.vatAmount + shippingCost * normalizeVatRate;
   const totalWithoutVAT = totalWithVAT - vatAmount;
+  const hasMatrixItems = initialCart.items.some(
+    (item) => item.product.priceType?.toUpperCase() === "MATRIX"
+  );
 
   const getNetVat = (grossValue: number) => {
     const net = grossValue / (1 + normalizeVatRate);
@@ -350,7 +353,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
           ) : null}
         </div>
 
-        {pendingUpload?.file ? (
+        {pendingUpload?.file && hasMatrixItems ? (
           <div className="mb-6 rounded-[10px] border-2 border-[#ffa2a2] bg-[#fef2f2] px-[18px] pb-[2px] pt-[18px]">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#c10007]" />
@@ -370,6 +373,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
           <div className="space-y-4 lg:col-span-2">
             {initialCart.items.map((item, index) => {
               const isUpdating = updatingItems.has(item.id);
+              const isMatrixItem = item.product.priceType?.toUpperCase() === "MATRIX";
               const itemPrice = item.priceSnapshot?.gross || 0;
               const itemTotal = itemPrice * item.quantity;
               const attributes = getSelectedOptionAttributes(item.selectedOptions);
@@ -453,24 +457,26 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                         </div>
                       </div>
 
-                      <div className="mb-3">
-                        {pendingUpload?.file && index === 0 ? (
-                          <div className="flex items-center gap-2 text-[12px] leading-[16px] text-[#00a63e]">
-                            <FileCheck className="h-3.5 w-3.5" />
-                            <span>Súbor: {pendingUpload.file.name}</span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/product/${item.product.slug}`)}
-                            className="flex items-center gap-2 text-[12px] leading-[16px] transition-colors hover:underline"
-                            style={{ color: modeColor }}
-                          >
-                            <Upload className="h-3.5 w-3.5" />
-                            <span>Nahrať súbor</span>
-                          </button>
-                        )}
-                      </div>
+                      {isMatrixItem ? (
+                        <div className="mb-3">
+                          {pendingUpload?.file && index === 0 ? (
+                            <div className="flex items-center gap-2 text-[12px] leading-[16px] text-[#00a63e]">
+                              <FileCheck className="h-3.5 w-3.5" />
+                              <span>Súbor: {pendingUpload.file.name}</span>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/product/${item.product.slug}`)}
+                              className="flex items-center gap-2 text-[12px] leading-[16px] transition-colors hover:underline"
+                              style={{ color: modeColor }}
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              <span>Nahrať súbor</span>
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
 
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2">

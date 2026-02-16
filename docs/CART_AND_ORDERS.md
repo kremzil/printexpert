@@ -648,8 +648,13 @@ export interface OrderData {
 
 ### Страница товара (актуально: `components/print/use-wp-configurator.ts` и `app/(site)/(content)/product/[slug]/product-page-client.tsx`)
 
-**Обе кнопки добавляют в корзину:**
+**Для товаров с матрицами:**
 - Кнопка “Nahrať grafiku a objednať” позволяет выбрать файл, который отображается в корзине и загружается после оформления заказа.
+
+**Для товаров без матриц (simple/fixed fallback):**
+- Блок загрузки файла на странице товара не показывается.
+- В корзине для таких позиций не показывается действие “Nahrať súbor”.
+
 ```typescript
 const addToCart = async (uploadNow: boolean) => {
   // Важно: для state-changing запросов используем CSRF header.

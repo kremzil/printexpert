@@ -611,6 +611,9 @@ export async function updateProductDetails(
   const excerptInput = String(formData.get("excerpt") ?? "")
   const descriptionInput = String(formData.get("description") ?? "")
   const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
+  const priceAfterDiscountFromRaw = String(
+    formData.get("priceAfterDiscountFrom") ?? ""
+  ).trim()
   const showInB2bRaw = String(formData.get("showInB2b") ?? "").trim()
   const showInB2cRaw = String(formData.get("showInB2c") ?? "").trim()
   const isActiveRaw = String(formData.get("isActive") ?? "").trim()
@@ -631,9 +634,15 @@ export async function updateProductDetails(
   const priceFromValue = normalizedPriceFrom
     ? Number(normalizedPriceFrom)
     : null
+  const normalizedPriceAfterDiscountFrom = priceAfterDiscountFromRaw.replace(",", ".")
+  const priceAfterDiscountFromValue = normalizedPriceAfterDiscountFrom
+    ? Number(normalizedPriceAfterDiscountFrom)
+    : null
 
   if (
-    normalizedPriceFrom && Number.isNaN(priceFromValue)
+    (normalizedPriceFrom && Number.isNaN(priceFromValue)) ||
+    (normalizedPriceAfterDiscountFrom &&
+      Number.isNaN(priceAfterDiscountFromValue))
   ) {
     return
   }
@@ -671,6 +680,9 @@ export async function updateProductDetails(
       excerpt: excerpt || null,
       description: description || null,
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
+      priceAfterDiscountFrom: normalizedPriceAfterDiscountFrom
+        ? normalizedPriceAfterDiscountFrom
+        : null,
       isActive: nextIsActive,
       showInB2b: nextShowInB2b,
       showInB2c: nextShowInB2c,

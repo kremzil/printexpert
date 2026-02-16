@@ -48,6 +48,7 @@ type FeaturedProduct = {
   excerpt?: string | null
   description?: string | null
   priceFrom?: string | null
+  priceAfterDiscountFrom?: string | null
   images?: Array<{ url: string; alt?: string | null }>
 }
 

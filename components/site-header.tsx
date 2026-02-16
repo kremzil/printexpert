@@ -39,7 +39,6 @@ import { auth } from "@/auth"
 import { buildCategoryTree } from "@/lib/category-tree"
 import { SiteHeaderClient } from "./site-header-client"
 
-const MAX_PRODUCTS_PER_SUBCATEGORY = 6
 const MAX_PRODUCTS_PER_CATEGORY = 12
 type AuthSession = Session | null
 
@@ -69,17 +68,13 @@ const getCachedNavData = unstable_cache(
     const limitByCategoryId = new Map<string, number>()
     rootCategories.forEach((category) => {
       const children = childrenByParentId.get(category.id) ?? []
-      if (children.length > 0) {
-        children.forEach((child) =>
-          limitByCategoryId.set(child.id, MAX_PRODUCTS_PER_SUBCATEGORY)
-        )
-      } else {
+      if (children.length === 0) {
         limitByCategoryId.set(category.id, MAX_PRODUCTS_PER_CATEGORY)
       }
     })
 
     const allCategoryIds = Array.from(limitByCategoryId.keys())
-    const maxTake = Math.max(MAX_PRODUCTS_PER_SUBCATEGORY, MAX_PRODUCTS_PER_CATEGORY)
+    const maxTake = MAX_PRODUCTS_PER_CATEGORY
 
     const allProducts = allCategoryIds.length > 0
       ? await prisma.product.findMany({
@@ -140,23 +135,19 @@ async function AudienceNavigation({
         {rootCategories.length === 0 ? (
           <NavigationMenuItem>
             <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-              <Link href="/kategorie">Kategórie</Link>
+              <Link href="/catalog">Kategórie</Link>
             </NavigationMenuLink>
           </NavigationMenuItem>
         ) : (
           rootCategories.map((category) => {
             const children = childrenByParentId.get(category.id) ?? []
             const hasSubcategories = children.length > 0
-            
-            // If we have subcategories, we group products by them.
-            // If not, we just show the products of the root category.
             const sections = hasSubcategories 
               ? children.map(child => ({
                   id: child.id,
                   name: child.name,
                   slug: child.slug,
-                  products: productsByCategoryId[child.id] ?? []
-                })).filter(section => section.products.length > 0)
+                }))
               : [{
                   id: category.id,
                   name: category.name,
@@ -164,8 +155,10 @@ async function AudienceNavigation({
                   products: productsByCategoryId[category.id] ?? []
                 }]
 
-            // If no products at all in this branch, maybe skip rendering or show "No products"
-            const totalProducts = sections.reduce((acc, s) => acc + s.products.length, 0)
+            const rootProducts =
+              !hasSubcategories && "products" in sections[0]
+                ? sections[0].products
+                : []
 
             return (
               <NavigationMenuItem key={category.id}>
@@ -182,7 +175,7 @@ async function AudienceNavigation({
                         </p>
                       </div>
                       <Link 
-                        href={`/kategorie?cat=${category.slug}`}
+                        href={`/catalog?cat=${category.slug}`}
                         className="text-sm font-medium text-primary hover:underline hover:underline-offset-4 flex items-center gap-1"
                       >
                         Všetky {category.name.toLowerCase()}
@@ -190,56 +183,29 @@ async function AudienceNavigation({
                       </Link>
                     </div>
 
-                    {totalProducts === 0 ? (
+                    {!hasSubcategories && rootProducts.length === 0 ? (
                       <div className="py-8 text-center text-muted-foreground">
                         Momentálne nedostupné žiadne produkty.
                       </div>
                     ) : (
-                      <div className={hasSubcategories ? "columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 block" : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"}>
+                      <div className={hasSubcategories ? "columns-1 md:columns-2 lg:columns-3 gap-6 space-y-3 block" : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"}>
                         {sections.map((section) => (
                           <div 
                             key={section.id} 
-                            className={hasSubcategories ? "break-inside-avoid mb-6 space-y-3" : "contents"}
+                            className={hasSubcategories ? "break-inside-avoid mb-3" : "contents"}
                           >
-                            {hasSubcategories && (
-                              <Link 
-                                href={`/kategorie?cat=${section.slug}`}
-                                className="block font-semibold text-foreground/90 hover:text-primary transition-colors mb-2"
-                              >
-                                {section.name}
-                              </Link>
-                            )}
-                            
                             {hasSubcategories ? (
-                              <ul className="space-y-2">
-                                {section.products.slice(0, 6).map((product) => (
-                                  <li key={product.id}>
-                                    <NavigationMenuLink asChild>
-                                      <Link
-                                        href={`/product/${product.slug}`}
-                                        className="block rounded-md p-2 text-sm leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                                      >
-                                        <div className="font-medium leading-none mb-1">{product.name}</div>
-                                      </Link>
-                                    </NavigationMenuLink>
-                                  </li>
-                                ))}
-                                {section.products.length > 6 && (
-                                  <li>
-                                    <NavigationMenuLink asChild>
-                                      <Link
-                                        href={`/kategorie?cat=${section.slug}`}
-                                        className="block rounded-md p-2 text-sm font-medium text-primary/80 hover:text-primary hover:bg-primary/5 transition-colors"
-                                      >
-                                        Zobraziť viac...
-                                      </Link>
-                                    </NavigationMenuLink>
-                                  </li>
-                                )}
-                              </ul>
+                              <NavigationMenuLink asChild>
+                                <Link 
+                                  href={`/catalog?cat=${section.slug}`}
+                                  className="block rounded-md p-2 text-sm font-semibold leading-none text-foreground/90 no-underline outline-none transition-colors hover:bg-accent hover:text-primary focus:bg-accent focus:text-primary"
+                                >
+                                  {section.name}
+                                </Link>
+                              </NavigationMenuLink>
                             ) : (
                               <>
-                                {section.products.slice(0, 12).map((product) => (
+                                {rootProducts.slice(0, 12).map((product) => (
                                   <NavigationMenuLink key={product.id} asChild>
                                     <Link
                                       href={`/product/${product.slug}`}
@@ -349,7 +315,7 @@ async function MobileMenu({
           </Link>
           {rootCategories.length === 0 ? (
             <Link
-              href="/kategorie"
+              href="/catalog"
               className="rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
             >
               Kategórie
@@ -357,10 +323,8 @@ async function MobileMenu({
           ) : (
             rootCategories.map((category) => {
               const children = childrenByParentId.get(category.id) ?? []
-              const items = children.length > 0 ? children : [category]
-              const productItems = items.flatMap((item) =>
-                productsByCategoryId[item.id] ?? []
-              )
+              const hasSubcategories = children.length > 0
+              const productItems = productsByCategoryId[category.id] ?? []
 
               return (
                 <Collapsible key={category.id} className="border-b border-border/50 pb-2">
@@ -369,7 +333,27 @@ async function MobileMenu({
                     <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-2">
-                    {productItems.length === 0 ? (
+                    <div className="mb-1 px-3">
+                      <Link
+                        href={`/catalog?cat=${category.slug}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Všetky {category.name.toLowerCase()} →
+                      </Link>
+                    </div>
+                    {hasSubcategories ? (
+                      <div className="flex flex-col gap-1 pl-3">
+                        {children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={`/catalog?cat=${child.slug}`}
+                            className="rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : productItems.length === 0 ? (
                       <div className="px-3 py-1 text-sm text-muted-foreground">
                         Žiadne produkty v tejto kategórii.
                       </div>

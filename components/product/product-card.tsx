@@ -22,6 +22,7 @@ type Props = {
     excerpt?: string | null
     description?: string | null
     priceFrom?: string | null
+    priceAfterDiscountFrom?: string | null
     images?: Array<{
       url: string
       alt?: string | null
@@ -62,8 +63,18 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
         }`
       : "")
 
-  const priceValue = Number(product.priceFrom)
-  const hasPrice = Number.isFinite(priceValue) && priceValue > 0
+  const basePriceValue = Number(product.priceFrom)
+  const discountPriceValue = Number(product.priceAfterDiscountFrom)
+  const hasBasePrice = Number.isFinite(basePriceValue) && basePriceValue > 0
+  const hasDiscountPrice =
+    Number.isFinite(discountPriceValue) && discountPriceValue > 0
+  const hasDiscount =
+    hasBasePrice && hasDiscountPrice && discountPriceValue < basePriceValue
+  const discountPercent = hasDiscount
+    ? Math.round(((basePriceValue - discountPriceValue) / basePriceValue) * 100)
+    : 0
+  const finalPrice = hasDiscount ? discountPriceValue : basePriceValue
+  const hasPrice = Number.isFinite(finalPrice) && finalPrice > 0
 
   const handleQuoteRequestAdd = () => {
     upsertQuoteRequestItem({
@@ -83,6 +94,11 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
         {product.isTopProduct ? (
           <Badge className="absolute left-3 top-3 z-10 bg-green-100 text-green-700">
             NAJPREDÁVANEJŠIE
+          </Badge>
+        ) : null}
+        {hasDiscount && discountPercent > 0 ? (
+          <Badge className="absolute right-3 top-3 z-10 bg-red-100 text-red-700">
+            ZĽAVA -{discountPercent}%
           </Badge>
         ) : null}
         {primaryImage?.url ? (
@@ -112,7 +128,13 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
 
         <div className="mt-auto">
           {hasPrice ? (
-            <PriceDisplay price={priceValue} mode={mode} size="md" showFrom />
+            <PriceDisplay
+              price={finalPrice}
+              oldPrice={hasDiscount ? basePriceValue : undefined}
+              mode={mode}
+              size="md"
+              showFrom
+            />
           ) : (
             <div className="text-sm text-muted-foreground">Na vyžiadanie</div>
           )}

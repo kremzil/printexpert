@@ -31,10 +31,12 @@ const PRODUCT_FIELD_OPTIONS = [
   { value: "slug", label: "Slug" },
   { value: "name", label: "Názov" },
   { value: "categorySlug", label: "Kategória (slug)" },
+  { value: "categoryPath", label: "Kategória (cesta)" },
   { value: "wpProductId", label: "WP Product ID" },
   { value: "excerpt", label: "Krátky popis" },
   { value: "description", label: "Popis" },
   { value: "priceFrom", label: "Cena od" },
+  { value: "priceAfterDiscountFrom", label: "Cena po zľave od" },
   { value: "vatRate", label: "Sadzba DPH" },
   { value: "priceType", label: "Typ ceny" },
   { value: "isActive", label: "Aktívny" },
@@ -92,7 +94,13 @@ export function AdminProductsImportDialog() {
     const delimiter = firstLine.includes(";") ? ";" : ","
     const headers = firstLine
       .split(delimiter)
-      .map((value) => value.replace(/^\uFEFF/, "").trim())
+      .map((value) =>
+        value
+          .replace(/^\uFEFF/, "")
+          .trim()
+          .replace(/^"+|"+$/g, "")
+          .trim()
+      )
       .filter(Boolean)
     return Array.from(new Set(headers))
   }

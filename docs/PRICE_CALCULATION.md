@@ -37,6 +37,22 @@
    - production speed (%)
    - user discount (%)
 
+## Fixed и fallback без матриц (актуально)
+
+Серверный расчёт в `lib/pricing.ts` использует `safeQuantity`:
+
+- `safeQuantity = params.quantity > 0 ? params.quantity : 1`
+
+Далее:
+
+- если `priceType === "FIXED"`:
+  - `unitNet = priceAfterDiscountFrom ?? priceFrom`
+  - `net = unitNet * safeQuantity`
+- если `priceType !== "FIXED"` и у товара нет активных внутренних матриц (`PricingModel`):
+  - используется тот же fallback на `(priceAfterDiscountFrom ?? priceFrom) * safeQuantity`
+
+Это означает, что для товаров без матриц сервер в первую очередь использует скидочную цену `priceAfterDiscountFrom` (если заполнена), иначе `priceFrom`, и умножает её на количество.
+
 ## Rýchlosť výroby (текущее поведение)
 
 В текущем конфигураторе (`components/print/use-wp-configurator.ts`) используется
@@ -128,6 +144,7 @@
 - Поля ширины/высоты не нужны.
 - `nmbVal = quantity`
 - Цена берётся по брейкпоинтам без масштабирования ниже минимума.
+- Для товаров без матриц (fallback) сервер использует `(priceAfterDiscountFrom ?? priceFrom) * quantity`.
 
 ### Area (ntp = 2)
 - Поля ширины/высоты обязательны.
@@ -161,6 +178,17 @@
 
 Если условие не выполнено (ручной ввод количества или нет брейкпоинтов), блок
 `Objemové zľavy` не рендерится.
+
+### Страница товара без матриц
+
+Если для товара отсутствуют матрицы (`calculatorData = null`), на `/product/[slug]`
+используется упрощённый конфигуратор:
+
+- выбор количества (`QuantitySelector`)
+- итоговая цена из `(priceAfterDiscountFrom ?? priceFrom) * quantity`
+- без блока загрузки файла («Nahrajte podklady»)
+- добавление в корзину через `POST /api/price` + `POST /api/cart/add`
+- без блока `Objemové zľavy`
 
 ### Колонки таблицы
 

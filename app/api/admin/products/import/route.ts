@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 
 const MAX_ROWS = 5000
+const DEFAULT_CATEGORY_IMAGE = "/categories/velke-formaty.webp"
 
 type MappingRow = {
   csvColumn: string
@@ -23,6 +24,14 @@ type ImportResult = {
   skipped: number
   failed: number
   errors: string[]
+}
+
+type CategoryRecord = {
+  id: string
+  slug: string
+  name: string
+  image: string
+  parentId: string | null
 }
 
 const parseBoolean = (value: string | null | undefined) => {
@@ -38,6 +47,47 @@ const parseDecimal = (value: string | null | undefined) => {
   const normalized = value.replace(",", ".").trim()
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+type DecimalParseResult =
+  | { kind: "empty" }
+  | { kind: "invalid" }
+  | { kind: "value"; value: number }
+
+const parseDecimalDetailed = (value: string | null | undefined): DecimalParseResult => {
+  if (value === null || value === undefined) {
+    return { kind: "empty" }
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return { kind: "empty" }
+  }
+
+  const withoutSpaces = trimmed.replace(/\u00A0/g, " ").replace(/\s+/g, "")
+  const withoutCurrency = withoutSpaces.replace(/[€$]/g, "").replace(/'/g, "")
+
+  let normalized = withoutCurrency
+  const hasComma = normalized.includes(",")
+  const hasDot = normalized.includes(".")
+
+  if (hasComma && hasDot) {
+    const commaIndex = normalized.lastIndexOf(",")
+    const dotIndex = normalized.lastIndexOf(".")
+    normalized =
+      commaIndex > dotIndex
+        ? normalized.replace(/\./g, "").replace(",", ".")
+        : normalized.replace(/,/g, "")
+  } else if (hasComma) {
+    normalized = normalized.replace(",", ".")
+  }
+
+  const parsed = Number(normalized)
+  if (!Number.isFinite(parsed)) {
+    return { kind: "invalid" }
+  }
+
+  return { kind: "value", value: parsed }
 }
 
 const parseInteger = (value: string | null | undefined) => {
@@ -276,7 +326,12 @@ function parseDelimited(text: string, delimiter: string) {
 }
 
 function normalizeHeader(value: string) {
-  return value.replace(/^\uFEFF/, "").trim().toLowerCase()
+  return value
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .replace(/^"+|"+$/g, "")
+    .trim()
+    .toLowerCase()
 }
 
 function getHeaderIndex(headers: string[], name: string) {
@@ -290,6 +345,29 @@ function normalizePriceType(value: string | null | undefined): PriceType | null 
     return normalized as PriceType
   }
   return null
+}
+
+function normalizeCategorySlug(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-")
+  return normalized || "category"
+}
+
+function categoryNameKey(parentId: string | null, name: string) {
+  return `${parentId ?? "root"}::${name.trim().toLowerCase()}`
+}
+
+function parseCategoryPath(value: string) {
+  return value
+    .split(">")
+    .map((part) => part.trim())
+    .filter(Boolean)
 }
 
 export async function POST(request: Request) {
@@ -349,11 +427,82 @@ export async function POST(request: Request) {
 
   const defaults = parseDefaults(defaultsRaw)
 
-  const categoryBySlug = new Map<string, { id: string; slug: string }>()
+  const categoryBySlug = new Map<string, CategoryRecord>()
+  const categoryByParentAndName = new Map<string, CategoryRecord>()
+  const registerCategory = (category: CategoryRecord) => {
+    categoryBySlug.set(category.slug, category)
+    categoryByParentAndName.set(
+      categoryNameKey(category.parentId, category.name),
+      category
+    )
+  }
+
   const categories = await prisma.category.findMany({
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, name: true, image: true, parentId: true },
   })
-  categories.forEach((category) => categoryBySlug.set(category.slug, category))
+  categories.forEach((category) =>
+    registerCategory({
+      id: category.id,
+      slug: category.slug,
+      name: category.name,
+      image: category.image,
+      parentId: category.parentId,
+    })
+  )
+  const defaultCategoryImage =
+    categories.find((category) => !category.parentId)?.image ||
+    DEFAULT_CATEGORY_IMAGE
+
+  const resolveCategoryByPath = async (categoryPath: string) => {
+    const pathParts = parseCategoryPath(categoryPath)
+    if (pathParts.length === 0) {
+      return null
+    }
+
+    let parent: CategoryRecord | null = null
+    for (const part of pathParts) {
+      const existingByName = categoryByParentAndName.get(
+        categoryNameKey(parent?.id ?? null, part)
+      )
+      if (existingByName) {
+        parent = existingByName
+        continue
+      }
+
+      const baseSlug = normalizeCategorySlug(part)
+      const preferredSlug = parent ? `${parent.slug}-${baseSlug}` : baseSlug
+      let nextSlug = preferredSlug
+      let counter = 2
+      while (categoryBySlug.has(nextSlug)) {
+        nextSlug = `${preferredSlug}-${counter}`
+        counter += 1
+      }
+
+      const inheritedImage = parent?.image || defaultCategoryImage
+      const created: CategoryRecord = dryRun
+        ? {
+            id: `dry:${nextSlug}:${parent?.id ?? "root"}`,
+            slug: nextSlug,
+            name: part,
+            image: inheritedImage,
+            parentId: parent?.id ?? null,
+          }
+        : await prisma.category.create({
+            data: {
+              slug: nextSlug,
+              name: part,
+              image: inheritedImage,
+              parentId: parent?.id ?? null,
+            },
+            select: { id: true, slug: true, name: true, image: true, parentId: true },
+          })
+
+      registerCategory(created)
+      parent = created
+    }
+
+    return parent
+  }
 
   const mappingRows = mappings
     .map((row) => ({
@@ -403,8 +552,61 @@ export async function POST(request: Request) {
       const wpProductId = parseInteger(mappedData.wpProductId || defaults.wpProductId)
       if (wpProductId !== null) data.wpProductId = wpProductId
 
-      const priceFrom = parseDecimal(mappedData.priceFrom || defaults.priceFrom)
-      if (priceFrom !== null) data.priceFrom = priceFrom
+      const hasPriceFromInCsv = Object.prototype.hasOwnProperty.call(
+        mappedData,
+        "priceFrom"
+      )
+      const hasPriceFromDefault = Object.prototype.hasOwnProperty.call(
+        defaults,
+        "priceFrom"
+      )
+      const priceFromRaw =
+        mappedData.priceFrom && mappedData.priceFrom.trim().length > 0
+          ? mappedData.priceFrom
+          : defaults.priceFrom
+      if (hasPriceFromInCsv || hasPriceFromDefault) {
+        const parsedPriceFrom = parseDecimalDetailed(priceFromRaw)
+        if (parsedPriceFrom.kind === "invalid") {
+          result.failed += 1
+          result.errors.push(`Riadok ${rowNumber}: neplatná hodnota pre Cena od.`)
+          continue
+        }
+        if (parsedPriceFrom.kind === "value") {
+          data.priceFrom = parsedPriceFrom.value
+        } else if (hasPriceFromInCsv && !hasPriceFromDefault) {
+          // Keep DB in sync with CSV when mapped field is empty.
+          data.priceFrom = null
+        }
+      }
+
+      const hasDiscountPriceInCsv = Object.prototype.hasOwnProperty.call(
+        mappedData,
+        "priceAfterDiscountFrom"
+      )
+      const hasDiscountPriceDefault = Object.prototype.hasOwnProperty.call(
+        defaults,
+        "priceAfterDiscountFrom"
+      )
+      const discountPriceRaw =
+        mappedData.priceAfterDiscountFrom &&
+        mappedData.priceAfterDiscountFrom.trim().length > 0
+          ? mappedData.priceAfterDiscountFrom
+          : defaults.priceAfterDiscountFrom
+      if (hasDiscountPriceInCsv || hasDiscountPriceDefault) {
+        const parsedDiscountPrice = parseDecimalDetailed(discountPriceRaw)
+        if (parsedDiscountPrice.kind === "invalid") {
+          result.failed += 1
+          result.errors.push(
+            `Riadok ${rowNumber}: neplatná hodnota pre Cena po zľave od.`
+          )
+          continue
+        }
+        if (parsedDiscountPrice.kind === "value") {
+          data.priceAfterDiscountFrom = parsedDiscountPrice.value
+        } else if (hasDiscountPriceInCsv && !hasDiscountPriceDefault) {
+          data.priceAfterDiscountFrom = null
+        }
+      }
 
       const vatRate = parseDecimal(mappedData.vatRate || defaults.vatRate)
       if (vatRate !== null) data.vatRate = vatRate
@@ -421,15 +623,26 @@ export async function POST(request: Request) {
       const showInB2c = parseBoolean(mappedData.showInB2c || defaults.showInB2c)
       if (showInB2c !== null) data.showInB2c = showInB2c
 
-      const categorySlug = mappedData.categorySlug || defaults.categorySlug
-      if (categorySlug) {
-        const category = categoryBySlug.get(categorySlug)
+      const categoryPath = mappedData.categoryPath || defaults.categoryPath
+      if (categoryPath) {
+        const category = await resolveCategoryByPath(categoryPath)
         if (!category) {
           result.failed += 1
-          result.errors.push(`Riadok ${rowNumber}: kategória ${categorySlug} neexistuje.`)
+          result.errors.push(`Riadok ${rowNumber}: cesta kategórie je neplatná.`)
           continue
         }
         data.categoryId = category.id
+      } else {
+        const categorySlug = mappedData.categorySlug || defaults.categorySlug
+        if (categorySlug) {
+          const category = categoryBySlug.get(categorySlug)
+          if (!category) {
+            result.failed += 1
+            result.errors.push(`Riadok ${rowNumber}: kategória ${categorySlug} neexistuje.`)
+            continue
+          }
+          data.categoryId = category.id
+        }
       }
 
       const imageRaw = mappedData.imageUrl || defaults.imageUrl
@@ -570,6 +783,7 @@ export async function POST(request: Request) {
   if (!dryRun) {
     revalidatePath("/admin/products")
     revalidatePath("/catalog")
+    revalidatePath("/product/[slug]", "page")
     invalidateAllCatalog()
   }
 

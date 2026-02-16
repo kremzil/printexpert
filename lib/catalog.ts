@@ -9,6 +9,7 @@ import { versionedImageUrl } from "@/lib/utils";
 const serializeProduct = <
   T extends {
     priceFrom: { toString(): string } | null;
+    priceAfterDiscountFrom?: { toString(): string } | null;
     vatRate: { toString(): string };
   },
 >(
@@ -16,6 +17,9 @@ const serializeProduct = <
 ) => ({
   ...product,
   priceFrom: product.priceFrom ? product.priceFrom.toString() : null,
+  priceAfterDiscountFrom: product.priceAfterDiscountFrom
+    ? product.priceAfterDiscountFrom.toString()
+    : null,
   vatRate: product.vatRate.toString(),
 });
 /** Append cache-busting ?v=updatedAt to product image URLs */
@@ -87,13 +91,27 @@ const getCachedProducts = unstable_cache(
         },
       },
       orderBy: [{ name: "asc" }],
-      include: {
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        excerpt: true,
+        priceFrom: true,
+        priceAfterDiscountFrom: true,
+        vatRate: true,
+        categoryId: true,
+        updatedAt: true,
         images: {
+          take: 1,
           orderBy: [
             { isPrimary: "desc" },
             { sortOrder: "asc" },
             { id: "asc" },
           ],
+          select: {
+            url: true,
+            alt: true,
+          },
         },
       },
     });
@@ -183,6 +201,7 @@ export async function getCatalogProducts(options: {
         excerpt: true,
         description: true,
         priceFrom: true,
+        priceAfterDiscountFrom: true,
         vatRate: true,
         categoryId: true,
         images: {
@@ -293,6 +312,7 @@ const getCachedRelatedProducts = unstable_cache(
         name: true,
         excerpt: true,
         priceFrom: true,
+        priceAfterDiscountFrom: true,
         vatRate: true,
         images: {
           take: 1,

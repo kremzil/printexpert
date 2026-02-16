@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import {
@@ -45,6 +45,8 @@ import {
   QUOTE_REQUEST_UPDATED_EVENT,
   upsertQuoteRequestItem,
 } from "@/lib/quote-request-store"
+import { getCsrfHeader } from "@/lib/csrf"
+import { calculateShipmentDate } from "@/lib/shipment-date"
 
 export type DesignerConfig = {
   enabled: boolean
@@ -65,11 +67,14 @@ type ProductPageClientProps = {
     name: string
     excerpt?: string | null
     priceFrom?: string | null
+    priceAfterDiscountFrom?: string | null
     images: Array<{ url: string; alt?: string | null }>
   }>
   product: {
     slug: string
     name: string
+    priceFrom?: string | null
+    priceAfterDiscountFrom?: string | null
     excerptHtml?: string | null
     descriptionHtml?: string | null
     images: Array<{ url: string; alt?: string | null }>
@@ -102,6 +107,36 @@ const toPlainText = (value?: string | null) =>
 const normalizeShareText = (value: string) => value.replace(/\s+/g, " ").trim()
 const clampShareText = (value: string, maxLength: number) =>
   value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value
+
+type PriceResult = {
+  net: number
+  vatAmount: number
+  gross: number
+  currency: "EUR"
+}
+
+const SIMPLE_QUANTITY_PRESETS = [1, 10, 25, 50, 100]
+const SIMPLE_SHIPMENT_DATE_LABEL = "U Vás na adrese"
+type SimpleProductionSpeedId = "standard" | "accelerated"
+const SIMPLE_PRODUCTION_SPEED_OPTIONS: Array<{
+  id: SimpleProductionSpeedId
+  label: string
+  percent: number
+  days: number
+}> = [
+  {
+    id: "standard",
+    label: "Štandardná (do 5 dní)",
+    percent: 0,
+    days: 5,
+  },
+  {
+    id: "accelerated",
+    label: "Zrýchlene (do 2 dní)",
+    percent: 30,
+    days: 2,
+  },
+]
 
 function ProductShareButtons({
   productName,
@@ -663,6 +698,379 @@ function RealConfiguratorSection({
   )
 }
 
+function SimpleConfiguratorSection({
+  mode,
+  productId,
+  product,
+  designerConfig,
+  onOpenDesigner,
+  designData,
+  designThumbnail,
+  isLoggedIn,
+  showFloatingBar,
+}: {
+  mode: CustomerMode
+  productId: string
+  product: ProductPageClientProps["product"]
+  designerConfig?: DesignerConfig
+  onOpenDesigner?: () => void
+  designData?: unknown
+  designThumbnail?: string | null
+  isLoggedIn?: boolean
+  showFloatingBar: boolean
+}) {
+  const [quantity, setQuantity] = useState(1)
+  const [productionSpeedId, setProductionSpeedId] =
+    useState<SimpleProductionSpeedId>("standard")
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
+
+  const elementCount = Array.isArray(designData) ? (designData as unknown[]).length : 0
+  const hasDesignData = Boolean(designData)
+  const selectedProductionSpeed = useMemo(
+    () =>
+      SIMPLE_PRODUCTION_SPEED_OPTIONS.find(
+        (option) => option.id === productionSpeedId
+      ) ?? SIMPLE_PRODUCTION_SPEED_OPTIONS[0],
+    [productionSpeedId]
+  )
+  const effectivePrice =
+    product.priceAfterDiscountFrom ?? product.priceFrom ?? null
+  const unitPrice = effectivePrice ? Number(effectivePrice) : Number.NaN
+  const hasPrice = Number.isFinite(unitPrice) && unitPrice > 0
+  const total = hasPrice
+    ? unitPrice * quantity * (1 + selectedProductionSpeed.percent / 100)
+    : null
+  const summaryItems = [
+    { label: "Typ ceny", value: "Fixná cena" },
+    { label: "Rýchlosť výroby", value: selectedProductionSpeed.label },
+  ]
+  const shipmentDateText = calculateShipmentDate({
+    productionDays: selectedProductionSpeed.days + 1,
+    cutoffHour: 13,
+    cutoffMinute: 0,
+    excludeWeekendDays: true,
+    timeZone: "Europe/Bratislava",
+  }).formattedDate
+
+  const handleAddToCart = async () => {
+    if (isAddingToCart || total === null) {
+      return
+    }
+
+    setIsAddingToCart(true)
+    setServerError(null)
+
+    try {
+      const priceResponse = await fetch("/api/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+        body: JSON.stringify({
+          productId,
+          params: {
+            quantity,
+            productionSpeedPercent: selectedProductionSpeed.percent,
+          },
+        }),
+      })
+
+      if (!priceResponse.ok) {
+        const payload = await priceResponse.json().catch(() => null)
+        const message =
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "Nepodarilo sa vypočítať cenu"
+        throw new Error(message)
+      }
+
+      const priceResult = (await priceResponse.json()) as PriceResult
+      const safeQuantity = quantity > 0 ? quantity : 1
+      const perUnitPrice: PriceResult = {
+        ...priceResult,
+        net: priceResult.net / safeQuantity,
+        vatAmount: priceResult.vatAmount / safeQuantity,
+        gross: priceResult.gross / safeQuantity,
+      }
+
+      const cartResponse = await fetch("/api/cart/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+        body: JSON.stringify({
+          productId,
+          quantity,
+          selectedOptions: {
+            _attributes: {
+              "Typ ceny": "Fixná cena",
+              "Rýchlosť výroby": selectedProductionSpeed.label,
+            },
+            _productionSpeed: selectedProductionSpeed,
+          },
+          priceSnapshot: {
+            ...perUnitPrice,
+            calculatedAt: new Date().toISOString(),
+          },
+          designData: designData || undefined,
+        }),
+      })
+
+      if (!cartResponse.ok) {
+        throw new Error("Nepodarilo sa pridať do košíka")
+      }
+
+      window.dispatchEvent(new Event("cart-updated"))
+      window.dispatchEvent(new Event(QUOTE_REQUEST_UPDATED_EVENT))
+      toast.success("Produkt bol pridaný do košíka")
+      window.location.href = "/cart"
+    } catch (error) {
+      console.error("Add to cart error:", error)
+      setServerError(
+        error instanceof Error
+          ? error.message
+          : "Chyba pri pridávaní do košíka"
+      )
+    } finally {
+      setIsAddingToCart(false)
+    }
+  }
+
+  const handleAddQuoteRequest = () => {
+    if (mode !== "b2b" || total === null) {
+      return
+    }
+
+    upsertQuoteRequestItem({
+      slug: product.slug,
+      name: product.name,
+      imageUrl: product.images[0]?.url ?? "",
+      imageAlt: product.images[0]?.alt ?? product.name,
+      addedAt: new Date().toISOString(),
+      configuration: {
+        quantity,
+        dimensions: null,
+        options: summaryItems,
+        totalPrice: total,
+      },
+    })
+    window.dispatchEvent(new Event(QUOTE_REQUEST_UPDATED_EVENT))
+    toast.success("Produkt bol pridaný do dopytu", {
+      description: "Konfigurácia je uložená v zozname cenovej ponuky.",
+    })
+  }
+
+  return (
+    <>
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="space-y-8 lg:col-span-2">
+        <ProductShareButtons
+          productName={product.name}
+          shortDescription={product.excerptHtml}
+          imageUrl={product.images[0]?.url ?? null}
+          quantity={quantity}
+          summaryItems={summaryItems}
+          price={total}
+        />
+        <ProductGallery images={product.images} productName={product.name} />
+
+        <Card className="p-6">
+          <div className="mb-6 flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            <h2 className="text-xl font-bold">Množstvo</h2>
+          </div>
+          <QuantitySelector
+            mode={mode}
+            value={quantity}
+            onChange={setQuantity}
+            presets={SIMPLE_QUANTITY_PRESETS}
+            usePresetsSelect={false}
+            min={1}
+          />
+          {!hasPrice ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Cena nie je dostupná. Kontaktujte nás pre individuálnu ponuku.
+            </p>
+          ) : null}
+        </Card>
+
+        <Card className="p-6">
+          <ConfiguratorOption
+            mode={mode}
+            label="Rýchlosť výroby"
+            selected={productionSpeedId}
+            onSelect={(value) =>
+              setProductionSpeedId(value as SimpleProductionSpeedId)
+            }
+            options={SIMPLE_PRODUCTION_SPEED_OPTIONS.map((option) => ({
+              id: option.id,
+              label: option.label,
+              recommended: option.id === "standard",
+            }))}
+          />
+        </Card>
+
+          {designerConfig?.enabled && onOpenDesigner && (
+            <Card className="overflow-hidden border-2 border-dashed border-purple-200 bg-linear-to-br from-purple-50/80 to-pink-50/60 p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white shadow-md">
+                  <Paintbrush className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">Design Studio</h3>
+                    <span className="flex items-center gap-1 rounded-full bg-linear-to-r from-purple-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <Sparkles className="h-2.5 w-2.5" />
+                      NOVO
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {hasDesignData
+                      ? `Dizajn pripravený (${elementCount} ${elementCount === 1 ? "element" : "elementov"}) — bude priložený k objednávke`
+                      : "Vytvorte si vlastný dizajn priamo v prehliadači"}
+                  </p>
+                </div>
+                <Button
+                  onClick={isLoggedIn ? onOpenDesigner : undefined}
+                  variant={hasDesignData ? "outline" : "default"}
+                  className={hasDesignData
+                    ? "border-purple-300 text-purple-700 hover:bg-purple-50"
+                    : "bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md hover:from-purple-700 hover:to-pink-700"}
+                  asChild={!isLoggedIn}
+                >
+                  {isLoggedIn ? (
+                    <>
+                      <Paintbrush className="mr-2 h-4 w-4" />
+                      {hasDesignData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+                    </>
+                  ) : (
+                    <LoginDialog
+                      trigger={
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2"
+                          onClick={() => {
+                            toast.info("Design Studio je dostupné len pre prihlásených používateľov", {
+                              description: "Prihláste sa alebo si vytvorte účet, aby ste mohli používať dizajnér.",
+                            })
+                          }}
+                        >
+                          <Paintbrush className="h-4 w-4" />
+                          {hasDesignData ? "Upraviť dizajn" : "Otvoriť dizajnér"}
+                        </button>
+                      }
+                    />
+                  )}
+                </Button>
+              </div>
+              {hasDesignData && designThumbnail && (
+                <div className="mt-4 overflow-hidden rounded-lg border border-purple-200 bg-white">
+                  <img
+                    src={designThumbnail}
+                    alt="Náhľad dizajnu"
+                    className="h-auto w-full max-h-48 object-contain"
+                  />
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+
+        <div className="lg:col-span-1">
+          <RealConfiguratorPanel
+            mode={mode}
+            summaryItems={summaryItems}
+            price={total}
+            hasUnavailable={false}
+            isAddingToCart={isAddingToCart}
+            serverError={serverError}
+            quantityPresets={SIMPLE_QUANTITY_PRESETS}
+            getTotalForQuantity={(value) =>
+              hasPrice
+                ? unitPrice * value * (1 + selectedProductionSpeed.percent / 100)
+                : null
+            }
+            activeQuantity={quantity}
+            onAddToCart={handleAddToCart}
+            onAddQuoteRequest={handleAddQuoteRequest}
+            isQuoteRequestDisabled={total === null}
+            leadTimeLabel={selectedProductionSpeed.label}
+            shipmentDateLabel={SIMPLE_SHIPMENT_DATE_LABEL}
+            shipmentDateText={shipmentDateText}
+            showFloatingBar={showFloatingBar}
+            showVolumeDiscounts={false}
+          />
+        </div>
+
+        <div className="lg:col-span-2">
+          <Tabs defaultValue="specs" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="specs">Popis produktu</TabsTrigger>
+              <TabsTrigger value="faq">Časté otázky</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="specs" className="mt-6">
+              <Card className="p-6">
+                {product.descriptionHtml ? (
+                  <div>
+                    <div
+                      className="prose prose-neutral max-w-none text-sm [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_hr]:my-4 [&_hr]:border-border [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-md [&_iframe]:border-0 [&_video]:w-full [&_video]:rounded-md"
+                      dangerouslySetInnerHTML={{
+                        __html: product.descriptionHtml,
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="faq" className="mt-6">
+              <div className="mb-3 flex justify-end">
+                <StaticBadge />
+              </div>
+              <Accordion type="single" collapsible>
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>
+                    Aké formáty súborov akceptujete?
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    Akceptujeme PDF, AI, EPS, INDD a PSD súbory. Odporúčame PDF s
+                    vloženými fontami a CMYK farebným priestorom. Súbory by mali
+                    mať minimálne 300 DPI rozlíšenie a 3mm spadávku.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                  <AccordionTrigger>Ako dlho trvá výroba?</AccordionTrigger>
+                  <AccordionContent>
+                    Štandardná výroba trvá 2-3 pracovné dni od schválenia
+                    podkladov. Pri prémiových materiáloch alebo špeciálnych
+                    úpravách môže výroba trvať 3-4 dni. Expresné vyhotovenie za 24h
+                    je možné za príplatok.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-3">
+                  <AccordionTrigger>Kontrolujete súbory pred tlačou?</AccordionTrigger>
+                  <AccordionContent>
+                    Áno, každý súbor prechádza kontrolou našim prepress tímom.
+                    Skontrolujeme rozlíšenie, spadávku, farby, fonty a ďalšie
+                    technické parametre. V prípade problémov vás kontaktujeme a
+                    pomôžeme s úpravou súborov zadarmo.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-4">
+                  <AccordionTrigger>Aké sú možnosti doručenia?</AccordionTrigger>
+                  <AccordionContent>
+                    Ponúkame doručenie kuriérom (1-2 dni po výrobe) alebo osobný
+                    odber v Bratislave zadarmo. Pre B2B zákazníkov môžeme
+                    zabezpečiť aj vlastnú dopravu pri väčších objemoch.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export function ProductPageClient({
   mode,
   productId,
@@ -785,7 +1193,19 @@ export function ProductPageClient({
             isLoggedIn={isLoggedIn}
             showFloatingBar={showFloatingBar}
           />
-        ) : null}
+        ) : (
+          <SimpleConfiguratorSection
+            mode={mode}
+            productId={productId}
+            product={product}
+            designerConfig={designerConfig}
+            onOpenDesigner={() => setShowDesigner(true)}
+            designData={designData}
+            designThumbnail={designThumbnail}
+            isLoggedIn={isLoggedIn}
+            showFloatingBar={showFloatingBar}
+          />
+        )}
         <div className="my-12">
           <div className="mb-4 flex justify-end">
                   </div>
@@ -805,6 +1225,7 @@ export function ProductPageClient({
                       name: item.name,
                       excerpt: item.excerpt ?? null,
                       priceFrom: item.priceFrom ?? null,
+                      priceAfterDiscountFrom: item.priceAfterDiscountFrom ?? null,
                       images: item.images ?? [],
                     }}
                   />
