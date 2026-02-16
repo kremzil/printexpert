@@ -32,48 +32,56 @@ type ContactPageProps = {
 
 const team = [
   {
+    image: "/team/sokol.webp",
     name: "Radoslav Sokol",
     role: "COO / Head of Sales",
     phone: "+421 917 226 194",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/ingrid.webp",
     name: "Ingrid Tereščíková",
     role: "Key Account Manager",
     phone: "+421 917 930 494",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/kanocz.webp",
     name: "Peter Kanócz",
     role: "Key Account Manager",
     phone: "+421 917 226 195",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/horvath.webp",
     name: "Ladislav Horvath",
     role: "Key Account Manager",
     phone: "+421 904 090 253",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/monika.webp",
     name: "Monika Juhászová",
     role: "Front Office / Customer Service",
     phone: "+421 917 545 003",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/milan.webp",
     name: "Milan Ďuroň",
     role: "Production / Store Manager",
     phone: "+421 905 919 714",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/tatiana.webp",
     name: "Tatiana Konečná",
     role: "Production Manager",
     phone: "+421 918 900 244",
     email: "info@printexpert.sk",
   },
   {
+    image: "/team/dagmar.webp",
     name: "Dagmar Tereščíková",
     role: "Invoicing / Happiness Manager",
     phone: "+421 915 575 696",
@@ -266,15 +274,17 @@ async function ContactPageContent({ searchParams }: ContactPageProps) {
           </p>
         </div>
         <Card className="overflow-hidden">
-          <div className="flex h-96 items-center justify-center bg-muted/30">
-            <div className="text-center">
-              <MapPin className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
-              <p className="mb-2 font-semibold">Mapa pripojovania</p>
-              <p className="text-sm text-muted-foreground">
-                Bojnická 3, 83104 Bratislava
-              </p>
-            </div>
-          </div>
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d2632!2d21.2495546!3d48.693951!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zNDjCsDQxJzM2LjMiTiAyMcKwMTQnNTguOSJF!5e0!3m2!1ssk!2ssk!4v1700000000000"
+            width="100%"
+            height="384"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title="PrintExpert – Rozvojová 2, 040 11 Košice"
+            className="h-96 w-full"
+          />
         </Card>
       </section>
 

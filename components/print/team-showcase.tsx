@@ -49,7 +49,7 @@ export function TeamShowcase({ mode, members }: TeamShowcaseProps) {
                 className="flex h-64 items-center justify-center text-4xl font-bold text-white"
                 style={{
                   background: member.image
-                    ? `url(${member.image}) center/cover`
+                    ? `url(${member.image}) top/cover`
                     : `linear-gradient(135deg, ${modeColor} 0%, ${modeColor}aa 100%)`,
                 }}
               >

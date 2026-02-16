@@ -2,11 +2,13 @@
 
 import type { CustomerMode } from "@/components/print/types"
 import { Card } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 interface AddressFormProps {
   mode: CustomerMode
   title: string
   showCompanyFields?: boolean
+  invalidFields?: Set<string>
   values: {
     companyName?: string
     ico?: string
@@ -25,14 +27,21 @@ interface AddressFormProps {
   onChange: (field: string, value: string) => void
 }
 
+const baseInputClass =
+  "w-full rounded-lg bg-input-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
+const validBorder = "border border-border"
+const invalidBorder = "border border-destructive ring-1 ring-destructive/30"
+
 export function AddressForm({
   mode,
   title,
   showCompanyFields,
+  invalidFields,
   values,
   onChange,
 }: AddressFormProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
+  const isInvalid = (field: string) => invalidFields?.has(field) ?? false
 
   return (
     <Card className="p-6">
@@ -52,7 +61,7 @@ export function AddressForm({
                 value={values.companyName || ""}
                 onChange={(event) => onChange("companyName", event.target.value)}
                 placeholder="Printexpert s.r.o."
-                className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={cn(baseInputClass, isInvalid("companyName") ? invalidBorder : validBorder)}
                 required
               />
             </div>
@@ -67,7 +76,7 @@ export function AddressForm({
                   value={values.ico || ""}
                   onChange={(event) => onChange("ico", event.target.value)}
                   placeholder="12345678"
-                  className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={cn(baseInputClass, isInvalid("ico") ? invalidBorder : validBorder)}
                   required
                 />
               </div>
@@ -81,7 +90,7 @@ export function AddressForm({
                   value={values.dic || ""}
                   onChange={(event) => onChange("dic", event.target.value)}
                   placeholder="1234567890"
-                  className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={cn(baseInputClass, isInvalid("dic") ? invalidBorder : validBorder)}
                   required
                 />
               </div>
@@ -93,7 +102,7 @@ export function AddressForm({
                   value={values.icDph || ""}
                   onChange={(event) => onChange("icDph", event.target.value)}
                   placeholder="SK1234567890"
-                  className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={cn(baseInputClass, validBorder)}
                 />
               </div>
             </div>
@@ -114,7 +123,7 @@ export function AddressForm({
               value={values.firstName}
               onChange={(event) => onChange("firstName", event.target.value)}
               placeholder="Ján"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(baseInputClass, isInvalid("firstName") ? invalidBorder : validBorder)}
               required
             />
           </div>
@@ -128,7 +137,7 @@ export function AddressForm({
               value={values.lastName}
               onChange={(event) => onChange("lastName", event.target.value)}
               placeholder="Novák"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(baseInputClass, isInvalid("lastName") ? invalidBorder : validBorder)}
               required
             />
           </div>
@@ -144,7 +153,7 @@ export function AddressForm({
               value={values.email}
               onChange={(event) => onChange("email", event.target.value)}
               placeholder="jan.novak@email.sk"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(baseInputClass, isInvalid("email") ? invalidBorder : validBorder)}
               required
             />
           </div>
@@ -158,7 +167,7 @@ export function AddressForm({
               value={values.phone}
               onChange={(event) => onChange("phone", event.target.value)}
               placeholder="+421 900 123 456"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(baseInputClass, isInvalid("phone") ? invalidBorder : validBorder)}
               required
             />
           </div>
@@ -173,7 +182,7 @@ export function AddressForm({
             value={values.street}
             onChange={(event) => onChange("street", event.target.value)}
             placeholder="Hlavná 123"
-            className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className={cn(baseInputClass, isInvalid("street") ? invalidBorder : validBorder)}
             required
           />
         </div>
@@ -187,7 +196,7 @@ export function AddressForm({
             value={values.apt || ""}
             onChange={(event) => onChange("apt", event.target.value)}
             placeholder="12B"
-            className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className={cn(baseInputClass, validBorder)}
           />
         </div>
 
@@ -201,7 +210,7 @@ export function AddressForm({
               value={values.city}
               onChange={(event) => onChange("city", event.target.value)}
               placeholder="Bratislava"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(baseInputClass, isInvalid("city") ? invalidBorder : validBorder)}
               required
             />
           </div>
@@ -215,7 +224,7 @@ export function AddressForm({
               value={values.zipCode}
               onChange={(event) => onChange("zipCode", event.target.value)}
               placeholder="81101"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(baseInputClass, isInvalid("zipCode") ? invalidBorder : validBorder)}
               required
             />
           </div>
@@ -228,7 +237,7 @@ export function AddressForm({
           <select
             value={values.country}
             onChange={(event) => onChange("country", event.target.value)}
-            className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className={cn(baseInputClass, isInvalid("country") ? invalidBorder : validBorder)}
             required
           >
             <option value="SK">Slovensko</option>

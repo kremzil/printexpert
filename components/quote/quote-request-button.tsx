@@ -88,6 +88,7 @@ export function QuoteRequestButton({
   const [isOpen, setIsOpen] = useState(false)
   const [status, setStatus] = useState<SendStatus>("idle")
   const [statusMessage, setStatusMessage] = useState<string>("")
+  const [attempted, setAttempted] = useState(false)
   const isMobile = useIsMobile()
   const [contact, setContact] = useState<QuoteRequestContact>(() => {
     const saved = readQuoteRequestContact()
@@ -174,8 +175,15 @@ export function QuoteRequestButton({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setAttempted(true)
 
-    if (isSubmitDisabled) return
+    if (isSubmitDisabled) {
+      if (itemCount > 0) {
+        setStatus("error")
+        setStatusMessage("Vyplňte všetky povinné polia.")
+      }
+      return
+    }
 
     setStatus("loading")
     setStatusMessage("")
@@ -335,6 +343,7 @@ export function QuoteRequestButton({
                   placeholder="Ján Novák"
                   autoComplete="name"
                   required
+                  aria-invalid={attempted && !contact.name.trim()}
                 />
               </div>
               <div className="space-y-1.5">
@@ -347,6 +356,7 @@ export function QuoteRequestButton({
                   placeholder="jan.novak@email.sk"
                   autoComplete="email"
                   required
+                  aria-invalid={attempted && !contact.email.trim()}
                 />
               </div>
             </div>
@@ -361,6 +371,7 @@ export function QuoteRequestButton({
                   placeholder="+421 900 123 456"
                   autoComplete="tel"
                   required
+                  aria-invalid={attempted && !contact.phone.trim()}
                 />
               </div>
               <div className="space-y-1.5">
@@ -372,6 +383,7 @@ export function QuoteRequestButton({
                   placeholder="Vaša spoločnosť s.r.o."
                   autoComplete="organization"
                   required
+                  aria-invalid={attempted && !contact.company.trim()}
                 />
               </div>
             </div>

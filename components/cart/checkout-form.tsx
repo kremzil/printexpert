@@ -261,6 +261,8 @@ export function CheckoutForm({
   const [notes, setNotes] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [invalidBillingFields, setInvalidBillingFields] = useState<Set<string>>(new Set());
+  const [invalidDeliveryFields, setInvalidDeliveryFields] = useState<Set<string>>(new Set());
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -294,10 +296,22 @@ export function CheckoutForm({
 
   const handleBillingChange = (field: string, value: string) => {
     setBillingData((prev) => ({ ...prev, [field]: value }));
+    setInvalidBillingFields((prev) => {
+      if (!prev.has(field)) return prev;
+      const next = new Set(prev);
+      next.delete(field);
+      return next;
+    });
   };
 
   const handleDeliveryChange = (field: string, value: string) => {
     setDeliveryData((prev) => ({ ...prev, [field]: value }));
+    setInvalidDeliveryFields((prev) => {
+      if (!prev.has(field)) return prev;
+      const next = new Set(prev);
+      next.delete(field);
+      return next;
+    });
   };
 
   const applySavedAddress = useCallback((address: SavedAddress) => {
@@ -788,6 +802,7 @@ export function CheckoutForm({
               showCompanyFields={mode === "b2b"}
               values={billingData}
               onChange={handleBillingChange}
+              invalidFields={invalidBillingFields}
             />
 
             <Card className="p-6">
@@ -850,6 +865,7 @@ export function CheckoutForm({
                 showCompanyFields={false}
                 values={deliveryData}
                 onChange={handleDeliveryChange}
+                invalidFields={invalidDeliveryFields}
               />
             )}
           </>
@@ -953,14 +969,37 @@ export function CheckoutForm({
               className="flex-1"
               onClick={() => {
                 if (currentStep === infoStep && !canProceedFromBilling) {
+                  const missing = new Set<string>();
+                  const requiredBilling: (keyof CheckoutBillingData)[] = [
+                    "firstName", "lastName", "email", "phone",
+                    "street", "city", "zipCode", "country",
+                  ];
+                  if (mode === "b2b") {
+                    requiredBilling.push("companyName", "ico", "dic");
+                  }
+                  for (const f of requiredBilling) {
+                    if (!billingData[f]?.trim()) missing.add(f);
+                  }
+                  setInvalidBillingFields(missing);
                   setError("Vyplňte povinné údaje.");
                   return;
                 }
                 if (currentStep === infoStep && !canProceedFromDelivery) {
+                  const missing = new Set<string>();
+                  const requiredDelivery = [
+                    "firstName", "lastName", "email", "phone",
+                    "street", "city", "zipCode", "country",
+                  ] as const;
+                  for (const f of requiredDelivery) {
+                    if (!deliveryData[f]?.trim()) missing.add(f);
+                  }
+                  setInvalidDeliveryFields(missing);
                   setError("Vyplňte adresu doručenia.");
                   return;
                 }
                 setError(null);
+                setInvalidBillingFields(new Set());
+                setInvalidDeliveryFields(new Set());
                 setCurrentStep((prev) => Math.min(steps.length, prev + 1));
               }}
             >

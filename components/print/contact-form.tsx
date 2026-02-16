@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card"
 import { ModeButton } from "@/components/print/mode-button"
 import { getCsrfHeader } from "@/lib/csrf"
 import type { CustomerMode } from "@/components/print/types"
+import { cn } from "@/lib/utils"
 
 const formSchema = z.object({
   name: z.string().min(2, "Zadajte meno."),
@@ -110,6 +111,10 @@ export function ContactForm({ mode }: ContactFormProps) {
   }
 
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
+  const { errors } = form.formState
+  const inputBase = "w-full rounded-lg bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+  const borderOk = "border border-border"
+  const borderErr = "border border-destructive ring-1 ring-destructive/30"
 
   return (
     <Card className="p-6">
@@ -144,7 +149,7 @@ export function ContactForm({ mode }: ContactFormProps) {
                 required
                 {...form.register("name")}
                 placeholder="Ján Novák"
-                className="w-full rounded-lg border border-border bg-input-background py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={cn(inputBase, "py-2.5 pl-10 pr-3", errors.name ? borderErr : borderOk)}
               />
             </div>
             {form.formState.errors.name ? (
@@ -165,7 +170,7 @@ export function ContactForm({ mode }: ContactFormProps) {
                 required
                 {...form.register("email")}
                 placeholder="jan.novak@email.sk"
-                className="w-full rounded-lg border border-border bg-input-background py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={cn(inputBase, "py-2.5 pl-10 pr-3", errors.email ? borderErr : borderOk)}
               />
             </div>
             {form.formState.errors.email ? (
@@ -188,7 +193,7 @@ export function ContactForm({ mode }: ContactFormProps) {
                 required
                 {...form.register("phone")}
                 placeholder="+421 900 123 456"
-                className="w-full rounded-lg border border-border bg-input-background py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={cn(inputBase, "py-2.5 pl-10 pr-3", errors.phone ? borderErr : borderOk)}
               />
             </div>
             {form.formState.errors.phone ? (
@@ -209,7 +214,7 @@ export function ContactForm({ mode }: ContactFormProps) {
                   type="text"
                   {...form.register("companyName")}
                   placeholder="Vaša spoločnosť s.r.o."
-                  className="w-full rounded-lg border border-border bg-input-background py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={cn(inputBase, "py-2.5 pl-10 pr-3", borderOk)}
                 />
               </div>
             </div>
@@ -224,7 +229,7 @@ export function ContactForm({ mode }: ContactFormProps) {
             <select
               required
               {...form.register("inquiryType")}
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(inputBase, "px-3 py-2.5", errors.inquiryType ? borderErr : borderOk)}
             >
               {inquiryTypes.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -248,7 +253,7 @@ export function ContactForm({ mode }: ContactFormProps) {
               required
               {...form.register("subject")}
               placeholder="Stručný popis vášho dopytu"
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className={cn(inputBase, "px-3 py-2.5", errors.subject ? borderErr : borderOk)}
             />
             {form.formState.errors.subject ? (
               <p className="mt-1 text-xs text-destructive">
@@ -271,7 +276,7 @@ export function ContactForm({ mode }: ContactFormProps) {
                 : "Popíšte váš projekt, počet kusov, termín a ďalšie požiadavky..."
             }
             rows={6}
-            className="w-full rounded-lg border border-border bg-input-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className={cn(inputBase, "px-3 py-2.5", errors.message ? borderErr : borderOk)}
           />
           {form.formState.errors.message ? (
             <p className="mt-1 text-xs text-destructive">

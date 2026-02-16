@@ -581,13 +581,22 @@ export async function SiteHeader() {
         </>
       }
       navBar={
-        <Suspense
-          fallback={
-            <div className="h-9 w-64 rounded-md bg-muted animate-pulse" aria-hidden />
-          }
-        >
-          <AudienceNavigation audienceContext={audienceContext} />
-        </Suspense>
+        <>
+          <Suspense
+            fallback={
+              <div className="h-9 w-64 rounded-md bg-muted animate-pulse" aria-hidden />
+            }
+          >
+            <AudienceNavigation audienceContext={audienceContext} />
+          </Suspense>
+          <Link
+            href="/kontaktujte-nas"
+            className={`group ml-auto flex shrink-0 items-center gap-1 text-sm font-medium transition-colors ${modeColor}`}
+          >
+            <span className="transition-transform duration-200 group-hover:-translate-x-0.5">Kontaktujte nás</span>
+            <span className="transition-transform duration-200 group-hover:translate-x-0.5">&rarr;</span>
+          </Link>
+        </>
       }
     />
   )

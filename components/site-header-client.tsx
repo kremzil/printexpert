@@ -113,8 +113,8 @@ export function SiteHeaderClient({
           `}
           aria-hidden={hideNav}
         >
-          <div className="mx-auto w-full max-w-480">
-            <div className="flex h-12 items-center px-4 sm:px-6 md:px-8">
+          <div className="mx-auto w-full max-w-480 lg:px-8">
+            <div className="flex h-12 w-full items-center justify-between px-4 sm:px-6 md:px-8">
               {navBar}
             </div>
           </div>
