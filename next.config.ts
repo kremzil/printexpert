@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: false,
   serverExternalPackages: ["@react-pdf/renderer"],
+  outputFileTracingExcludes: {
+    "/api/admin/products/import": ["./public/products/**/*"],
+  },
   async headers() {
     const headers = [...securityHeaders];
 
