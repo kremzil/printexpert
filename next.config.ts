@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@react-pdf/renderer"],
   outputFileTracingExcludes: {
     "/api/admin/products/import": ["./public/products/**/*"],
+    "/app/api/admin/products/import/route": ["./public/products/**/*"],
   },
   async headers() {
     const headers = [...securityHeaders];
