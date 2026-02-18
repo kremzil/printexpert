@@ -129,12 +129,22 @@ export async function createOrder(
       customerName: checkoutData.customerName,
       customerEmail: checkoutData.customerEmail,
       customerPhone: checkoutData.customerPhone || null,
+      deliveryMethod: checkoutData.deliveryMethod ?? "DPD_COURIER",
+      paymentMethod: checkoutData.paymentMethod ?? "STRIPE",
+      dpdProduct: checkoutData.dpdProduct ?? null,
+      pickupPoint: checkoutData.pickupPoint
+        ? (checkoutData.pickupPoint as unknown as Prisma.InputJsonValue)
+        : undefined,
       shippingAddress: checkoutData.shippingAddress
         ? (checkoutData.shippingAddress as unknown as Prisma.InputJsonValue)
         : undefined,
       billingAddress: checkoutData.billingAddress
         ? (checkoutData.billingAddress as unknown as Prisma.InputJsonValue)
         : undefined,
+      codAmount:
+        checkoutData.paymentMethod === "COD" ? total : undefined,
+      codCurrency:
+        checkoutData.paymentMethod === "COD" ? "EUR" : undefined,
       notes: checkoutData.notes || null,
       items: {
         create: orderItems,
@@ -173,6 +183,7 @@ export async function getUserOrders(): Promise<OrderData[]> {
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
+    codAmount: order.codAmount ? Number(order.codAmount) : null,
     items: order.items.map(item => ({
       ...item,
       width: item.width ? Number(item.width) : null,
@@ -223,6 +234,7 @@ export async function getOrderById(orderId: string): Promise<OrderData | null> {
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
+    codAmount: order.codAmount ? Number(order.codAmount) : null,
     items: order.items.map(({ product, ...item }) => ({
       ...item,
       productPriceType: product?.priceType ?? null,
@@ -261,6 +273,7 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderData |
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
+    codAmount: order.codAmount ? Number(order.codAmount) : null,
     items: order.items.map(({ product, ...item }) => ({
       ...item,
       productPriceType: product?.priceType ?? null,

@@ -5,6 +5,18 @@ export interface CheckoutData {
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
+  deliveryMethod?: "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP";
+  paymentMethod?: "STRIPE" | "BANK_TRANSFER" | "COD";
+  dpdProduct?: number;
+  pickupPoint?: {
+    parcelShopId: string;
+    pusId?: string;
+    name: string;
+    street: string;
+    city: string;
+    zip: string;
+    country: string;
+  };
   shippingAddress?: {
     name?: string;
     street: string;
@@ -54,8 +66,19 @@ export interface OrderData {
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
+  deliveryMethod?: "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP" | null;
+  paymentMethod?: "STRIPE" | "BANK_TRANSFER" | "COD" | null;
+  dpdProduct?: number | null;
+  pickupPoint?: unknown;
   shippingAddress?: unknown;
   billingAddress?: unknown;
+  codAmount?: number | null;
+  codCurrency?: string | null;
+  carrier?: string | null;
+  carrierShipmentId?: string | null;
+  carrierParcelNumbers?: string[];
+  carrierLabelLastPrintedAt?: Date | null;
+  carrierMeta?: unknown;
   notes?: string | null;
   items: OrderItemData[];
   createdAt: Date;

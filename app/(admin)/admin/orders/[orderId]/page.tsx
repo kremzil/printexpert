@@ -57,6 +57,10 @@ async function getOrder(orderId: string) {
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
+    codAmount: order.codAmount ? Number(order.codAmount) : null,
+    carrierLabelLastPrintedAt: order.carrierLabelLastPrintedAt
+      ? order.carrierLabelLastPrintedAt.toISOString()
+      : null,
     items: order.items.map(({ product, ...item }) => ({
       ...item,
       productPriceType: product?.priceType ?? null,

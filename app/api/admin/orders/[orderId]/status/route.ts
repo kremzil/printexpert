@@ -71,21 +71,37 @@ export async function PATCH(
         console.error("Failed to send status change notification:", error);
       });
 
-      // Auto-generate and send invoice if configured
-      getPdfSettings().then(async (pdfSettings) => {
-        if (pdfSettings.autoGenerateOnStatus === status) {
+      // Auto-generate and send invoice only when status changes to COMPLETED.
+      if (status === "COMPLETED") {
+        getPdfSettings().then(async (pdfSettings) => {
+          const autoGenerateEnabled =
+            pdfSettings.autoGenerateEnabled ??
+            (pdfSettings.autoGenerateOnStatus === "COMPLETED");
+
+          if (!autoGenerateEnabled) {
+            return;
+          }
+
           try {
-            await generateAndSaveInvoice(orderId);
+            const existingInvoice = await prisma.orderAsset.findFirst({
+              where: { orderId, kind: "INVOICE" },
+              select: { id: true },
+            });
+
+            if (!existingInvoice) {
+              await generateAndSaveInvoice(orderId);
+            }
+
             if (pdfSettings.autoSendEmail) {
               await sendInvoiceEmail(orderId);
             }
           } catch (error) {
             console.error("Failed to auto-generate invoice:", error);
           }
-        }
-      }).catch((error) => {
-        console.error("Failed to get PDF settings:", error);
-      });
+        }).catch((error) => {
+          console.error("Failed to get PDF settings:", error);
+        });
+      }
     }
 
     return NextResponse.json(order);

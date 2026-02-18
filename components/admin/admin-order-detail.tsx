@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Send, Download, FilePlus } from "lucide-react";
+import { ArrowLeft, Loader2, Send, Download, FilePlus, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { getCsrfHeader } from "@/lib/csrf";
 
@@ -45,6 +45,14 @@ interface Order {
   customerEmail: string;
   customerPhone: string | null;
   notes: string | null;
+  deliveryMethod?: "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP" | null;
+  paymentMethod?: "STRIPE" | "BANK_TRANSFER" | "COD" | null;
+  pickupPoint?: unknown;
+  carrier?: string | null;
+  carrierShipmentId?: string | null;
+  carrierParcelNumbers?: string[];
+  carrierLabelLastPrintedAt?: string | null;
+  carrierMeta?: unknown;
   items: OrderItem[];
   createdAt: Date;
   statusHistory: OrderStatusHistoryEntry[];
@@ -136,6 +144,18 @@ const assetKindLabels = {
   OTHER: "Iné",
 };
 
+const hasDpdLabelUrlInMeta = (meta: unknown) => {
+  if (!meta || typeof meta !== "object") return false;
+  const value = (
+    meta as {
+      result?: {
+        result?: Array<{ label?: unknown }>;
+      };
+    }
+  )?.result?.result?.[0]?.label;
+  return typeof value === "string" && value.length > 0;
+};
+
 export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const router = useRouter();
   const [status, setStatus] = useState<OrderStatus>(order.status);
@@ -144,6 +164,11 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isCreatingShipment, setIsCreatingShipment] = useState(false);
+  const [isPrintingLabel, setIsPrintingLabel] = useState(false);
+  const [isCancellingShipment, setIsCancellingShipment] = useState(false);
+  const canPrintLabels =
+    Boolean(order.carrierParcelNumbers?.length) || hasDpdLabelUrlInMeta(order.carrierMeta);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -284,6 +309,69 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       toast.error(message);
     } finally {
       setIsCreatingInvoice(false);
+    }
+  };
+
+  const handleCreateShipment = async () => {
+    setIsCreatingShipment(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/dpd/shipment`, {
+        method: "POST",
+        headers: { ...getCsrfHeader() },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Nepodarilo sa vytvoriť DPD zásielku");
+      toast.success("DPD zásielka bola vytvorená");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "DPD chyba");
+    } finally {
+      setIsCreatingShipment(false);
+    }
+  };
+
+  const handlePrintLabels = async () => {
+    setIsPrintingLabel(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/dpd/labels`, {
+        method: "POST",
+        headers: { ...getCsrfHeader() },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Nepodarilo sa vygenerovať štítky");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dpd-labels-${order.orderNumber}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Štítky boli pripravené na stiahnutie");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "DPD chyba");
+    } finally {
+      setIsPrintingLabel(false);
+    }
+  };
+
+  const handleCancelShipment = async () => {
+    setIsCancellingShipment(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/dpd/cancel`, {
+        method: "POST",
+        headers: { ...getCsrfHeader() },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Nepodarilo sa zrušiť DPD zásielku");
+      toast.success("DPD zásielka bola zrušená");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "DPD chyba");
+    } finally {
+      setIsCancellingShipment(false);
     }
   };
 
@@ -606,6 +694,77 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                     Aktualizujem...
                   </p>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>DPD</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p>
+                  Doručenie:{" "}
+                  {order.deliveryMethod === "PERSONAL_PICKUP"
+                    ? "Osobný odber - Rozvojová 2, Košice"
+                    : order.deliveryMethod === "DPD_PICKUP"
+                      ? "DPD Pickup/Pickup Station"
+                      : "DPD kuriér"}
+                </p>
+                <p>Platba: {order.paymentMethod ?? "STRIPE"}</p>
+                <p>Shipment ID: {order.carrierShipmentId ?? "—"}</p>
+                <p>Parcely: {order.carrierParcelNumbers?.join(", ") || "—"}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <AdminButton
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleCreateShipment}
+                  disabled={isCreatingShipment || Boolean(order.carrierShipmentId)}
+                >
+                  {isCreatingShipment ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Vytváram...
+                    </>
+                  ) : (
+                    "Vytvoriť DPD zásielku"
+                  )}
+                </AdminButton>
+                <AdminButton
+                  variant="primary"
+                  className="w-full"
+                  onClick={handlePrintLabels}
+                  disabled={isPrintingLabel || !canPrintLabels}
+                >
+                  {isPrintingLabel ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generujem...
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Tlačiť štítky
+                    </>
+                  )}
+                </AdminButton>
+                <AdminButton
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleCancelShipment}
+                  disabled={isCancellingShipment || !(order.carrierParcelNumbers?.length)}
+                >
+                  {isCancellingShipment ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Ruším...
+                    </>
+                  ) : (
+                    "Zrušiť DPD zásielku"
+                  )}
+                </AdminButton>
               </div>
             </CardContent>
           </Card>

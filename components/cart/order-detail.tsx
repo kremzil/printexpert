@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2, ArrowLeft, FileText } from "lucide-react";
+import { CheckCircle2, ArrowLeft } from "lucide-react";
 import { ModeButton } from "@/components/print/mode-button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/print/status-badge";
@@ -110,6 +110,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const clearCartOnSuccessRef = useRef(false);
   const billingAddress = parseAddress(order.billingAddress);
   const shippingAddress = parseAddress(order.shippingAddress);
 
@@ -167,6 +168,25 @@ export function OrderDetail({ order }: OrderDetailProps) {
   useEffect(() => {
     fetchAssets();
   }, [fetchAssets]);
+
+  useEffect(() => {
+    if (!isSuccess || clearCartOnSuccessRef.current) {
+      return;
+    }
+
+    clearCartOnSuccessRef.current = true;
+
+    fetch("/api/cart/clear", {
+      method: "POST",
+      headers: { ...getCsrfHeader() },
+    })
+      .catch((error) => {
+        console.error("Failed to clear cart on order success page:", error);
+      })
+      .finally(() => {
+        window.dispatchEvent(new Event("cart-updated"));
+      });
+  }, [isSuccess]);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -499,13 +519,8 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 </p>
               </div>
 
-              <div className="pt-4 border-t">
-                <ModeButton asChild variant="outline" className="w-full">
-                  <a href={`/api/orders/${order.id}/invoice`} target="_blank">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Stiahnuť faktúru
-                  </a>
-                </ModeButton>
+              <div className="pt-4 border-t text-xs text-muted-foreground">
+                Faktúru vytvára a odosiela administrátor po dokončení objednávky.
               </div>
             </CardContent>
           </Card>

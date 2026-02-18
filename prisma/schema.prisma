@@ -402,6 +402,18 @@ enum PaymentProvider {
   STRIPE
 }
 
+enum DeliveryMethod {
+  DPD_COURIER
+  DPD_PICKUP
+  PERSONAL_PICKUP
+}
+
+enum CheckoutPaymentMethod {
+  STRIPE
+  BANK_TRANSFER
+  COD
+}
+
 enum OrderAssetKind {
   ARTWORK
   PREVIEW
@@ -443,8 +455,19 @@ model Order {
   customerName    String
   customerEmail   String
   customerPhone   String?
+  deliveryMethod  DeliveryMethod?
+  paymentMethod   CheckoutPaymentMethod?
+  dpdProduct      Int?
+  pickupPoint     Json?
   shippingAddress Json?
   billingAddress  Json?
+  codAmount       Decimal?   @db.Decimal(12, 2)
+  codCurrency     String?
+  carrier         String?
+  carrierShipmentId String?
+  carrierParcelNumbers String[]
+  carrierLabelLastPrintedAt DateTime?
+  carrierMeta     Json?
   notes           String?     @db.Text
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -613,6 +636,8 @@ model ShopSettings {
   vatRate   Decimal  @default(0.20) @db.Decimal(4, 2)
   pricesIncludeVat Boolean @default(true)
   pdfSettings Json?
+  dpdSettings Json?
+  paymentSettings Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

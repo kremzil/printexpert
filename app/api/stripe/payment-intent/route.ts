@@ -103,6 +103,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (order.paymentMethod && order.paymentMethod !== "STRIPE") {
+      return NextResponse.json(
+        { error: "Objednávka nie je určená na platbu kartou." },
+        { status: 400 }
+      );
+    }
 
     if (order.stripePaymentIntentId) {
       const existingIntent = await stripe.paymentIntents.retrieve(

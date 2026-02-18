@@ -13,7 +13,7 @@ interface RouteContext {
  * Generate invoice and send to customer email
  */
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
   try {
@@ -46,8 +46,13 @@ export async function POST(
       );
     }
 
-    // Generate and save invoice
-    const assetId = await generateAndSaveInvoice(orderId);
+    const existingInvoice = await prisma.orderAsset.findFirst({
+      where: { orderId, kind: "INVOICE" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
+    const assetId = existingInvoice?.id ?? await generateAndSaveInvoice(orderId);
 
     // Send email with invoice
     await sendInvoiceEmail(orderId);

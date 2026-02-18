@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { generateInvoicePdf } from "@/lib/pdf";
 import { prisma } from "@/lib/prisma";
+import { getInvoiceFromS3 } from "@/lib/s3";
 
 interface RouteContext {
   params: Promise<{ orderId: string }>;
@@ -12,12 +12,19 @@ interface RouteContext {
  * Download invoice PDF for an order
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
   try {
     const session = await auth();
     const { orderId } = await context.params;
+
+    if (session?.user?.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Vyžaduje sa admin oprávnenie" },
+        { status: 403 }
+      );
+    }
 
     // Get order
     const order = await prisma.order.findUnique({
@@ -25,7 +32,6 @@ export async function GET(
       select: {
         id: true,
         orderNumber: true,
-        userId: true,
       },
     });
 
@@ -36,26 +42,36 @@ export async function GET(
       );
     }
 
-    // Check permissions: user must be owner or admin
-    const isOwner = session?.user?.id && order.userId === session.user.id;
-    const isAdmin = session?.user?.role === "ADMIN";
+    const latestInvoice = await prisma.orderAsset.findFirst({
+      where: {
+        orderId,
+        kind: "INVOICE",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        bucket: true,
+        objectKey: true,
+        fileNameOriginal: true,
+      },
+    });
 
-    if (!isOwner && !isAdmin) {
+    if (!latestInvoice) {
       return NextResponse.json(
-        { error: "Nemáte oprávnenie" },
-        { status: 403 }
+        { error: "Faktúra ešte nebola vygenerovaná." },
+        { status: 404 }
       );
     }
 
-    // Generate PDF
-    const pdfBuffer = await generateInvoicePdf(orderId);
+    const pdfBuffer = await getInvoiceFromS3(
+      latestInvoice.bucket,
+      latestInvoice.objectKey
+    );
 
-    // Return PDF as Uint8Array for proper Response compatibility
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="faktura-${order.orderNumber}.pdf"`,
+        "Content-Disposition": `attachment; filename="${latestInvoice.fileNameOriginal || `faktura-${order.orderNumber}.pdf`}"`,
         "Content-Length": pdfBuffer.length.toString(),
       },
     });

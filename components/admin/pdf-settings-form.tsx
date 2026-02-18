@@ -8,18 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import type { PdfSettings } from "@/lib/pdf/types";
 import { getCsrfHeader } from "@/lib/csrf";
-
-const orderStatuses = [
-  { value: "PENDING", label: "Čaká sa" },
-  { value: "CONFIRMED", label: "Potvrdená" },
-  { value: "PROCESSING", label: "Spracováva sa" },
-  { value: "COMPLETED", label: "Dokončená" },
-];
 
 export function PdfSettingsForm() {
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +32,7 @@ export function PdfSettingsForm() {
       logoUrl: "",
       signatureUrl: "",
       footerText: "",
+      autoGenerateEnabled: false,
       autoGenerateOnStatus: "COMPLETED",
       autoSendEmail: true,
       invoicePrefix: "",
@@ -69,10 +62,14 @@ export function PdfSettingsForm() {
   async function onSubmit(data: PdfSettings) {
     setIsSaving(true);
     try {
+      const payload: PdfSettings = {
+        ...data,
+        autoGenerateOnStatus: "COMPLETED",
+      };
       const response = await fetch("/api/admin/settings/pdf", {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...getCsrfHeader() },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       
       if (!response.ok) {
@@ -254,37 +251,29 @@ export function PdfSettingsForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="autoGenerateOnStatus">Generovať pri stave</Label>
-            <Select
-              value={form.watch("autoGenerateOnStatus")}
-              onValueChange={(value) => form.setValue("autoGenerateOnStatus", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {orderStatuses.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Faktúra sa automaticky vygeneruje pri zmene stavu objednávky.
-            </p>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Automaticky vytvárať faktúru</Label>
+              <p className="text-xs text-muted-foreground">
+                Faktúra sa vytvorí pri zmene stavu objednávky na Dokončená.
+              </p>
+            </div>
+            <Switch
+              checked={form.watch("autoGenerateEnabled")}
+              onCheckedChange={(checked) => form.setValue("autoGenerateEnabled", checked)}
+            />
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Odoslať e-mail</Label>
+              <Label>Automaticky odoslať e-mail</Label>
               <p className="text-xs text-muted-foreground">
-                Automaticky odoslať faktúru zákazníkovi na e-mail.
+                Po vygenerovaní odošle faktúru zákazníkovi na e-mail.
               </p>
             </div>
             <Switch
               checked={form.watch("autoSendEmail")}
               onCheckedChange={(checked) => form.setValue("autoSendEmail", checked)}
+              disabled={!form.watch("autoGenerateEnabled")}
             />
           </div>
         </CardContent>

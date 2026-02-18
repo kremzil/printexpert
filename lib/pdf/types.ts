@@ -113,6 +113,7 @@ export interface PdfSettings {
   footerText: string;
   
   // Auto-generation settings
+  autoGenerateEnabled: boolean;
   autoGenerateOnStatus: string; // OrderStatus when to auto-generate
   autoSendEmail: boolean;
   
@@ -138,6 +139,7 @@ export const defaultPdfSettings: PdfSettings = {
   logoUrl: "",
   signatureUrl: "",
   footerText: "Výpis z Obchodného registra Mestského súdu Košice, Oddiel: Sja, Vložka číslo: 26/V",
+  autoGenerateEnabled: false,
   autoGenerateOnStatus: "COMPLETED",
   autoSendEmail: true,
   invoicePrefix: "",

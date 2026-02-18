@@ -1,12 +1,12 @@
 "use client"
 
 import type { ComponentType } from "react"
-import { Building2, CreditCard } from "lucide-react"
+import { Building2, CreditCard, Wallet } from "lucide-react"
 
 import type { CustomerMode } from "@/components/print/types"
 import { Card } from "@/components/ui/card"
 
-export type PaymentMethod = "stripe" | "bank"
+export type PaymentMethod = "stripe" | "bank" | "cod"
 
 interface PaymentMethodOption {
   id: PaymentMethod
@@ -20,6 +20,7 @@ interface PaymentMethodSelectorProps {
   selected: PaymentMethod
   onSelect: (method: PaymentMethod) => void
   variant?: "card" | "embedded"
+  allowedMethods?: PaymentMethod[]
 }
 
 const paymentMethods: PaymentMethodOption[] = [
@@ -35,6 +36,12 @@ const paymentMethods: PaymentMethodOption[] = [
     description: "Okamžité spracovanie cez platobnú bránu",
     icon: CreditCard,
   },
+  {
+    id: "cod",
+    title: "Dobierka",
+    description: "Platba pri prevzatí zásielky",
+    icon: Wallet,
+  },
 ]
 
 export function PaymentMethodSelector({
@@ -42,6 +49,7 @@ export function PaymentMethodSelector({
   selected,
   onSelect,
   variant = "card",
+  allowedMethods,
 }: PaymentMethodSelectorProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
@@ -49,6 +57,9 @@ export function PaymentMethodSelector({
   const TitleTag = variant === "embedded" ? "div" : "h3"
   const titleClassName =
     variant === "embedded" ? "text-sm font-semibold" : "mb-4 text-lg font-semibold"
+  const visibleMethods = allowedMethods?.length
+    ? paymentMethods.filter((method) => allowedMethods.includes(method.id))
+    : paymentMethods
 
   const content = (
     <>
@@ -56,7 +67,7 @@ export function PaymentMethodSelector({
         Spôsob platby
       </TitleTag>
       <div className="space-y-3">
-        {paymentMethods.map((method) => {
+        {visibleMethods.map((method) => {
           const Icon = method.icon
           const isSelected = selected === method.id
 

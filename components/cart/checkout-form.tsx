@@ -26,6 +26,7 @@ import { CheckoutSteps } from "@/components/print/checkout-steps";
 import { AddressForm } from "@/components/print/address-form";
 import { OrderReview } from "@/components/print/order-review";
 import { getCsrfHeader } from "@/lib/csrf";
+import type { PaymentMethod } from "@/components/print/payment-method-selector";
 
 interface CheckoutFormProps {
   cart: CartData;
@@ -80,12 +81,36 @@ type CheckoutAddressStorage = {
   }>;
   deliveryDifferent?: boolean;
   selectedDeliveryAddressId?: string;
+  selectedDeliveryMethod?: "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP";
+  selectedPickupPoint?: {
+    parcelShopId: string;
+    name: string;
+    street: string;
+    city: string;
+    zip: string;
+    country: string;
+  } | null;
 };
 
 declare global {
+  type DpdPudoPlace = {
+    id: string;
+    name: string;
+    street: string;
+    houseno: string;
+    zip: string;
+    city: string;
+    countryCode: string;
+  };
+
   interface Window {
     __pendingOrderUpload?: PendingOrderUpload;
     __pendingDesignPdf?: { file: File };
+    DpdPudo?: {
+      Widget: new (options: Record<string, unknown>) => {
+        open: () => Promise<DpdPudoPlace>;
+      };
+    };
   }
 }
 
@@ -191,6 +216,12 @@ const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, s
 const formatStreetLine = (street: string, apt?: string) =>
   apt ? `${street}, ${apt}` : street;
 
+const toCheckoutPaymentMethod = (method: PaymentMethod): "STRIPE" | "BANK_TRANSFER" | "COD" => {
+  if (method === "cod") return "COD";
+  if (method === "bank") return "BANK_TRANSFER";
+  return "STRIPE";
+};
+
 const buildBillingData = (
   initial?: Partial<CheckoutBillingData> | null
 ): CheckoutBillingData => ({
@@ -223,7 +254,16 @@ export function CheckoutForm({
   const [saveCard, setSaveCard] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"bank" | "stripe">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
+  const [deliveryMethod, setDeliveryMethod] = useState<"DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP">("DPD_COURIER");
+  const [pickupPoint, setPickupPoint] = useState<CheckoutAddressStorage["selectedPickupPoint"]>(null);
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>(["bank", "stripe", "cod"]);
+  const [dpdWidgetConfig, setDpdWidgetConfig] = useState<{ enabled: boolean; apiKey: string; language: string }>({
+    enabled: false,
+    apiKey: "",
+    language: "sk",
+  });
+  const [isOpeningPickupWidget, setIsOpeningPickupWidget] = useState(false);
   const isPreparingRef = useRef(false);
   const initialBilling = buildBillingData(initialBillingData);
   const defaultSavedAddress =
@@ -263,6 +303,123 @@ export function CheckoutForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [invalidBillingFields, setInvalidBillingFields] = useState<Set<string>>(new Set());
   const [invalidDeliveryFields, setInvalidDeliveryFields] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/shop-settings", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        const methods: PaymentMethod[] = [];
+        if (data?.paymentSettings?.bankTransferEnabled) methods.push("bank");
+        if (data?.paymentSettings?.cardEnabled) methods.push("stripe");
+        const codAllowed =
+          data?.paymentSettings?.codEnabled &&
+          ((deliveryMethod === "DPD_PICKUP" && data?.paymentSettings?.codForPickup) ||
+            (deliveryMethod === "DPD_COURIER" && data?.paymentSettings?.codForCourier));
+        if (codAllowed) methods.push("cod");
+        if (active && methods.length > 0) {
+          setAvailablePaymentMethods(methods);
+          if (!methods.includes(paymentMethod)) {
+            setPaymentMethod(methods[0]);
+          }
+        }
+        if (active) {
+          setDpdWidgetConfig({
+            enabled: Boolean(data?.dpdWidget?.enabled),
+            apiKey: String(data?.dpdWidget?.apiKey ?? ""),
+            language: String(data?.dpdWidget?.language ?? "sk"),
+          });
+        }
+      } catch {
+        // keep defaults
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [deliveryMethod, paymentMethod]);
+
+  const ensureDpdWidgetLibrary = useCallback(async () => {
+    if (window.DpdPudo?.Widget) return;
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector(
+        'script[data-dpd-widget="1"]'
+      ) as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Widget script load failed")), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://pus-maps.dpd.sk/lib/library.js";
+      script.async = true;
+      script.dataset.dpdWidget = "1";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Widget script load failed"));
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const handleOpenPickupWidget = useCallback(async () => {
+    if (!dpdWidgetConfig.enabled) {
+      setError("Widget odberných miest nie je povolený v nastaveniach.");
+      return;
+    }
+    if (!dpdWidgetConfig.apiKey) {
+      setError("Chýba API kľúč mapy DPD.");
+      return;
+    }
+
+    setIsOpeningPickupWidget(true);
+    setError(null);
+    try {
+      await ensureDpdWidgetLibrary();
+      if (!window.DpdPudo?.Widget) {
+        throw new Error("Widget sa nepodarilo inicializovať.");
+      }
+
+      const widget = new window.DpdPudo.Widget({
+        apiKey: dpdWidgetConfig.apiKey,
+        language: dpdWidgetConfig.language || "sk",
+        allowedCountries: ["sk"],
+        allowedPudoTypes: ["shop", "locker"],
+        requiredServices: paymentMethod === "cod" ? ["cod"] : [],
+        selectedPudoId: pickupPoint?.parcelShopId ?? "",
+      });
+
+      const pudo = await widget.open();
+      setPickupPoint({
+        parcelShopId: pudo.id,
+        name: pudo.name,
+        street: [pudo.street, pudo.houseno].filter(Boolean).join(" "),
+        city: pudo.city,
+        zip: pudo.zip,
+        country: (pudo.countryCode || "sk").toUpperCase(),
+      });
+    } catch (widgetError) {
+      const message =
+        widgetError instanceof Error ? widgetError.message : String(widgetError);
+      if (message === "closed_by_user") {
+        return;
+      }
+      if (message === "invalid_api_key") {
+        setError("DPD API kľúč mapy nie je platný.");
+        return;
+      }
+      if (message === "missing_api_key") {
+        setError("Chýba API kľúč mapy DPD.");
+        return;
+      }
+      setError("Nepodarilo sa otvoriť mapu odberných miest DPD.");
+    } finally {
+      setIsOpeningPickupWidget(false);
+    }
+  }, [dpdWidgetConfig, ensureDpdWidgetLibrary, paymentMethod, pickupPoint?.parcelShopId]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -365,6 +522,15 @@ export function CheckoutForm({
       if (parsed?.selectedDeliveryAddressId) {
         setSelectedDeliveryAddressId(parsed.selectedDeliveryAddressId);
       }
+      if (
+        parsed?.selectedDeliveryMethod === "DPD_PICKUP" ||
+        parsed?.selectedDeliveryMethod === "PERSONAL_PICKUP"
+      ) {
+        setDeliveryMethod(parsed.selectedDeliveryMethod);
+      }
+      if (parsed?.selectedPickupPoint) {
+        setPickupPoint(parsed.selectedPickupPoint);
+      }
     } catch (storageError) {
       console.warn("Checkout address restore failed:", storageError);
     } finally {
@@ -379,6 +545,8 @@ export function CheckoutForm({
       deliveryData,
       deliveryDifferent,
       selectedDeliveryAddressId,
+      selectedDeliveryMethod: deliveryMethod,
+      selectedPickupPoint: pickupPoint ?? null,
     };
     try {
       localStorage.setItem(addressStorageKey, JSON.stringify(payload));
@@ -392,6 +560,8 @@ export function CheckoutForm({
     deliveryDifferent,
     hasHydratedAddress,
     selectedDeliveryAddressId,
+    deliveryMethod,
+    pickupPoint,
   ]);
 
   const customerName = `${billingData.firstName} ${billingData.lastName}`.trim();
@@ -411,6 +581,7 @@ export function CheckoutForm({
       ? billingData.companyName.trim() && billingData.ico.trim() && billingData.dic.trim()
       : true);
   const canProceedFromDelivery = deliveryDifferent
+    && deliveryMethod !== "PERSONAL_PICKUP"
     ? deliveryData.firstName.trim() &&
       deliveryData.lastName.trim() &&
       deliveryData.email.trim() &&
@@ -420,6 +591,13 @@ export function CheckoutForm({
       deliveryData.zipCode.trim() &&
       deliveryData.country.trim()
       : true;
+
+  useEffect(() => {
+    if (deliveryMethod === "PERSONAL_PICKUP") {
+      setDeliveryDifferent(false);
+      setPickupPoint(null);
+    }
+  }, [deliveryMethod]);
 
   const createOrderAndUpload = useCallback(async () => {
     const deliverySource = deliveryDifferent
@@ -488,6 +666,9 @@ export function CheckoutForm({
       customerName,
       customerEmail,
       customerPhone,
+      deliveryMethod,
+      paymentMethod: toCheckoutPaymentMethod(paymentMethod),
+      pickupPoint: pickupPoint ?? undefined,
       billingAddress: billingAddressPayload,
       shippingAddress: shippingAddressPayload,
       notes: [notes.trim(), extraNotes].filter(Boolean).join("\n\n"),
@@ -601,9 +782,9 @@ export function CheckoutForm({
     window.dispatchEvent(new Event("cart-updated"));
 
     return { orderId: order.id as string, uploadFailed };
-  }, [billingData, deliveryData, deliveryDifferent, notes, customerEmail, customerName, customerPhone]);
+  }, [billingData, deliveryData, deliveryDifferent, notes, customerEmail, customerName, customerPhone, deliveryMethod, paymentMethod, pickupPoint]);
 
-  const preparePayment = useCallback(async (methodOverride?: "bank" | "stripe") => {
+  const preparePayment = useCallback(async (methodOverride?: PaymentMethod) => {
     const effectiveMethod = methodOverride ?? paymentMethod;
     if (effectiveMethod !== "stripe") {
       return;
@@ -679,6 +860,19 @@ export function CheckoutForm({
     paymentMethod,
   ]);
 
+  const clearCartAfterCheckout = useCallback(async () => {
+    try {
+      await fetch("/api/cart/clear", {
+        method: "POST",
+        headers: { ...getCsrfHeader() },
+      });
+    } catch (clearError) {
+      console.error("Failed to clear cart after checkout:", clearError);
+    } finally {
+      window.dispatchEvent(new Event("cart-updated"));
+    }
+  }, []);
+
   useEffect(() => {
     if (currentStep !== reviewStep) return;
     if (paymentMethod !== "stripe") return;
@@ -694,21 +888,36 @@ export function CheckoutForm({
     reviewStep,
   ]);
 
-  const handleBankTransfer = useCallback(async () => {
+  const handleOfflinePayment = useCallback(async () => {
     if (isSubmitting || isPreparingPayment) return;
     if (!customerName.trim() || !customerEmail.trim()) {
       setError("Meno a e-mail sú povinné.");
       return;
     }
-    if (orderId) {
-      window.location.href = `/account/orders/${orderId}?success=true`;
-      return;
-    }
     setIsSubmitting(true);
     setError(null);
     try {
+      const selectedCheckoutPaymentMethod = toCheckoutPaymentMethod(paymentMethod);
+      if (orderId) {
+        const syncResponse = await fetch(`/api/orders/${orderId}/payment-method`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+          body: JSON.stringify({
+            paymentMethod: selectedCheckoutPaymentMethod,
+            customerEmail: customerEmail.trim(),
+          }),
+        });
+        if (!syncResponse.ok) {
+          const syncError = await syncResponse.json().catch(() => ({}));
+          throw new Error(syncError.error ?? "Nepodarilo sa aktualizovať spôsob platby.");
+        }
+        await clearCartAfterCheckout();
+        window.location.href = `/account/orders/${orderId}?success=true`;
+        return;
+      }
       const { orderId: createdOrderId, uploadFailed } = await createOrderAndUpload();
       const uploadParam = uploadFailed ? "&upload=failed" : "";
+      await clearCartAfterCheckout();
       window.location.href = `/account/orders/${createdOrderId}?success=true${uploadParam}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Neznáma chyba");
@@ -718,6 +927,8 @@ export function CheckoutForm({
     createOrderAndUpload,
     customerEmail,
     customerName,
+    clearCartAfterCheckout,
+    paymentMethod,
     isPreparingPayment,
     isSubmitting,
     orderId,
@@ -806,28 +1017,109 @@ export function CheckoutForm({
             />
 
             <Card className="p-6">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="different-delivery"
-                  checked={deliveryDifferent}
-                  onChange={(event) => {
-                    const nextValue = event.target.checked;
-                    setDeliveryDifferent(nextValue);
-                    if (nextValue && defaultSavedAddress) {
-                      setSelectedDeliveryAddressId(defaultSavedAddress.id);
-                      applySavedAddress(defaultSavedAddress);
-                    }
-                  }}
-                  className="h-4 w-4 rounded border-border"
-                />
-                <label htmlFor="different-delivery" className="text-sm font-medium">
-                  Doručiť na inú adresu
-                </label>
+              <h3 className="mb-4 text-lg font-semibold">Spôsob doručenia</h3>
+              <div className="grid gap-3 md:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("PERSONAL_PICKUP")}
+                  className={`rounded-lg border p-4 text-left ${deliveryMethod === "PERSONAL_PICKUP" ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <div className="font-medium">Osobný odber</div>
+                  <div className="text-sm text-muted-foreground">Rozvojová 2, Košice</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("DPD_COURIER")}
+                  className={`rounded-lg border p-4 text-left ${deliveryMethod === "DPD_COURIER" ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <div className="font-medium">DPD kuriér</div>
+                  <div className="text-sm text-muted-foreground">Doručenie na adresu</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("DPD_PICKUP")}
+                  className={`rounded-lg border p-4 text-left ${deliveryMethod === "DPD_PICKUP" ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <div className="font-medium">DPD Pickup point</div>
+                  <div className="text-sm text-muted-foreground">Odberné miesto / box</div>
+                </button>
               </div>
+              {deliveryMethod === "DPD_PICKUP" && (
+                <div className="mt-4 rounded-md border p-4 space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ModeButton
+                      mode={mode}
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={handleOpenPickupWidget}
+                      disabled={isOpeningPickupWidget}
+                    >
+                      {isOpeningPickupWidget ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Otváram mapu...
+                        </>
+                      ) : pickupPoint?.parcelShopId ? (
+                        "Zmeniť odberné miesto"
+                      ) : (
+                        "Vybrať odberné miesto na mape"
+                      )}
+                    </ModeButton>
+                    {!dpdWidgetConfig.enabled && (
+                      <span className="text-xs text-muted-foreground">
+                        Widget mapy je vypnutý v nastaveniach DPD.
+                      </span>
+                    )}
+                  </div>
+                  {pickupPoint?.parcelShopId ? (
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                      <div className="font-medium">{pickupPoint.name || "Odberné miesto DPD"}</div>
+                      <div className="text-muted-foreground">
+                        {pickupPoint.street}
+                        <br />
+                        {pickupPoint.zip} {pickupPoint.city}
+                        <br />
+                        {pickupPoint.country}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        PUS ID: {pickupPoint.parcelShopId}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Zatiaľ nie je vybrané odberné miesto.
+                    </p>
+                  )}
+                </div>
+              )}
             </Card>
 
-            {deliveryDifferent && hasSavedAddresses && (
+            {deliveryMethod !== "PERSONAL_PICKUP" && (
+              <Card className="p-6">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="different-delivery"
+                    checked={deliveryDifferent}
+                    onChange={(event) => {
+                      const nextValue = event.target.checked;
+                      setDeliveryDifferent(nextValue);
+                      if (nextValue && defaultSavedAddress) {
+                        setSelectedDeliveryAddressId(defaultSavedAddress.id);
+                        applySavedAddress(defaultSavedAddress);
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <label htmlFor="different-delivery" className="text-sm font-medium">
+                    Doručiť na inú adresu
+                  </label>
+                </div>
+              </Card>
+            )}
+
+            {deliveryMethod !== "PERSONAL_PICKUP" && deliveryDifferent && hasSavedAddresses && (
               <Card className="p-6">
                 <div className="space-y-3">
                   <div className="text-sm font-semibold">Uložené adresy</div>
@@ -858,7 +1150,7 @@ export function CheckoutForm({
               </Card>
             )}
 
-            {deliveryDifferent && (
+            {deliveryMethod !== "PERSONAL_PICKUP" && deliveryDifferent && (
               <AddressForm
                 mode={mode}
                 title={mode === "b2c" ? "Adresa doručenia" : "Adresa dodania"}
@@ -876,7 +1168,13 @@ export function CheckoutForm({
             <OrderReview
               mode={mode}
               items={orderItems}
-              shippingMethod="Kuriér"
+              shippingMethod={
+                deliveryMethod === "PERSONAL_PICKUP"
+                  ? "Osobný odber - Rozvojová 2, Košice"
+                  : deliveryMethod === "DPD_PICKUP"
+                    ? `DPD Pickup/Pickup Station${pickupPoint?.name ? ` - ${pickupPoint.name}` : ""}`
+                    : "DPD kuriér"
+              }
               shippingCost={0}
               billingAddress={{
                 companyName: billingData.companyName,
@@ -997,6 +1295,10 @@ export function CheckoutForm({
                   setError("Vyplňte adresu doručenia.");
                   return;
                 }
+                if (currentStep === infoStep && deliveryMethod === "DPD_PICKUP" && !pickupPoint?.parcelShopId) {
+                  setError("Vyberte odberné miesto DPD.");
+                  return;
+                }
                 setError(null);
                 setInvalidBillingFields(new Set());
                 setInvalidDeliveryFields(new Set());
@@ -1070,6 +1372,7 @@ export function CheckoutForm({
                 <PaymentMethodSelector
                   mode={mode}
                   selected={paymentMethod}
+                  allowedMethods={availablePaymentMethods}
                   variant="embedded"
                   onSelect={(next) => {
                     setPaymentMethod(next);
@@ -1103,7 +1406,7 @@ export function CheckoutForm({
                   </div>
                 )}
 
-                {paymentMethod === "bank" && (
+                {(paymentMethod === "bank" || paymentMethod === "cod") && (
                   <div className="space-y-3">
                     <ModeButton
                       mode={mode}
@@ -1111,14 +1414,16 @@ export function CheckoutForm({
                       size="lg"
                       type="button"
                       className="w-full"
-                      onClick={handleBankTransfer}
+                      onClick={handleOfflinePayment}
                       disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
                     >
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Potvrdiť objednávku
                     </ModeButton>
                     <p className="text-center text-xs text-muted-foreground">
-                      Pokyny k platbe uvidíte po vytvorení objednávky.
+                      {paymentMethod === "cod"
+                        ? "Objednávka bude pripravená na dobierku."
+                        : "Pokyny k platbe uvidíte po vytvorení objednávky."}
                     </p>
                   </div>
                 )}

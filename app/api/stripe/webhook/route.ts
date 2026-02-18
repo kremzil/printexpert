@@ -45,6 +45,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  console.log("Stripe webhook received:", {
+    id: event.id,
+    type: event.type,
+  });
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const payload = event.data.object as unknown as Prisma.InputJsonValue;
@@ -241,9 +246,11 @@ export async function POST(req: Request) {
     });
 
     if (result?.duplicated) {
+      console.log("Stripe webhook duplicated event ignored:", event.id);
       return NextResponse.json({ received: true });
     }
 
+    console.log("Stripe webhook processed:", event.id);
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Stripe webhook error:", error);

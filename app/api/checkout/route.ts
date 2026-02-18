@@ -3,6 +3,7 @@ import { createOrder } from "@/lib/orders";
 import { cookies } from "next/headers";
 import { NotificationService } from "@/lib/notifications";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { getShopSettings } from "@/lib/shop-settings";
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
@@ -32,7 +33,18 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { customerName, customerEmail, customerPhone, shippingAddress, billingAddress, notes } =
+    const {
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      billingAddress,
+      notes,
+      deliveryMethod,
+      paymentMethod,
+      dpdProduct,
+      pickupPoint,
+    } =
       body;
 
     if (!customerName || !customerEmail) {
@@ -40,6 +52,39 @@ export async function POST(req: NextRequest) {
         { error: "Meno a email sú povinné" },
         { status: 400 }
       );
+    }
+
+    if (deliveryMethod === "DPD_PICKUP" && !pickupPoint?.parcelShopId) {
+      return NextResponse.json(
+        { error: "Vyberte odberné miesto DPD." },
+        { status: 400 }
+      );
+    }
+
+    const settings = await getShopSettings();
+    if (paymentMethod === "COD") {
+      if (deliveryMethod === "PERSONAL_PICKUP") {
+        return NextResponse.json(
+          { error: "Dobierka nie je dostupná pre osobný odber." },
+          { status: 400 }
+        );
+      }
+      if (!settings.paymentSettings.codEnabled) {
+        return NextResponse.json(
+          { error: "Dobierka nie je dostupná." },
+          { status: 400 }
+        );
+      }
+      if (
+        (deliveryMethod === "DPD_PICKUP" && !settings.paymentSettings.codForPickup) ||
+        ((deliveryMethod ?? "DPD_COURIER") === "DPD_COURIER" &&
+          !settings.paymentSettings.codForCourier)
+      ) {
+        return NextResponse.json(
+          { error: "Dobierka nie je dostupná pre vybraný spôsob doručenia." },
+          { status: 400 }
+        );
+      }
     }
 
     const cookieStore = await cookies();
@@ -52,6 +97,10 @@ export async function POST(req: NextRequest) {
         customerPhone,
         shippingAddress,
         billingAddress,
+        deliveryMethod,
+        paymentMethod,
+        dpdProduct,
+        pickupPoint,
         notes,
       },
       sessionId

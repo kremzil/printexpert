@@ -18,6 +18,21 @@ interface Address {
   icDph?: string;
 }
 
+function mapPaymentMethod(order: { paymentMethod?: string | null; paymentProvider?: string | null }) {
+  if (order.paymentMethod === "COD") return "Dobierka";
+  if (order.paymentMethod === "BANK_TRANSFER") return "Bankový prevod";
+  if (order.paymentProvider === "STRIPE" || order.paymentMethod === "STRIPE") {
+    return "Platba kartou";
+  }
+  return "Bankový prevod";
+}
+
+function mapDeliveryMethod(order: { deliveryMethod?: string | null }) {
+  if (order.deliveryMethod === "PERSONAL_PICKUP") return "Osobný odber";
+  if (order.deliveryMethod === "DPD_PICKUP") return "DPD Pickup point";
+  return "DPD kuriér";
+}
+
 function parseAddress(address: unknown): Address | null {
   if (!address || typeof address !== "object") return null;
   return address as Address;
@@ -123,8 +138,8 @@ export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
       issueDate: new Date(),
       taxDate: new Date(),
       dueDate: new Date(Date.now() + (settings.paymentDueDays || 14) * 24 * 60 * 60 * 1000),
-      paymentMethod: order.paymentProvider === "STRIPE" ? "Platba kartou" : "Dobierka",
-      deliveryMethod: "Kuriér", // TODO: Add delivery method to order
+      paymentMethod: mapPaymentMethod(order),
+      deliveryMethod: mapDeliveryMethod(order),
       variableSymbol: invoiceNumber.replace(/\s/g, ""),
     },
     items: order.items.map((item): InvoiceItem => {
