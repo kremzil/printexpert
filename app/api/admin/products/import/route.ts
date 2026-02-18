@@ -5,6 +5,7 @@ import { invalidateAllCatalog } from "@/lib/cache-tags"
 import path from "path"
 import fs from "fs/promises"
 import sharp from "sharp"
+import { pathToFileURL } from "url"
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
@@ -12,6 +13,7 @@ import { sanitizeHtml } from "@/lib/sanitize-html"
 
 const MAX_ROWS = 5000
 const DEFAULT_CATEGORY_IMAGE = "/categories/velke-formaty.webp"
+const PRODUCTS_ROOT_URL = pathToFileURL(`${path.join(process.cwd(), "public", "products")}${path.sep}`)
 
 type MappingRow = {
   csvColumn: string
@@ -129,6 +131,13 @@ const sanitizeFolder = (value: string) => {
   return parts.join("/")
 }
 
+const sanitizeFileName = (value: string) => {
+  if (!value) return ""
+  const normalized = value.trim().replace(/\\/g, "/")
+  const fileName = normalized.split("/").pop() ?? ""
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "")
+}
+
 async function downloadAndProcessImage(options: {
   imageUrl: string
   productId: string
@@ -145,27 +154,30 @@ async function downloadAndProcessImage(options: {
   const arrayBuffer = await response.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
 
-  const baseFolder = path.join(
-    process.cwd(),
-    "public",
-    "products",
-    options.folder,
-    options.productId
-  )
-  await fs.mkdir(baseFolder, { recursive: true })
+  const safeProductId = options.productId.replace(/[^a-zA-Z0-9-_]/g, "")
+  if (!safeProductId) {
+    throw new Error("Neplatné ID produktu pre cestu obrázka.")
+  }
 
-  const filePath = path.join(baseFolder, options.fileName)
+  const safeFileName = sanitizeFileName(options.fileName)
+  if (!safeFileName) {
+    throw new Error("Neplatný názov súboru obrázka.")
+  }
+
+  const relativeFolder = path.posix.join(options.folder, safeProductId)
+  const baseFolderUrl = new URL(`${relativeFolder}/`, PRODUCTS_ROOT_URL)
+  await fs.mkdir(baseFolderUrl, { recursive: true })
+
+  const fileUrl = new URL(safeFileName, baseFolderUrl)
 
   const output = await sharp(buffer)
     .resize({ width: options.width, withoutEnlargement: true })
     .webp({ quality: options.quality })
     .toBuffer()
 
-  await fs.writeFile(filePath, output)
+  await fs.writeFile(fileUrl, output)
 
-  const publicPath = path
-    .join("/products", options.folder, options.productId, options.fileName)
-    .replace(/\\/g, "/")
+  const publicPath = path.posix.join("/products", relativeFolder, safeFileName)
 
   return publicPath
 }
