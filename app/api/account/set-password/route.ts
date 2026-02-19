@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
@@ -10,7 +11,7 @@ const schema = z.object({
   confirmPassword: z.string().min(8),
 })
 
-export async function POST(request: Request) {
+const POSTHandler = async (request: Request) => {
   const session = await auth()
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -45,4 +46,8 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export const POST = withObservedRoute("POST /api/account/set-password", POSTHandler);
+
+
 

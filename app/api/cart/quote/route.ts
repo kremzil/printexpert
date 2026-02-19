@@ -4,12 +4,13 @@ import { auth } from "@/auth";
 import { getCart } from "@/lib/cart";
 import { generateQuotePdf } from "@/lib/pdf";
 import { getShopVatRate } from "@/lib/shop-settings";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 /**
  * GET /api/cart/quote - Generate and download price quote PDF
  * Available for all users, but primarily for B2B
  */
-export async function GET() {
+const GETHandler = async () => {
   try {
     // Get session for customer info
     const session = await auth();
@@ -58,3 +59,8 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withObservedRoute("GET /api/cart/quote", GETHandler);
+
+
+

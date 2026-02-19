@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextRequest, NextResponse } from "next/server"
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
@@ -7,7 +8,7 @@ type Params = {
 }
 
 // PUT /api/design-templates/[id] — update template (admin only)
-export async function PUT(request: NextRequest, { params }: Params) {
+const PUTHandler = async (request: NextRequest, { params }: Params) => {
   try {
     await requireAdmin()
   } catch {
@@ -48,7 +49,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/design-templates/[id] — delete template (admin only)
-export async function DELETE(_request: NextRequest, { params }: Params) {
+const DELETEHandler = async (_request: NextRequest, { params }: Params) => {
   try {
     await requireAdmin()
   } catch {
@@ -67,3 +68,9 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   return NextResponse.json({ success: true })
 }
+
+export const PUT = withObservedRoute("PUT /api/design-templates/[id]", PUTHandler);
+export const DELETE = withObservedRoute("DELETE /api/design-templates/[id]", DELETEHandler);
+
+
+

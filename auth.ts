@@ -10,11 +10,16 @@ import { authConfig } from "./auth.config"
 import { getPrisma } from "@/lib/prisma"
 import { verifyPassword } from "@/lib/auth"
 import { UserRole } from "@/lib/generated/prisma"
+import { OBS_EVENT } from "@/lib/observability/events"
+import { logger } from "@/lib/observability/logger"
+import { getClientIpHash, hashValue } from "@/lib/request-utils"
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 })
+
+const hashEmail = (email: string) => hashValue(email.trim().toLowerCase())
 
 // Расширяем PrismaAdapter для поддержки кастомного поля role
 function customPrismaAdapter(): Adapter {
@@ -65,23 +70,68 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
+        const ipHash = getClientIpHash(request)
         const parsed = credentialsSchema.safeParse(credentials)
-        if (!parsed.success) return null
+        if (!parsed.success) {
+          logger.warn({
+            event: OBS_EVENT.AUTH_LOGIN_FAILED,
+            provider: "credentials",
+            reason: "validation_failed",
+            ipHash,
+          })
+          return null
+        }
+        const normalizedEmail = parsed.data.email.toLowerCase()
+        const emailHash = hashEmail(normalizedEmail)
+        logger.info({
+          event: OBS_EVENT.AUTH_LOGIN_ATTEMPT,
+          provider: "credentials",
+          ipHash,
+          emailHash,
+        })
 
         const prisma = getPrisma()
         const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() },
+          where: { email: normalizedEmail },
         })
 
-        if (!user?.passwordHash) return null
+        if (!user?.passwordHash) {
+          logger.warn({
+            event: OBS_EVENT.AUTH_LOGIN_FAILED,
+            provider: "credentials",
+            reason: "user_not_found_or_no_password",
+            ipHash,
+            emailHash,
+          })
+          return null
+        }
 
         const isValid = await verifyPassword(
           parsed.data.password,
           user.passwordHash
         )
 
-        if (!isValid) return null
+        if (!isValid) {
+          logger.warn({
+            event: OBS_EVENT.AUTH_LOGIN_FAILED,
+            provider: "credentials",
+            reason: "invalid_password",
+            ipHash,
+            emailHash,
+            userId: user.id,
+          })
+          return null
+        }
+
+        logger.info({
+          event: OBS_EVENT.AUTH_LOGIN_SUCCESS,
+          provider: "credentials",
+          ipHash,
+          emailHash,
+          userId: user.id,
+          role: user.role,
+        })
 
         return {
           id: user.id,

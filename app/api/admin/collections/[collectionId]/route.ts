@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { TAGS } from "@/lib/cache-tags";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const normalizeSlug = (value: string) =>
   value
@@ -50,10 +51,10 @@ const ensureAdmin = async () => {
   return session;
 };
 
-export async function PATCH(
+const PATCHHandler = async (
   request: NextRequest,
   { params }: { params: Promise<{ collectionId: string }> }
-) {
+) => {
   const session = await ensureAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -164,10 +165,10 @@ export async function PATCH(
   return NextResponse.json(updated);
 }
 
-export async function DELETE(
+const DELETEHandler = async (
   _request: NextRequest,
   { params }: { params: Promise<{ collectionId: string }> }
-) {
+) => {
   const session = await ensureAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -190,3 +191,9 @@ export async function DELETE(
   revalidateTag(TAGS.COLLECTIONS, "max");
   return NextResponse.json({ success: true });
 }
+
+export const PATCH = withObservedRoute("PATCH /api/admin/collections/[collectionId]", PATCHHandler);
+export const DELETE = withObservedRoute("DELETE /api/admin/collections/[collectionId]", DELETEHandler);
+
+
+

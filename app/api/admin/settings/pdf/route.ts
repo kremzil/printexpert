@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getPdfSettings, updatePdfSettings } from "@/lib/pdf";
 import type { PdfSettings } from "@/lib/pdf";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 /**
  * GET /api/admin/settings/pdf
  * Get PDF settings
  */
-export async function GET(): Promise<NextResponse> {
+const GETHandler = async (): Promise<NextResponse> => {
   try {
     const session = await auth();
     
@@ -33,7 +34,7 @@ export async function GET(): Promise<NextResponse> {
  * PUT /api/admin/settings/pdf
  * Update PDF settings
  */
-export async function PUT(request: Request): Promise<NextResponse> {
+const PUTHandler = async (request: Request): Promise<NextResponse> => {
   try {
     const session = await auth();
     
@@ -56,3 +57,9 @@ export async function PUT(request: Request): Promise<NextResponse> {
     );
   }
 }
+
+export const GET = withObservedRoute("GET /api/admin/settings/pdf", GETHandler);
+export const PUT = withObservedRoute("PUT /api/admin/settings/pdf", PUTHandler);
+
+
+

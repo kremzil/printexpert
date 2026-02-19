@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { cancelDpdShipment } from "@/lib/dpd";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function POST(
+const POSTHandler = async (
   _req: Request,
   { params }: { params: Promise<{ orderId: string }> }
-) {
+) => {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,4 +21,8 @@ export async function POST(
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const POST = withObservedRoute("POST /api/admin/orders/[orderId]/dpd/cancel", POSTHandler);
+
+
 

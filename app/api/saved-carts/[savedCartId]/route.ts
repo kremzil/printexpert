@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 
 import { auth } from "@/auth"
@@ -8,7 +9,7 @@ interface RouteContext {
   params: Promise<{ savedCartId: string }>
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
+const PATCHHandler = async (request: Request, context: RouteContext) => {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -55,7 +56,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(request: Request, context: RouteContext) {
+const DELETEHandler = async (request: Request, context: RouteContext) => {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -94,3 +95,9 @@ export async function DELETE(request: Request, context: RouteContext) {
     )
   }
 }
+
+export const PATCH = withObservedRoute("PATCH /api/saved-carts/[savedCartId]", PATCHHandler);
+export const DELETE = withObservedRoute("DELETE /api/saved-carts/[savedCartId]", DELETEHandler);
+
+
+

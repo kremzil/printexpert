@@ -5,6 +5,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getS3Client } from "@/lib/s3";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const sanitizeDispositionFileName = (fileName: string) => {
   const baseName = fileName.split(/[\\/]/).pop() || "file";
@@ -16,10 +17,10 @@ const sanitizeDispositionFileName = (fileName: string) => {
   return limited.length > 0 ? limited : "file";
 };
 
-export async function GET(
+const GETHandler = async (
   _request: Request,
   { params }: { params: Promise<{ assetId: string }> }
-) {
+) => {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -74,3 +75,8 @@ export async function GET(
     );
   }
 }
+
+export const GET = withObservedRoute("GET /api/assets/[assetId]/download", GETHandler);
+
+
+

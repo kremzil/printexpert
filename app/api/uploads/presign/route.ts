@@ -3,7 +3,11 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { auth } from "@/auth";
+import { OBS_EVENT } from "@/lib/observability/events";
+import { logger } from "@/lib/observability/logger";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { prisma } from "@/lib/prisma";
+import { getClientIpHash, getRequestIdOrCreate } from "@/lib/request-utils";
 import { getS3Client, getS3Config } from "@/lib/s3";
 import {
   buildOrderAssetKey,
@@ -16,7 +20,9 @@ import {
 
 const allowedKinds = new Set(["ARTWORK", "PREVIEW", "INVOICE", "OTHER"]);
 
-export async function POST(request: Request) {
+const postHandler = async (request: Request) => {
+  const requestId = getRequestIdOrCreate(request);
+  const ipHash = getClientIpHash(request);
   try {
     const session = await auth();
     if (!session?.user) {
@@ -139,10 +145,21 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("POST /api/uploads/presign error:", error);
+    const err = error instanceof Error ? error : new Error("Unknown uploads presign route error");
+    logger.error({
+      event: OBS_EVENT.SERVER_UNHANDLED_ERROR,
+      requestId,
+      method: request.method,
+      path: new URL(request.url).pathname,
+      ipHash,
+      errorName: err.name,
+      errorMessage: err.message,
+    });
     return NextResponse.json(
       { error: "Interná chyba servera." },
       { status: 500 }
     );
   }
-}
+};
+
+export const POST = withObservedRoute("POST /api/uploads/presign", postHandler);

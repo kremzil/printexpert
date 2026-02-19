@@ -1,6 +1,6 @@
 # Статус проекта
 
-Дата: 2026-02-16
+Дата: 2026-02-19
 Версия: 0.3.2
 
 ## База данных и Prisma
@@ -135,6 +135,33 @@
 - Upload API требует активную сессию
 - Первый администратор назначается вручную через Prisma Studio
 
+## Наблюдаемость и алерты (обновлено 19.02.2026)
+- Внедрён structured logging на базе `pino`:
+  - `lib/observability/logger.ts` (redaction + env-настройка),
+  - `lib/observability/events.ts` (taxonomy событий),
+  - `lib/request-utils.ts` (`requestId`, `ipHash`, `getClientIp`).
+- Для API-хендлеров используется `withObservedRoute(routeId, handler)`:
+  - покрыты все route-файлы в `app/api` (48 файлов, 58 handler-экспортов).
+  - каждое обращение логируется как `http.request.completed` со статусом/латентностью.
+- Security-события:
+  - `proxy.ts` пишет `security.origin_blocked` и `security.csrf_blocked`,
+  - rate-limit denial фиксируется как `security.rate_limit_denied` (в т.ч. auth/contact/price/checkout/quote-request).
+- Auth-события в `auth.ts`:
+  - `auth.login_attempt`,
+  - `auth.login_failed`,
+  - `auth.login_success`.
+- Глобальные ошибки:
+  - сервер: `instrumentation.ts` (`server.unhandled_error`),
+  - клиент: `app/global-error.tsx` + `POST /api/client-error` (`client.unhandled_error`).
+- Политика данных логов:
+  - raw IP не логируется, используется `ipHash`,
+  - редактируются чувствительные поля (`authorization`, cookies, tokens, secrets, password fields).
+- Production monitoring stack в `docker-compose.prod.yml`:
+  - `loki`, `promtail`, `grafana`,
+  - для `web` зафиксирован `logging.driver: json-file` + ротация (`max-size`, `max-file`),
+  - alert rules provisioning в `ops/grafana/provisioning/alerting/*`.
+- Подробно: `docs/OBSERVABILITY_LOGGING.md`.
+
 ## WP-матрицы и калькулятор
 - Таблицы: `WpMatrixType`, `WpMatrixPrice`, `WpTerm`, `WpTermTaxonomy`, `WpTermRelationship`, `WpTermMeta`, `WpAttributeTaxonomy`.
 - Импорт JSON → DB: `scripts/import-wp-calculator-tables.js`.
@@ -230,7 +257,7 @@
 - Медиа‑теги очищаются на сервере, допускаются только `https://` и `/uploads/`.
 
 ## Деплой и сборка
-- `docker-compose.prod.yml` поднимает `db` и `web`.
+- `docker-compose.prod.yml` поднимает `db`, `web`, `loki`, `promtail`, `grafana`.
 - `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.
 - Пример env: `.env.production.example`.
 - ESLint игнорирует сгенерированные Prisma файлы и служебные скрипты.

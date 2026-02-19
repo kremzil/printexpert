@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { auth } from "@/auth"
@@ -6,7 +7,7 @@ import { getCart } from "@/lib/cart"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { Prisma } from "@/lib/generated/prisma"
 
-export async function POST(request: Request) {
+const POSTHandler = async (request: Request) => {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -69,3 +70,8 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export const POST = withObservedRoute("POST /api/saved-carts", POSTHandler);
+
+
+

@@ -1,9 +1,10 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextRequest, NextResponse } from "next/server"
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
 
 // GET /api/design-templates?productId=xxx
-export async function GET(request: NextRequest) {
+const GETHandler = async (request: NextRequest) => {
   const productId = request.nextUrl.searchParams.get("productId")
   if (!productId) {
     return NextResponse.json(
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/design-templates — create a new template (admin only)
-export async function POST(request: NextRequest) {
+const POSTHandler = async (request: NextRequest) => {
   try {
     await requireAdmin()
   } catch {
@@ -69,3 +70,9 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(template, { status: 201 })
 }
+
+export const GET = withObservedRoute("GET /api/design-templates", GETHandler);
+export const POST = withObservedRoute("POST /api/design-templates", POSTHandler);
+
+
+

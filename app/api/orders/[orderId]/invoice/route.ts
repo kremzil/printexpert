@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getInvoiceFromS3 } from "@/lib/s3";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 interface RouteContext {
   params: Promise<{ orderId: string }>;
@@ -11,10 +12,10 @@ interface RouteContext {
  * GET /api/orders/[orderId]/invoice
  * Download invoice PDF for an order
  */
-export async function GET(
+const GETHandler = async (
   _request: NextRequest,
   context: RouteContext
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const session = await auth();
     const { orderId } = await context.params;
@@ -83,3 +84,8 @@ export async function GET(
     );
   }
 }
+
+export const GET = withObservedRoute("GET /api/orders/[orderId]/invoice", GETHandler);
+
+
+

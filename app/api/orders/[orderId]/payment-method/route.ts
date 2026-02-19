@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 type CheckoutPaymentMethod = "STRIPE" | "BANK_TRANSFER" | "COD";
 
@@ -14,10 +15,10 @@ const PAYMENT_METHODS = new Set<CheckoutPaymentMethod>([
   "COD",
 ]);
 
-export async function PATCH(
+const PATCHHandler = async (
   req: NextRequest,
   context: RouteContext
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const { orderId } = await context.params;
     const session = await auth();
@@ -103,4 +104,8 @@ export async function PATCH(
     );
   }
 }
+
+export const PATCH = withObservedRoute("PATCH /api/orders/[orderId]/payment-method", PATCHHandler);
+
+
 

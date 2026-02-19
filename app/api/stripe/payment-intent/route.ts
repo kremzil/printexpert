@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { calculate } from "@/lib/pricing";
 import type { Audience, AudienceContext } from "@/lib/audience-shared";
 import { Prisma } from "@/lib/generated/prisma";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
@@ -45,7 +46,7 @@ const parseProductionSpeedPercent = (selectedOptions: unknown): number => {
   return Number.isFinite(percent) ? percent : 0;
 };
 
-export async function POST(req: NextRequest) {
+const POSTHandler = async (req: NextRequest) => {
   try {
     if (!stripe || !stripeSecretKey) {
       return NextResponse.json(
@@ -254,3 +255,8 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withObservedRoute("POST /api/stripe/payment-intent", POSTHandler);
+
+
+

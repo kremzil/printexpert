@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTopProducts } from '@/lib/catalog';
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+const GETHandler = async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const audience = searchParams.get('audience') || 'b2c';
@@ -18,3 +19,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }
 }
+
+export const GET = withObservedRoute("GET /api/top-products", GETHandler);
+
+
+

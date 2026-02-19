@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { randomBytes } from "node:crypto"
 import { auth } from "@/auth"
+import { OBS_EVENT } from "@/lib/observability/events"
+import { logger } from "@/lib/observability/logger"
+import {
+  getClientIpHash,
+  getRequestIdOrCreate,
+  REQUEST_ID_HEADER,
+} from "@/lib/request-utils"
 
 import {
   AUDIENCE_COOKIE_MAX_AGE_SECONDS,
@@ -17,14 +24,6 @@ import {
 const CSRF_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 const createCsrfToken = () => randomBytes(32).toString("base64url")
-
-const getClientIp = (request: NextRequest) => {
-  const forwardedFor = request.headers.get("x-forwarded-for")
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() || "unknown"
-  }
-  return request.headers.get("x-real-ip") ?? "unknown"
-}
 
 const ensureCsrfCookie = (request: NextRequest, response: NextResponse) => {
   const existing = request.cookies.get(CSRF_COOKIE_NAME)?.value
@@ -45,6 +44,14 @@ export async function proxy(request: NextRequest) {
   // NextAuth authorization check
   const session = await auth()
   const { nextUrl } = request
+  const requestId = getRequestIdOrCreate(request)
+  const ipHash = getClientIpHash(request)
+
+  const withRequestMeta = (response: NextResponse) => {
+    response.headers.set("x-pathname", nextUrl.pathname)
+    response.headers.set(REQUEST_ID_HEADER, requestId)
+    return response
+  }
   
   const isApiRoute = nextUrl.pathname.startsWith("/api/")
   const isCsrfExcludedRoute = isCsrfExcludedApiPath(nextUrl.pathname)
@@ -54,14 +61,19 @@ export async function proxy(request: NextRequest) {
   if (isApiRoute && isUnsafeMethod && !isCsrfExcludedRoute) {
     const origin = request.headers.get("origin")
     if (origin && origin !== nextUrl.origin) {
-      console.warn("proxy blocked request: origin mismatch", {
+      logger.warn({
+        event: OBS_EVENT.SECURITY_ORIGIN_BLOCKED,
+        requestId,
         method: request.method,
         path: nextUrl.pathname,
-        ip: getClientIp(request),
+        ipHash,
         origin,
         expectedOrigin: nextUrl.origin,
+        userId: session?.user?.id ?? null,
       })
-      return NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+      return withRequestMeta(
+        NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+      )
     }
 
     const referer = request.headers.get("referer")
@@ -69,22 +81,33 @@ export async function proxy(request: NextRequest) {
       try {
         const refererOrigin = new URL(referer).origin
         if (refererOrigin !== nextUrl.origin) {
-          console.warn("proxy blocked request: referer mismatch", {
+          logger.warn({
+            event: OBS_EVENT.SECURITY_ORIGIN_BLOCKED,
+            requestId,
             method: request.method,
             path: nextUrl.pathname,
-            ip: getClientIp(request),
+            ipHash,
             refererOrigin,
             expectedOrigin: nextUrl.origin,
+            userId: session?.user?.id ?? null,
           })
-          return NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+          return withRequestMeta(
+            NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+          )
         }
       } catch {
-        console.warn("proxy blocked request: invalid referer header", {
+        logger.warn({
+          event: OBS_EVENT.SECURITY_ORIGIN_BLOCKED,
+          requestId,
           method: request.method,
           path: nextUrl.pathname,
-          ip: getClientIp(request),
+          ipHash,
+          reason: "invalid_referer_header",
+          userId: session?.user?.id ?? null,
         })
-        return NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+        return withRequestMeta(
+          NextResponse.json({ error: "Neplatný pôvod požiadavky." }, { status: 403 })
+        )
       }
     }
   }
@@ -94,15 +117,19 @@ export async function proxy(request: NextRequest) {
     const csrfHeader = request.headers.get("x-csrf-token")
 
     if (!csrfCookie || !csrfHeader || csrfHeader !== csrfCookie) {
-      console.warn("proxy blocked request: csrf mismatch", {
+      logger.warn({
+        event: OBS_EVENT.SECURITY_CSRF_BLOCKED,
+        requestId,
         method: request.method,
         path: nextUrl.pathname,
-        ip: getClientIp(request),
+        ipHash,
         userId: session?.user?.id ?? null,
         hasCookie: Boolean(csrfCookie),
         hasHeader: Boolean(csrfHeader),
       })
-      return NextResponse.json({ error: "Neplatný CSRF token." }, { status: 403 })
+      return withRequestMeta(
+        NextResponse.json({ error: "Neplatný CSRF token." }, { status: 403 })
+      )
     }
   }
 
@@ -114,21 +141,21 @@ export async function proxy(request: NextRequest) {
   // Защита админки
   if (isOnAdmin) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL('/auth', nextUrl))
+      return withRequestMeta(NextResponse.redirect(new URL('/auth', nextUrl)))
     }
     if (session.user.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/', nextUrl))
+      return withRequestMeta(NextResponse.redirect(new URL('/', nextUrl)))
     }
   }
   
   // Защита личного кабинета
   if (isOnAccount && !isLoggedIn) {
-    return NextResponse.redirect(new URL('/auth', nextUrl))
+    return withRequestMeta(NextResponse.redirect(new URL('/auth', nextUrl)))
   }
   
   // Редирект залогиненных с /auth
   if (isOnAuth && isLoggedIn) {
-    return NextResponse.redirect(new URL('/account', nextUrl))
+    return withRequestMeta(NextResponse.redirect(new URL('/account', nextUrl)))
   }
 
   // Audience mode handling
@@ -140,8 +167,7 @@ export async function proxy(request: NextRequest) {
     if (!isApiRoute && (request.method === "GET" || request.method === "HEAD")) {
       ensureCsrfCookie(request, response)
     }
-    response.headers.set('x-pathname', nextUrl.pathname)
-    return response
+    return withRequestMeta(response)
   }
 
   const shouldRedirect = request.method === "GET" || request.method === "HEAD"
@@ -160,8 +186,7 @@ export async function proxy(request: NextRequest) {
     path: "/",
     secure: process.env.NODE_ENV === "production",
   })
-  response.headers.set('x-pathname', nextUrl.pathname)
-  return response
+  return withRequestMeta(response)
 }
 
 export const config = {

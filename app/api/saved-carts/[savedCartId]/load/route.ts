@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 
 import { auth } from "@/auth"
@@ -9,7 +10,7 @@ interface RouteContext {
   params: Promise<{ savedCartId: string }>
 }
 
-export async function POST(request: Request, context: RouteContext) {
+const POSTHandler = async (request: Request, context: RouteContext) => {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -79,3 +80,8 @@ export async function POST(request: Request, context: RouteContext) {
     )
   }
 }
+
+export const POST = withObservedRoute("POST /api/saved-carts/[savedCartId]/load", POSTHandler);
+
+
+

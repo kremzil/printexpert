@@ -1,8 +1,9 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET(request: NextRequest) {
+const GETHandler = async (request: NextRequest) => {
   const session = await auth()
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -36,3 +37,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(categories)
 }
+
+export const GET = withObservedRoute("GET /api/admin/kategorie", GETHandler);
+
+
+

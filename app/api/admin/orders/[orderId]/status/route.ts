@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@/lib/generated/prisma";
 import { NotificationService, sendInvoiceEmail } from "@/lib/notifications";
 import { getPdfSettings, generateAndSaveInvoice } from "@/lib/pdf";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function PATCH(
+const PATCHHandler = async (
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
-) {
+) => {
   try {
     const session = await auth();
     const { orderId } = await params;
@@ -113,3 +114,8 @@ export async function PATCH(
     );
   }
 }
+
+export const PATCH = withObservedRoute("PATCH /api/admin/orders/[orderId]/status", PATCHHandler);
+
+
+

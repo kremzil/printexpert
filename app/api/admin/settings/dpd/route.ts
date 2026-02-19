@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getPrisma } from "@/lib/prisma";
 import { getDpdSettings } from "@/lib/shop-settings";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const SETTINGS_ID = "default";
 
-export async function GET() {
+const GETHandler = async () => {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,7 +16,7 @@ export async function GET() {
   return NextResponse.json(dpdSettings);
 }
 
-export async function PUT(req: NextRequest) {
+const PUTHandler = async (req: NextRequest) => {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,4 +33,9 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const GET = withObservedRoute("GET /api/admin/settings/dpd", GETHandler);
+export const PUT = withObservedRoute("PUT /api/admin/settings/dpd", PUTHandler);
+
+
 

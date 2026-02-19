@@ -26,7 +26,60 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: shop-loki
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./ops/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: shop-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    volumes:
+      - ./ops/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: shop-grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - loki
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: ${GRAFANA_SMTP_HOST}
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER}
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
+      GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_FROM}
+      GF_SMTP_FROM_NAME: PrintExpert Alerts
+      GF_SMTP_SKIP_VERIFY: ${GRAFANA_SMTP_SKIP_VERIFY:-true}
+      GRAFANA_ALERT_EMAIL_TO: ${GRAFANA_ALERT_EMAIL_TO}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
     restart: unless-stopped
 
 volumes:
   pgdata:
+  loki-data:
+  grafana-data:

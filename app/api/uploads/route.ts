@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 import { createHash } from "node:crypto"
 import { mkdir, writeFile } from "node:fs/promises"
@@ -34,7 +35,7 @@ const extByMime: Record<string, string> = {
   "video/webm": ".webm",
 }
 
-export async function POST(request: Request) {
+const POSTHandler = async (request: Request) => {
   const session = await auth()
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -130,3 +131,8 @@ export async function POST(request: Request) {
   response.headers.set("x-audience-source", audienceContext.source)
   return response
 }
+
+export const POST = withObservedRoute("POST /api/uploads", POSTHandler);
+
+
+

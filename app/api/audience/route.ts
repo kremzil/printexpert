@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 
 import {
@@ -10,7 +11,7 @@ type AudiencePayload = {
   mode?: string
 }
 
-export async function POST(request: Request) {
+const POSTHandler = async (request: Request) => {
   let payload: AudiencePayload
 
   try {
@@ -41,3 +42,8 @@ export async function POST(request: Request) {
 
   return response
 }
+
+export const POST = withObservedRoute("POST /api/audience", POSTHandler);
+
+
+

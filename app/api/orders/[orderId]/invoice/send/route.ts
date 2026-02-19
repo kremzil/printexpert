@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { generateAndSaveInvoice } from "@/lib/pdf";
 import { sendInvoiceEmail } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 interface RouteContext {
   params: Promise<{ orderId: string }>;
@@ -12,10 +13,10 @@ interface RouteContext {
  * POST /api/orders/[orderId]/invoice/send
  * Generate invoice and send to customer email
  */
-export async function POST(
+const POSTHandler = async (
   _request: NextRequest,
   context: RouteContext
-): Promise<NextResponse> {
+): Promise<NextResponse> => {
   try {
     const session = await auth();
     const { orderId } = await context.params;
@@ -70,3 +71,8 @@ export async function POST(
     );
   }
 }
+
+export const POST = withObservedRoute("POST /api/orders/[orderId]/invoice/send", POSTHandler);
+
+
+

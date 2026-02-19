@@ -1,8 +1,9 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 import { clearCart } from "@/lib/cart"
 import { cookies } from "next/headers"
 
-export async function POST() {
+const POSTHandler = async () => {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("cart_session_id")?.value
@@ -18,3 +19,8 @@ export async function POST() {
     )
   }
 }
+
+export const POST = withObservedRoute("POST /api/cart/clear", POSTHandler);
+
+
+

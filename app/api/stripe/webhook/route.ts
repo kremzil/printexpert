@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma";
+import { OBS_EVENT } from "@/lib/observability/events";
+import { logger } from "@/lib/observability/logger";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
+import { getClientIpHash, getRequestIdOrCreate } from "@/lib/request-utils";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -11,7 +15,9 @@ const getOrderIdFromSession = (session: Stripe.Checkout.Session) => {
   return session.metadata?.orderId ?? session.client_reference_id ?? null;
 };
 
-export async function POST(req: Request) {
+const postHandler = async (req: Request) => {
+  const requestId = getRequestIdOrCreate(req);
+  const ipHash = getClientIpHash(req);
   if (!stripe || !stripeSecretKey) {
     return NextResponse.json(
       { error: "Stripe nie je nakonfigurovaný" },
@@ -45,7 +51,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  console.log("Stripe webhook received:", {
+  logger.info({
+    event: "stripe.webhook.received",
+    requestId,
+    ipHash,
     id: event.id,
     type: event.type,
   });
@@ -218,7 +227,12 @@ export async function POST(req: Request) {
           break;
         }
         case "charge.refunded": {
-          console.log("Stripe charge.refunded:", event.id);
+          logger.info({
+            event: "stripe.webhook.charge_refunded",
+            requestId,
+            ipHash,
+            stripeEventId: event.id,
+          });
           break;
         }
         case "refund.updated": {
@@ -233,7 +247,12 @@ export async function POST(req: Request) {
               },
             });
           } else if (refund.status === "failed") {
-            console.warn("Stripe refund failed:", refund.id);
+            logger.warn({
+              event: "stripe.webhook.refund_failed",
+              requestId,
+              ipHash,
+              refundId: refund.id,
+            });
           }
           break;
         }
@@ -246,17 +265,38 @@ export async function POST(req: Request) {
     });
 
     if (result?.duplicated) {
-      console.log("Stripe webhook duplicated event ignored:", event.id);
+      logger.info({
+        event: "stripe.webhook.duplicate_ignored",
+        requestId,
+        ipHash,
+        stripeEventId: event.id,
+      });
       return NextResponse.json({ received: true });
     }
 
-    console.log("Stripe webhook processed:", event.id);
+    logger.info({
+      event: "stripe.webhook.processed",
+      requestId,
+      ipHash,
+      stripeEventId: event.id,
+    });
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Stripe webhook error:", error);
+    const err = error instanceof Error ? error : new Error("Unknown Stripe webhook error");
+    logger.error({
+      event: OBS_EVENT.SERVER_UNHANDLED_ERROR,
+      requestId,
+      method: req.method,
+      path: new URL(req.url).pathname,
+      ipHash,
+      errorName: err.name,
+      errorMessage: err.message,
+    });
     return NextResponse.json(
       { error: "Webhook processing error" },
       { status: 500 }
     );
   }
-}
+};
+
+export const POST = withObservedRoute("POST /api/stripe/webhook", postHandler);

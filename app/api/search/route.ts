@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextRequest, NextResponse } from "next/server"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
@@ -6,7 +7,7 @@ import { getCatalogProducts, getCategories } from "@/lib/catalog"
 const MIN_QUERY_LENGTH = 2
 const MAX_LIMIT = 8
 
-export async function GET(request: NextRequest) {
+const GETHandler = async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const query = (searchParams.get("q") ?? "").trim()
   const rawLimit = Number(searchParams.get("limit") ?? "6")
@@ -62,3 +63,8 @@ export async function GET(request: NextRequest) {
     total: catalogData.total,
   })
 }
+
+export const GET = withObservedRoute("GET /api/search", GETHandler);
+
+
+

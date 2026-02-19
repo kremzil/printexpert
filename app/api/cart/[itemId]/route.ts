@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateCartItem, removeFromCart } from "@/lib/cart";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function PATCH(
+const PATCHHandler = async (
   req: NextRequest,
   { params }: { params: Promise<{ itemId: string }> }
-) {
+) => {
   try {
     const { itemId } = await params;
     const body = await req.json();
@@ -22,10 +23,10 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+const DELETEHandler = async (
   req: NextRequest,
   { params }: { params: Promise<{ itemId: string }> }
-) {
+) => {
   try {
     const { itemId } = await params;
     await removeFromCart(itemId);
@@ -35,3 +36,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Chyba pri odstraňovaní položky" }, { status: 500 });
   }
 }
+
+export const PATCH = withObservedRoute("PATCH /api/cart/[itemId]", PATCHHandler);
+export const DELETE = withObservedRoute("DELETE /api/cart/[itemId]", DELETEHandler);
+
+
+

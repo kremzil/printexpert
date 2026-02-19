@@ -1,3 +1,4 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 import type { Prisma, PriceType } from "@/lib/generated/prisma"
 import { revalidatePath } from "next/cache"
@@ -382,7 +383,7 @@ function parseCategoryPath(value: string) {
     .filter(Boolean)
 }
 
-export async function POST(request: Request) {
+const POSTHandler = async (request: Request) => {
   const session = await auth()
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -801,3 +802,8 @@ export async function POST(request: Request) {
 
   return NextResponse.json(result)
 }
+
+export const POST = withObservedRoute("POST /api/admin/products/import", POSTHandler);
+
+
+

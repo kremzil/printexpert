@@ -12,8 +12,9 @@ import {
   normalizeMimeType,
 } from "@/lib/uploads/config";
 import { NotificationService } from "@/lib/notifications";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function POST(request: Request) {
+const POSTHandler = async (request: Request) => {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -196,3 +197,8 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withObservedRoute("POST /api/uploads/confirm", POSTHandler);
+
+
+

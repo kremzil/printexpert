@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrderById } from "@/lib/orders";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function GET(
+const GETHandler = async (
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
-) {
+) => {
   try {
     const { orderId } = await params;
     const order = await getOrderById(orderId);
@@ -20,3 +21,8 @@ export async function GET(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withObservedRoute("GET /api/orders/[orderId]", GETHandler);
+
+
+

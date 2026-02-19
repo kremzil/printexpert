@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { TAGS } from "@/lib/cache-tags";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const normalizeSlug = (value: string) =>
   value
@@ -50,7 +51,7 @@ const ensureAdmin = async () => {
   return session;
 };
 
-export async function GET() {
+const GETHandler = async () => {
   const session = await ensureAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -63,7 +64,7 @@ export async function GET() {
   return NextResponse.json(collections);
 }
 
-export async function POST(request: NextRequest) {
+const POSTHandler = async (request: NextRequest) => {
   const session = await ensureAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -132,3 +133,9 @@ export async function POST(request: NextRequest) {
   revalidateTag(TAGS.COLLECTIONS, "max");
   return NextResponse.json(created, { status: 201 });
 }
+
+export const GET = withObservedRoute("GET /api/admin/collections", GETHandler);
+export const POST = withObservedRoute("POST /api/admin/collections", POSTHandler);
+
+
+

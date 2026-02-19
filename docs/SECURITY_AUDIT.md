@@ -416,7 +416,7 @@ logger.info({
 
 **Остаётся перед production:**
 - ⚠️ Secrets management: `NEXTAUTH_SECRET`, SMTP, `DATABASE_URL` должны храниться как секреты окружения (не в репозитории).
-- ⚠️ Structured logging / monitoring: алерты на 5xx + аномалии (спам, auth ошибки, 403 по CSRF/Origin).
+- ✅ Structured logging / monitoring реализованы в коде и docker-compose.prod: pino JSON logs, requestId, события `5xx/auth/csrf/origin/rate_limit`, Loki/Promtail/Grafana + email alert rules.
 - ⚠️ Ручной security smoke test (и желательно pen test) перед запуском.
 - (Опционально) Redis/Upstash для rate limiting при высоком трафике.
 
@@ -430,7 +430,7 @@ logger.info({
 - Критические уязвимости устранены
 - Рекомендуется провести ручной penetration testing перед production deployment
 - Следует регулярно обновлять зависимости (`npm audit`)
-- Необходим мониторинг логов безопасности в production
+- Мониторинг логов безопасности в production должен быть включён при деплое (Grafana/Loki stack)
 
 ---
 
@@ -441,10 +441,10 @@ logger.info({
 2. ✅ Защита админки — выполнено
 3. ✅ Защита upload API — выполнено
 4. ✅ Защита server actions — выполнено
-5. ⏳ Создать первого администратора через Prisma Studio
-6. ⏳ Настроить SMTP для production
-7. ⏳ Сгенерировать `NEXTAUTH_SECRET` через `openssl rand -base64 32`
-8. ⏳ Настроить `NEXTAUTH_URL` для production домена
+5. ✅ Создать первого администратора через Prisma Studio
+6. ✅ Настроить SMTP для production
+7. ✅ Сгенерировать `NEXTAUTH_SECRET` через `openssl rand -base64 32`
+8. ✅ Настроить `NEXTAUTH_URL` для production домена
 
 ### Желательно перед запуском:
 9. Redis/Upstash для rate limiting (опционально, если будет высокий трафик)

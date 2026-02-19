@@ -1,10 +1,11 @@
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { NextResponse } from "next/server"
 import { getCart } from "@/lib/cart"
 import { cookies } from "next/headers"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+const GETHandler = async () => {
   try {
     const cookieStore = await cookies()
     const sessionId = cookieStore.get("cart_session_id")?.value
@@ -26,3 +27,8 @@ export async function GET() {
     )
   }
 }
+
+export const GET = withObservedRoute("GET /api/cart", GETHandler);
+
+
+

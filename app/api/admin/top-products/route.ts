@@ -3,8 +3,9 @@ import { revalidateTag } from 'next/cache';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { TAGS } from '@/lib/cache-tags';
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function GET(request: NextRequest) {
+const GETHandler = async (request: NextRequest) => {
   const session = await auth();
   if (!session?.user || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-export async function POST(request: NextRequest) {
+const POSTHandler = async (request: NextRequest) => {
   const session = await auth();
   if (!session?.user || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -63,3 +64,9 @@ export async function POST(request: NextRequest) {
   revalidateTag(TAGS.TOP_PRODUCTS, 'max');
   return NextResponse.json(config);
 }
+
+export const GET = withObservedRoute("GET /api/admin/top-products", GETHandler);
+export const POST = withObservedRoute("POST /api/admin/top-products", POSTHandler);
+
+
+

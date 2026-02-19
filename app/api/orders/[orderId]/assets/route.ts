@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
-export async function GET(
+const GETHandler = async (
   _request: Request,
   { params }: { params: Promise<{ orderId: string }> }
-) {
+) => {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -56,3 +57,8 @@ export async function GET(
     );
   }
 }
+
+export const GET = withObservedRoute("GET /api/orders/[orderId]/assets", GETHandler);
+
+
+
