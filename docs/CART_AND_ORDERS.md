@@ -355,8 +355,9 @@ return orders.map(order => ({
 - `POST /api/checkout` — создание заказа
 - `GET /api/orders` — список заказов пользователя
 - `GET /api/orders/[orderId]` — детали заказа
-- `GET /api/orders/[orderId]/invoice` — скачивание PDF-счёта
+- `GET /api/orders/[orderId]/invoice` — скачивание уже сгенерированного PDF-счёта (ADMIN)
 - `POST /api/orders/[orderId]/invoice/send` — генерация и отправка счёта на email (ADMIN)
+- `PATCH /api/orders/[orderId]/payment-method` — синхронизация метода оплаты для уже созданного заказа
 - `POST /api/uploads/presign` — presigned PUT для загрузки файла
 - `POST /api/uploads/confirm` — подтверждение загрузки (HEAD)
 - `GET /api/orders/[orderId]/assets` — список файлов заказа
@@ -858,8 +859,11 @@ if (!session?.user || session.user.role !== "ADMIN") {
 
 ### Очистка корзины
 - **Старое поведение**: корзина очищалась сразу после создания заказа
-- **Новое поведение**: корзина очищается только на странице `/checkout/success`
-- Это позволяет повторить попытку оплаты при ошибке без потери корзины
+- **Новое поведение**:
+  - Stripe flow: корзина очищается на `/checkout/success`
+  - Bank/COD flow: корзина очищается перед redirect на `/account/orders/[orderId]?success=true`
+  - Дополнительный fallback: очистка выполняется и на странице заказа при `?success=true`
+- Это сохраняет возможность ретрая оплаты картой и закрывает кейсы, где очистка могла не сработать в одном из шагов.
 
 ## Troubleshooting
 
@@ -900,12 +904,14 @@ Stripe интегрирован через **Payment Intents API** с испол
 5. Webhook `/api/stripe/webhook` получает `payment_intent.succeeded`
 6. Статус заказа меняется на CONFIRMED
 7. Пользователь редиректится на `/checkout/success`
-8. **Корзина очищается только на странице success** (не при создании заказа!)
+8. **Корзина очищается на странице success** (для Stripe flow; не при создании заказа)
 
 ### Важные особенности
 - **Ленивая загрузка SDK** — Stripe SDK загружается только при выборе оплаты картой
 - **Race condition защита** — `useRef` предотвращает двойные вызовы
-- **Очистка корзины** — происходит в `order-success.tsx` после успешной оплаты
+- **Очистка корзины**:
+  - Stripe: `order-success.tsx`
+  - Bank/COD: перед redirect + fallback на `/account/orders/[orderId]?success=true`
 - **Cookie сессии** — НЕ удаляется при создании заказа (только после оплаты)
 
 ### API Routes
@@ -965,13 +971,13 @@ enum PaymentProvider {
 Система генерации PDF-счетов для заказов.
 
 ### Основные возможности
-- **Автоматическая генерация** при смене статуса заказа
+- **Автоматическая генерация** при смене статуса заказа на `COMPLETED` (если включена)
 - **Ручная генерация** администратором
-- **Скачивание** клиентом в личном кабинете
+- **Скачивание** в админке для уже созданной фактуры
 - **Отправка на email** с PDF-вложением
 
 ### API
-- `GET /api/orders/[orderId]/invoice` — скачивание PDF
+- `GET /api/orders/[orderId]/invoice` — скачивание уже созданного PDF (ADMIN)
 - `POST /api/orders/[orderId]/invoice/send` — генерация + email (ADMIN)
 
 ### Настройки

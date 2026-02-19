@@ -234,6 +234,8 @@
 - `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.
 - Пример env: `.env.production.example`.
 - ESLint игнорирует сгенерированные Prisma файлы и служебные скрипты.
+- Acceptance-критерий стабильности сборки: `npm run build` должен успешно завершаться при недоступной БД (например, с невалидным `DATABASE_URL`).
+- Для этого в `generateMetadata` на маршрутах `/product/[slug]` и `/kolekcie/[slug]` добавлен fail-safe fallback; build-этап отделён от runtime-проверок БД (health/migrations выполняются после деплоя).
 
 ## Решения
 - Однократный перенос данных из WP и переход на нормализованную схему пока **отложен**.
@@ -367,10 +369,17 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Anti-spam: `POST /api/quote-request` rate limited (5/15мин на IP), 429 + `Retry-After`.
 
 ### PDF-счета (Faktúry):
-- `GET /api/orders/[orderId]/invoice` — скачивание PDF-счёта
+- `GET /api/orders/[orderId]/invoice` — скачивание уже созданного PDF-счёта (ADMIN)
 - `POST /api/orders/[orderId]/invoice/send` — генерация и отправка на email (ADMIN)
 - `GET /api/admin/settings/pdf` — настройки PDF
 - `PUT /api/admin/settings/pdf` — обновление настроек PDF
+
+### DPD:
+- `GET/PUT /api/admin/settings/dpd` — настройки DPD
+- `POST /api/admin/orders/[orderId]/dpd/shipment` — создать shipment
+- `POST /api/admin/orders/[orderId]/dpd/labels` — печать labels
+- `POST /api/admin/orders/[orderId]/dpd/cancel` — отмена shipment
+- checkout использует `GET /api/shop-settings` для DPD widget и payment settings
 
 ### UI Страницы:
 - `/cart` — корзина с управлением количеством и удалением
@@ -428,6 +437,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
   отображается менеджеру через `_attributes["Rýchlosť výroby"]`
 - **Audience сохраняется**: режим B2B/B2C фиксируется в заказе
 - **Гостевые корзины**: поддержка через sessionId cookie
+- **Очистка корзины после заказа**:
+  - Stripe flow: на `/checkout/success`
+  - Bank/COD flow: перед redirect на страницу заказа + fallback на `?success=true`
 - **Decimal → number**: все Prisma Decimal поля конвертируются перед передачей в клиент
 - **Type safety**: замена `any` на `unknown`/`JsonValue` для Prisma JSON полей
 

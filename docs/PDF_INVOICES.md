@@ -58,7 +58,8 @@ interface PdfSettings {
   footerText: string;       // Текст в päte
   
   // Автогенерация
-  autoGenerateOnStatus: string;  // "CONFIRMED"
+  autoGenerateEnabled: boolean;  // false/true
+  autoGenerateOnStatus: string;  // "COMPLETED" (для совместимости)
   autoSendEmail: boolean;        // true
   
   // Нумерация
@@ -82,18 +83,13 @@ interface PdfSettings {
 
 ### GET /api/orders/[orderId]/invoice
 
-Скачивание PDF-счёта.
+Скачивание уже сгенерированного PDF-счёта из S3.
 
-**Доступ:** Владелец заказа или ADMIN
+**Доступ:** Только ADMIN
 
 **Response:** `application/pdf` файл
 
-```typescript
-// Пример использования
-<a href={`/api/orders/${orderId}/invoice`} target="_blank">
-  Stiahnuť faktúru
-</a>
-```
+Если счёт ещё не создан, endpoint вернёт `404`.
 
 ### POST /api/orders/[orderId]/invoice/send
 
@@ -128,16 +124,24 @@ interface PdfSettings {
 
 При изменении статуса заказа через `/api/admin/orders/[orderId]/status`:
 
-1. Проверяется `pdfSettings.autoGenerateOnStatus`
-2. Если новый статус совпадает:
+1. Проверяется, что новый статус = `COMPLETED`
+2. Проверяется `pdfSettings.autoGenerateEnabled`
+3. Если включено:
+   - проверяется наличие существующего `OrderAsset(kind=INVOICE)`
+   - если счёта нет — генерируется PDF
+4. Если `autoSendEmail: true`:
    - Генерируется PDF
-   - Сохраняется в S3 как `OrderAsset`
-   - Если `autoSendEmail: true` — отправляется на `customerEmail`
+   - Отправляется на `customerEmail`
 
 ```typescript
 // app/api/admin/orders/[orderId]/status/route.ts
-if (pdfSettings.autoGenerateOnStatus === newStatus) {
-  await generateAndSaveInvoice(orderId);
+if (newStatus === "COMPLETED" && pdfSettings.autoGenerateEnabled) {
+  const existingInvoice = await prisma.orderAsset.findFirst({
+    where: { orderId, kind: "INVOICE" },
+  });
+  if (!existingInvoice) {
+    await generateAndSaveInvoice(orderId);
+  }
   if (pdfSettings.autoSendEmail) {
     await sendInvoiceEmail(orderId);
   }
@@ -211,7 +215,7 @@ if (pdfSettings.autoGenerateOnStatus === newStatus) {
 1. **Údaje o firme** — название, адрес, IČO, DIČ, IČ DPH
 2. **Bankové údaje** — банк, BIC, код, IBAN
 3. **Číslovanie faktúr** — префикс, следующий номер, дни сплатности
-4. **Automatická generácia** — статус для генерации, отправка email
+4. **Automatická generácia** — включить/выключить автогенерацию на `Dokončená`, отправка email
 5. **Vzhľad faktúry** — URL логотипа, подписи, текст päty
 
 ### Админка: Детали заказа
@@ -220,13 +224,14 @@ if (pdfSettings.autoGenerateOnStatus === newStatus) {
 
 **Добавлено:** Карточка "Faktúra" с кнопками:
 - "Stiahnuť faktúru" — скачивание PDF
-- "Odoslať faktúru e-mailom" — генерация + отправка
+- "Vytvoriť faktúru" — ручная генерация (если ещё нет)
+- "Odoslať faktúru e-mailom" — отправка (использует существующую или генерирует при необходимости)
 
 ### Личный кабинет: Детали заказа
 
 **Страница:** `/account/orders/[orderId]`
 
-**Добавлено:** Кнопка "Stiahnuť faktúru" в блоке "Súhrn"
+Кнопка скачивания фактуры удалена. Фактуру создаёт/отправляет админ, либо срабатывает авто-режим на `Dokončená`.
 
 ## Нумерация счетов
 

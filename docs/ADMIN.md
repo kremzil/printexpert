@@ -263,8 +263,9 @@ WP ID задаётся в карточке товара.
    - Splatnosť faktúry (dni) — дни до оплаты
 
 4. **Automatická generácia** — автогенерация:
-   - Status pre automatickú generáciu — при каком статусе генерировать
-   - Automaticky odoslať e-mailom — отправлять ли на email
+   - Automaticky vytvárať faktúru — включить/выключить автогенерацию
+   - Триггер: при смене статуса на `Dokončená` (`COMPLETED`)
+   - Automaticky odoslať e-mailom — отправлять ли на email после генерации
 
 5. **Vzhľad faktúry** — оформление:
    - URL loga
@@ -280,6 +281,29 @@ WP ID задаётся в карточке товара.
 **Кэширование:** `getPdfSettings()` обёрнут в `unstable_cache` с тегом `shop-settings` (TTL 5 мин). При обновлении настроек `updatePdfSettings()` сбрасывает тег — новые настройки применяются к следующему invoice/quote немедленно.
 
 **Документация:** см. `docs/PDF_INVOICES.md`
+
+### Вкладка "DPD + Platby"
+
+Настройки доставки DPD и методов оплаты checkout.
+
+**DPD:**
+- `ID delis`, `E-mail klienta`, `API kľúč`
+- `ID bankového účtu` (обязательно для COD)
+- `ID adresy pre zber`
+- `Doprava (DPD product)`, формат/позиция штитков
+- настройки pickup window
+- включение/настройка map widget (`mapApiKey`, `mapLanguage`)
+
+**Платежи:**
+- включение/выключение `CARD`, `BANK_TRANSFER`, `COD`
+- ограничения COD по типу доставки (`courier`, `pickup`)
+
+**DPD операции в заказе (`/admin/orders/[orderId]`):**
+- `Vytvoriť DPD zásielku`
+- `Tlačiť štítky`
+- `Zrušiť DPD zásielku`
+
+**Документация:** см. `docs/DPD_INTEGRATION.md`
 
 ## Design Studio — встроенный редактор дизайна
 

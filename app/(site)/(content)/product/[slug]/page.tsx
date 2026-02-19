@@ -73,7 +73,12 @@ export async function generateMetadata({
     params,
     searchParams ?? Promise.resolve(emptySearchParams),
   ])
-  const product = await getCachedProductBySlug(slug)
+  let product: Awaited<ReturnType<typeof getCachedProductBySlug>> = null
+  try {
+    product = await getCachedProductBySlug(slug)
+  } catch {
+    product = null
+  }
   const descriptionSource = product?.excerpt || product?.description || null
   const fallbackDescription =
     toPlainText(descriptionSource) ?? "Produkty na mieru od PrintExpert."

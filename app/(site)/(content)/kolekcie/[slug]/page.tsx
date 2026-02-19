@@ -28,7 +28,12 @@ export async function generateMetadata({
 }: CollectionPageProps): Promise<Metadata> {
   const { slug } = await params
   const audienceContext = await resolveAudienceContext()
-  const collection = await getCollectionBySlug(slug, audienceContext.audience)
+  let collection: Awaited<ReturnType<typeof getCollectionBySlug>> = null
+  try {
+    collection = await getCollectionBySlug(slug, audienceContext.audience)
+  } catch {
+    collection = null
+  }
 
   if (!collection) {
     return {
