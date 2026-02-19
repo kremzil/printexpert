@@ -593,7 +593,6 @@ async function AdminProductDetails({
                     </label>
                   </div>
                   <FormSubmitButton
-                    type="submit"
                     size="sm"
                     pendingText="Kopírujem maticu..."
                   >

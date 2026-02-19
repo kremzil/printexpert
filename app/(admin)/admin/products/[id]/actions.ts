@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache"
 
 import { getPrisma } from "@/lib/prisma"
+import { Prisma } from "@/lib/generated/prisma"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { requireAdmin } from "@/lib/auth-helpers"
 import {
@@ -272,6 +273,9 @@ const syncPricingModelFromWpMatrix = async (
   ).sort((a, b) => a - b)
   const breakpoints = parsedBreakpoints.length > 0 ? parsedBreakpoints : fallbackBreakpoints
   const meta = parseMetaFromMatrix(matrix.attributes ?? null, matrix.aterms ?? null)
+  const pricingMeta = (meta ?? Prisma.JsonNull) as
+    | Prisma.InputJsonValue
+    | Prisma.NullableJsonNullValueInput
   const kind = matrix.mtype === 1 ? "FINISHING" : "BASE"
 
   await prisma.$transaction(async (tx) => {
@@ -290,7 +294,7 @@ const syncPricingModelFromWpMatrix = async (
         numStyle: matrix.numStyle ?? null,
         numType: matrix.numType ?? null,
         aUnit: matrix.aUnit ?? null,
-        meta,
+        meta: pricingMeta,
         isActive: matrix.isActive,
       },
       update: {
@@ -299,7 +303,7 @@ const syncPricingModelFromWpMatrix = async (
         numStyle: matrix.numStyle ?? null,
         numType: matrix.numType ?? null,
         aUnit: matrix.aUnit ?? null,
-        meta,
+        meta: pricingMeta,
         isActive: matrix.isActive,
       },
       select: { id: true },
