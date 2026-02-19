@@ -20,6 +20,7 @@ import { getPrisma } from "@/lib/prisma"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
 import { requireAdmin } from "@/lib/auth-helpers"
 import {
+  copyMatrixFromProduct,
   createMatrix,
   createMatrixPriceRows,
   deleteMatrix,
@@ -141,9 +142,44 @@ async function AdminProductDetails({
     notFound()
   }
 
-  const calculatorData = product.wpProductId
-    ? await getWpCalculatorData(product.wpProductId, true)
-    : null
+  const prisma = getPrisma()
+  const [calculatorData, sourceMatrixCandidates] = await Promise.all([
+    product.wpProductId
+      ? getWpCalculatorData(product.wpProductId, true)
+      : Promise.resolve(null),
+    product.wpProductId
+      ? prisma.wpMatrixType.findMany({
+          where: { productId: { not: product.wpProductId } },
+          orderBy: [{ productId: "asc" }, { sorder: "asc" }, { mtypeId: "asc" }],
+          select: {
+            mtypeId: true,
+            productId: true,
+            mtype: true,
+            title: true,
+          },
+        })
+      : Promise.resolve([]),
+  ])
+  const sourceWpProductIds = Array.from(
+    new Set(sourceMatrixCandidates.map((matrix) => matrix.productId))
+  )
+  const sourceProductsByWpId = sourceWpProductIds.length
+    ? await prisma.product.findMany({
+        where: { wpProductId: { in: sourceWpProductIds } },
+        orderBy: { name: "asc" },
+        select: {
+          wpProductId: true,
+          name: true,
+        },
+      })
+    : []
+  const sourceProductNameByWpId = new Map<number, string>()
+  sourceProductsByWpId.forEach((sourceProduct) => {
+    if (sourceProduct.wpProductId === null) return
+    if (!sourceProductNameByWpId.has(sourceProduct.wpProductId)) {
+      sourceProductNameByWpId.set(sourceProduct.wpProductId, sourceProduct.name)
+    }
+  })
   const baseMatrix =
     calculatorData?.matrices.find((matrix) => matrix.kind === "simple") ?? null
   const baseSelects = baseMatrix?.selects ?? []
@@ -487,18 +523,88 @@ async function AdminProductDetails({
           </form>
 
           {product.wpProductId ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground">
-                Nové matice pridávajte cez výber vlastností.
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">
+                  Nové matice pridávajte cez výber vlastností.
+                </div>
+                <ProductMatrixDialog
+                  productName={product.name}
+                  attributes={attributesWithTerms}
+                  submitAction={createMatrix.bind(null, {
+                    productId: product.id,
+                    wpProductId: product.wpProductId,
+                  })}
+                />
               </div>
-              <ProductMatrixDialog
-                productName={product.name}
-                attributes={attributesWithTerms}
-                submitAction={createMatrix.bind(null, {
-                  productId: product.id,
-                  wpProductId: product.wpProductId,
-                })}
-              />
+              {sourceMatrixCandidates.length > 0 ? (
+                <form
+                  action={copyMatrixFromProduct.bind(null, {
+                    productId: product.id,
+                    wpProductId: product.wpProductId,
+                  })}
+                  className="grid gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
+                >
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium">Kópia matice z iného produktu</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Vyberte zdrojovú maticu a skopírujte ju do aktuálneho produktu.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sourceMtypeId">Zdrojová matica</Label>
+                      <select
+                        id="sourceMtypeId"
+                        name="sourceMtypeId"
+                        defaultValue=""
+                        required
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="" disabled>
+                          Vyberte maticu z iného produktu
+                        </option>
+                        {sourceMatrixCandidates.map((matrix) => {
+                          const sourceName =
+                            sourceProductNameByWpId.get(matrix.productId) ??
+                            `WP produkt ${matrix.productId}`
+                          const matrixKind =
+                            matrix.mtype === 1 ? "Dokončovacia" : "Základná"
+                          const matrixTitle =
+                            matrix.title?.trim() || `Matica ${matrix.mtypeId}`
+                          return (
+                            <option key={matrix.mtypeId} value={matrix.mtypeId}>
+                              {`${sourceName} (WP ${matrix.productId}) • ${matrixKind} • ${matrixTitle}`}
+                            </option>
+                          )
+                        })}
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        name="copyPrices"
+                        value="1"
+                        defaultChecked
+                        className="h-4 w-4 rounded border-input accent-primary"
+                      />
+                      <input type="hidden" name="copyPrices" value="0" />
+                      Skopírovať aj ceny
+                    </label>
+                  </div>
+                  <FormSubmitButton
+                    type="submit"
+                    size="sm"
+                    pendingText="Kopírujem maticu..."
+                  >
+                    Skopírovať maticu
+                  </FormSubmitButton>
+                </form>
+              ) : (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Zatiaľ nie je dostupná žiadna matica z iného produktu.
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">

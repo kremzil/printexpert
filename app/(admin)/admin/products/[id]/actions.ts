@@ -22,6 +22,11 @@ type CreateMatrixInput = {
   wpProductId: number | null
 }
 
+type CopyMatrixFromProductInput = {
+  productId: string
+  wpProductId: number | null
+}
+
 type DeleteMatrixInput = {
   productId: string
   mtypeId: number
@@ -191,6 +196,135 @@ const toStringArray = (value: PhpSerializable): string[] => {
   return []
 }
 
+const parseMatrixNumbers = (numbers: string | null | undefined) =>
+  (numbers ?? "")
+    .split(/[|,;\s]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => Number(value))
+    .filter((value) => !Number.isNaN(value))
+
+const parseMetaFromMatrix = (
+  attributesRaw: string | null,
+  atermsRaw: string | null
+) => {
+  if (!attributesRaw || !atermsRaw) {
+    return null
+  }
+
+  try {
+    const attributes = toStringArray(phpUnserialize(attributesRaw))
+    const aterms = phpUnserialize(atermsRaw)
+    if (!aterms || typeof aterms !== "object" || Array.isArray(aterms)) {
+      return attributes.length > 0 ? { attributes } : null
+    }
+    return {
+      attributes,
+      aterms,
+    }
+  } catch {
+    return null
+  }
+}
+
+const syncPricingModelFromWpMatrix = async (
+  productId: string,
+  mtypeId: number
+) => {
+  const prisma = getPrisma()
+  const matrix = await prisma.wpMatrixType.findUnique({
+    where: { mtypeId },
+    select: {
+      mtypeId: true,
+      mtype: true,
+      isActive: true,
+      attributes: true,
+      aterms: true,
+      numbers: true,
+      numStyle: true,
+      numType: true,
+      aUnit: true,
+    },
+  })
+
+  if (!matrix) {
+    await prisma.pricingModel.deleteMany({
+      where: {
+        productId,
+        sourceMtypeId: mtypeId,
+      },
+    })
+    return
+  }
+
+  const rows = await prisma.wpMatrixPrice.findMany({
+    where: { mtypeId },
+    select: {
+      aterms: true,
+      number: true,
+      price: true,
+    },
+  })
+
+  const parsedBreakpoints = parseMatrixNumbers(matrix.numbers)
+  const fallbackBreakpoints = Array.from(
+    new Set(rows.map((row) => Number(row.number)).filter((value) => !Number.isNaN(value)))
+  ).sort((a, b) => a - b)
+  const breakpoints = parsedBreakpoints.length > 0 ? parsedBreakpoints : fallbackBreakpoints
+  const meta = parseMetaFromMatrix(matrix.attributes ?? null, matrix.aterms ?? null)
+  const kind = matrix.mtype === 1 ? "FINISHING" : "BASE"
+
+  await prisma.$transaction(async (tx) => {
+    const model = await tx.pricingModel.upsert({
+      where: {
+        productId_sourceMtypeId: {
+          productId,
+          sourceMtypeId: mtypeId,
+        },
+      },
+      create: {
+        productId,
+        kind,
+        sourceMtypeId: mtypeId,
+        breakpoints,
+        numStyle: matrix.numStyle ?? null,
+        numType: matrix.numType ?? null,
+        aUnit: matrix.aUnit ?? null,
+        meta,
+        isActive: matrix.isActive,
+      },
+      update: {
+        kind,
+        breakpoints,
+        numStyle: matrix.numStyle ?? null,
+        numType: matrix.numType ?? null,
+        aUnit: matrix.aUnit ?? null,
+        meta,
+        isActive: matrix.isActive,
+      },
+      select: { id: true },
+    })
+
+    await tx.pricingEntry.deleteMany({
+      where: { pricingModelId: model.id },
+    })
+
+    if (rows.length === 0) {
+      return
+    }
+
+    await tx.pricingEntry.createMany({
+      data: rows.map((row) => ({
+        pricingModelId: model.id,
+        attrsKey: row.aterms,
+        breakpoint: row.number,
+        price: row.price,
+      })),
+      skipDuplicates: true,
+    })
+  })
+}
+
 const getBaseMatrixTerms = async (wpProductId: number) => {
   const prisma = getPrisma()
   const baseMatrix = await prisma.wpMatrixType.findFirst({
@@ -299,6 +433,7 @@ export async function updateMatrixPrices(
     )
   }
 
+  await syncPricingModelFromWpMatrix(input.productId, input.mtypeId)
   invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
@@ -378,6 +513,127 @@ export async function createMatrix(
     },
   })
 
+  await syncPricingModelFromWpMatrix(input.productId, mtypeId)
+  invalidateCalculator(input.productId)
+  revalidatePath(`/admin/products/${input.productId}`)
+}
+
+export async function copyMatrixFromProduct(
+  input: CopyMatrixFromProductInput,
+  formData: FormData
+) {
+  await requireAdmin()
+
+  if (!input.wpProductId) {
+    return
+  }
+
+  const sourceMtypeRaw = String(formData.get("sourceMtypeId") ?? "").trim()
+  const sourceMtypeId = Number(sourceMtypeRaw)
+  if (!sourceMtypeRaw || Number.isNaN(sourceMtypeId)) {
+    return
+  }
+
+  const copyPrices = String(formData.get("copyPrices") ?? "1").trim() !== "0"
+  const prisma = getPrisma()
+
+  const sourceMatrix = await prisma.wpMatrixType.findUnique({
+    where: { mtypeId: sourceMtypeId },
+    select: {
+      mtypeId: true,
+      productId: true,
+      mtype: true,
+      isActive: true,
+      title: true,
+      defQuantity: true,
+      attributes: true,
+      aterms: true,
+      numbers: true,
+      numStyle: true,
+      numType: true,
+      aUnit: true,
+      bqNumbers: true,
+      ltextAttr: true,
+      bookMinQuantity: true,
+      pqStyle: true,
+      pqNumbers: true,
+      minQMailed: true,
+    },
+  })
+
+  if (!sourceMatrix || sourceMatrix.productId === input.wpProductId) {
+    return
+  }
+
+  const [maxMtype, maxOrder] = await Promise.all([
+    prisma.wpMatrixType.findFirst({
+      orderBy: { mtypeId: "desc" },
+      select: { mtypeId: true },
+    }),
+    prisma.wpMatrixType.findFirst({
+      where: { productId: input.wpProductId },
+      orderBy: { sorder: "desc" },
+      select: { sorder: true },
+    }),
+  ])
+
+  const nextMtypeId = (maxMtype?.mtypeId ?? 0) + 1
+  const nextOrder = (maxOrder?.sorder ?? 0) + 1
+
+  await prisma.$transaction(async (tx) => {
+    await tx.wpMatrixType.create({
+      data: {
+        mtypeId: nextMtypeId,
+        productId: input.wpProductId!,
+        mtype: sourceMatrix.mtype,
+        isActive: sourceMatrix.isActive,
+        title: sourceMatrix.title,
+        defQuantity: sourceMatrix.defQuantity,
+        attributes: sourceMatrix.attributes,
+        aterms: sourceMatrix.aterms,
+        numbers: sourceMatrix.numbers,
+        numStyle: sourceMatrix.numStyle,
+        numType: sourceMatrix.numType,
+        aUnit: sourceMatrix.aUnit,
+        bqNumbers: sourceMatrix.bqNumbers,
+        ltextAttr: sourceMatrix.ltextAttr,
+        bookMinQuantity: sourceMatrix.bookMinQuantity,
+        pqStyle: sourceMatrix.pqStyle,
+        pqNumbers: sourceMatrix.pqNumbers,
+        sorder: nextOrder,
+        minQMailed: sourceMatrix.minQMailed,
+      },
+    })
+
+    if (!copyPrices) {
+      return
+    }
+
+    const sourceRows = await tx.wpMatrixPrice.findMany({
+      where: { mtypeId: sourceMtypeId },
+      select: {
+        aterms: true,
+        number: true,
+        price: true,
+      },
+    })
+
+    if (sourceRows.length === 0) {
+      return
+    }
+
+    await tx.wpMatrixPrice.createMany({
+      data: sourceRows.map((row) => ({
+        mtypeId: nextMtypeId,
+        aterms: row.aterms,
+        number: row.number,
+        price: row.price,
+      })),
+      skipDuplicates: true,
+    })
+  })
+
+  await syncPricingModelFromWpMatrix(input.productId, nextMtypeId)
   invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
@@ -535,6 +791,7 @@ export async function updateMatrix(
     }
   }
 
+  await syncPricingModelFromWpMatrix(input.productId, input.mtypeId)
   invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
@@ -552,6 +809,7 @@ export async function updateMatrixVisibility(
     data: { isActive },
   })
 
+  await syncPricingModelFromWpMatrix(input.productId, input.mtypeId)
   invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
@@ -570,6 +828,7 @@ export async function deleteMatrix(input: DeleteMatrixInput) {
     }),
   ])
 
+  await syncPricingModelFromWpMatrix(input.productId, input.mtypeId)
   invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }
@@ -854,6 +1113,7 @@ export async function createMatrixPriceRows(input: DeleteMatrixInput) {
     skipDuplicates: true,
   })
 
+  await syncPricingModelFromWpMatrix(input.productId, input.mtypeId)
   invalidateCalculator(input.productId)
   revalidatePath(`/admin/products/${input.productId}`)
 }

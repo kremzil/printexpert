@@ -513,6 +513,7 @@ export function ProductMatrixDialog({
             ) : null}
             {step < 3 ? (
               <Button
+                key="matrix-next-step"
                 type="button"
                 onClick={() => setStep((prev) => Math.min(prev + 1, 3))}
                 disabled={step === 1 ? !canProceedFromStep1 : false}
@@ -520,7 +521,7 @@ export function ProductMatrixDialog({
                 Pokračovať
               </Button>
             ) : (
-              <Button type="submit" disabled={isSubmitDisabled}>
+              <Button key="matrix-confirm-submit" type="submit" disabled={isSubmitDisabled}>
                 Potvrdiť
               </Button>
             )}
