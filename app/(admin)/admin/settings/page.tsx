@@ -1,6 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AdminButton } from "@/components/admin/admin-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { requireAdmin } from "@/lib/auth-helpers"
@@ -12,6 +11,7 @@ import {
   updateShopVatRate,
 } from "./actions"
 import { PdfSettingsForm } from "@/components/admin/pdf-settings-form"
+import { FormSubmitButton } from "@/components/admin/form-submit-button"
 
 export default async function AdminSettingsPage() {
   await requireAdmin()
@@ -82,9 +82,7 @@ export default async function AdminSettingsPage() {
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>Nastavenie sa použije pri všetkých výpočtoch.</span>
-                      <AdminButton type="submit" size="sm">
-                        Uložiť
-                      </AdminButton>
+                      <FormSubmitButton size="sm">Uložiť</FormSubmitButton>
                     </div>
                   </form>
                 </CardContent>
@@ -99,9 +97,9 @@ export default async function AdminSettingsPage() {
                 <CardContent className="space-y-4">
                   <form action={revalidateCatalogCache} className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Ak ste robili hromadné zmeny, obnovte cache manuálne.</span>
-                    <AdminButton type="submit" size="sm">
+                    <FormSubmitButton size="sm" pendingText="Obnovujem...">
                       Obnoviť cache
-                    </AdminButton>
+                    </FormSubmitButton>
                   </form>
                 </CardContent>
               </Card>
@@ -208,7 +206,7 @@ export default async function AdminSettingsPage() {
                       </label>
                     </div>
                     <div className="col-span-full flex justify-end">
-                      <AdminButton type="submit" size="sm">Uložiť DPD nastavenia</AdminButton>
+                      <FormSubmitButton size="sm">Uložiť DPD nastavenia</FormSubmitButton>
                     </div>
                   </form>
                 </CardContent>
@@ -247,7 +245,7 @@ export default async function AdminSettingsPage() {
                       </label>
                     </div>
                     <div className="flex justify-end">
-                      <AdminButton type="submit" size="sm">Uložiť metódy platby</AdminButton>
+                      <FormSubmitButton size="sm">Uložiť metódy platby</FormSubmitButton>
                     </div>
                   </form>
                 </CardContent>

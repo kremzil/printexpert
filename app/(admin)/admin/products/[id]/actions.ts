@@ -604,62 +604,27 @@ export async function updateProductDetails(
   formData: FormData
 ) {
   await requireAdmin()
-  
-  const name = String(formData.get("name") ?? "").trim()
-  const slug = String(formData.get("slug") ?? "").trim()
-  const categoryId = String(formData.get("categoryId") ?? "").trim()
-  const excerptInput = String(formData.get("excerpt") ?? "")
-  const descriptionInput = String(formData.get("description") ?? "")
-  const priceFromRaw = String(formData.get("priceFrom") ?? "").trim()
-  const priceAfterDiscountFromRaw = String(
-    formData.get("priceAfterDiscountFrom") ?? ""
-  ).trim()
-  const showInB2bRaw = String(formData.get("showInB2b") ?? "").trim()
-  const showInB2cRaw = String(formData.get("showInB2c") ?? "").trim()
-  const isActiveRaw = String(formData.get("isActive") ?? "").trim()
-
-  // Designer fields
-  const designerEnabledRaw = String(formData.get("designerEnabled") ?? "").trim()
-  const designerWidthRaw = String(formData.get("designerWidth") ?? "").trim()
-  const designerHeightRaw = String(formData.get("designerHeight") ?? "").trim()
-  const designerBgColorRaw = String(formData.get("designerBgColor") ?? "").trim()
-  const designerDpiRaw = String(formData.get("designerDpi") ?? "").trim()
-  const designerColorProfile = String(formData.get("designerColorProfile") ?? "").trim()
-
-  if (!name || !slug) {
-    return
-  }
-
-  const normalizedPriceFrom = priceFromRaw.replace(",", ".")
-  const priceFromValue = normalizedPriceFrom
-    ? Number(normalizedPriceFrom)
-    : null
-  const normalizedPriceAfterDiscountFrom = priceAfterDiscountFromRaw.replace(",", ".")
-  const priceAfterDiscountFromValue = normalizedPriceAfterDiscountFrom
-    ? Number(normalizedPriceAfterDiscountFrom)
-    : null
-
-  if (
-    (normalizedPriceFrom && Number.isNaN(priceFromValue)) ||
-    (normalizedPriceAfterDiscountFrom &&
-      Number.isNaN(priceAfterDiscountFromValue))
-  ) {
-    return
-  }
 
   const prisma = getPrisma()
-  const sanitizedDescription = sanitizeHtml(descriptionInput)
-  const description = sanitizedDescription.trim()
-  const sanitizedExcerpt = sanitizeHtml(excerptInput)
-  const excerpt = sanitizedExcerpt.trim()
   const existing = await prisma.product.findUnique({
     where: { id: input.productId },
     select: {
+      name: true,
       slug: true,
       categoryId: true,
+      excerpt: true,
+      description: true,
+      priceFrom: true,
+      priceAfterDiscountFrom: true,
       isActive: true,
       showInB2b: true,
       showInB2c: true,
+      designerEnabled: true,
+      designerWidth: true,
+      designerHeight: true,
+      designerBgColor: true,
+      designerDpi: true,
+      designerColorProfile: true,
     },
   })
 
@@ -667,16 +632,92 @@ export async function updateProductDetails(
     return
   }
 
-  const nextIsActive = isActiveRaw === "1"
-  const nextShowInB2b = showInB2bRaw === "1"
-  const nextShowInB2c = showInB2cRaw === "1"
+  const hasField = (fieldName: string) => formData.has(fieldName)
+  const readField = (fieldName: string) =>
+    String(formData.get(fieldName) ?? "").trim()
+
+  const name = hasField("name") ? readField("name") : existing.name
+  const slug = hasField("slug") ? readField("slug") : existing.slug
+  if (!name || !slug) {
+    return
+  }
+
+  const categoryIdRaw = hasField("categoryId")
+    ? readField("categoryId")
+    : existing.categoryId ?? ""
+  const excerptInput = hasField("excerpt")
+    ? String(formData.get("excerpt") ?? "")
+    : existing.excerpt ?? ""
+  const descriptionInput = hasField("description")
+    ? String(formData.get("description") ?? "")
+    : existing.description ?? ""
+  const priceFromRaw = hasField("priceFrom")
+    ? readField("priceFrom")
+    : existing.priceFrom?.toString() ?? ""
+  const priceAfterDiscountFromRaw = hasField("priceAfterDiscountFrom")
+    ? readField("priceAfterDiscountFrom")
+    : existing.priceAfterDiscountFrom?.toString() ?? ""
+
+  const normalizedPriceFrom = priceFromRaw.replace(",", ".")
+  const normalizedPriceAfterDiscountFrom = priceAfterDiscountFromRaw.replace(",", ".")
+  const priceFromValue = normalizedPriceFrom ? Number(normalizedPriceFrom) : null
+  const priceAfterDiscountFromValue = normalizedPriceAfterDiscountFrom
+    ? Number(normalizedPriceAfterDiscountFrom)
+    : null
+
+  if (
+    (normalizedPriceFrom && Number.isNaN(priceFromValue)) ||
+    (normalizedPriceAfterDiscountFrom && Number.isNaN(priceAfterDiscountFromValue))
+  ) {
+    return
+  }
+
+  const sanitizedDescription = sanitizeHtml(descriptionInput)
+  const description = sanitizedDescription.trim()
+  const sanitizedExcerpt = sanitizeHtml(excerptInput)
+  const excerpt = sanitizedExcerpt.trim()
+
+  const nextIsActive = hasField("isActive")
+    ? readField("isActive") === "1"
+    : existing.isActive
+  const nextShowInB2b = hasField("showInB2b")
+    ? readField("showInB2b") === "1"
+    : existing.showInB2b
+  const nextShowInB2c = hasField("showInB2c")
+    ? readField("showInB2c") === "1"
+    : existing.showInB2c
+
+  const nextDesignerEnabled = hasField("designerEnabled")
+    ? readField("designerEnabled") === "1"
+    : existing.designerEnabled
+  const nextDesignerWidth = hasField("designerWidth")
+    ? (readField("designerWidth")
+        ? parseInt(readField("designerWidth")) || null
+        : null)
+    : existing.designerWidth
+  const nextDesignerHeight = hasField("designerHeight")
+    ? (readField("designerHeight")
+        ? parseInt(readField("designerHeight")) || null
+        : null)
+    : existing.designerHeight
+  const nextDesignerBgColor = hasField("designerBgColor")
+    ? (readField("designerBgColor") || null)
+    : existing.designerBgColor
+  const nextDesignerDpi = hasField("designerDpi")
+    ? (readField("designerDpi")
+        ? parseInt(readField("designerDpi")) || null
+        : null)
+    : existing.designerDpi
+  const nextDesignerColorProfile = hasField("designerColorProfile")
+    ? (readField("designerColorProfile") || null)
+    : existing.designerColorProfile
 
   const updated = await prisma.product.update({
     where: { id: input.productId },
     data: {
       name,
       slug,
-      categoryId: categoryId || undefined,
+      categoryId: categoryIdRaw || undefined,
       excerpt: excerpt || null,
       description: description || null,
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
@@ -686,12 +727,12 @@ export async function updateProductDetails(
       isActive: nextIsActive,
       showInB2b: nextShowInB2b,
       showInB2c: nextShowInB2c,
-      designerEnabled: designerEnabledRaw === "1",
-      designerWidth: designerWidthRaw ? parseInt(designerWidthRaw) || null : null,
-      designerHeight: designerHeightRaw ? parseInt(designerHeightRaw) || null : null,
-      designerBgColor: designerBgColorRaw || null,
-      designerDpi: designerDpiRaw ? parseInt(designerDpiRaw) || null : null,
-      designerColorProfile: designerColorProfile || null,
+      designerEnabled: nextDesignerEnabled,
+      designerWidth: nextDesignerWidth,
+      designerHeight: nextDesignerHeight,
+      designerBgColor: nextDesignerBgColor,
+      designerDpi: nextDesignerDpi,
+      designerColorProfile: nextDesignerColorProfile,
     },
     select: { slug: true },
   })
@@ -703,8 +744,9 @@ export async function updateProductDetails(
 
   // Если сменилась категория, видимость или isActive — страховочный сброс
   // витринных страниц + навигации (counts могут измениться)
+  const nextCategoryId = categoryIdRaw || null
   const catalogChanged =
-    (categoryId && categoryId !== existing.categoryId) ||
+    nextCategoryId !== existing.categoryId ||
     nextIsActive !== existing.isActive ||
     nextShowInB2b !== existing.showInB2b ||
     nextShowInB2c !== existing.showInB2c

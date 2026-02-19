@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   flexRender,
@@ -11,8 +11,10 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnPinningState,
   type SortingState,
   type VisibilityState,
   type PaginationState,
@@ -73,7 +75,21 @@ type AdminProductsListProps = {
 };
 
 const STORAGE_KEY_VISIBILITY = "admin:products:columnVisibility:v2";
+const STORAGE_KEY_SAVED_VIEWS = "admin:products:savedViews:v1";
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const VIRTUAL_ROW_HEIGHT = 56;
+const VIRTUAL_OVERSCAN = 6;
+
+type SavedView = {
+  id: string;
+  name: string;
+  query: string;
+  category: string;
+  status: string;
+  sort: SortingState;
+  pageSize: (typeof PAGE_SIZE_OPTIONS)[number];
+  columnVisibility: VisibilityState;
+};
 
 const parseSortParam = (value: string | null): SortingState => {
   if (!value) return [];
@@ -95,9 +111,22 @@ const parseColumnFilters = (searchParams: URLSearchParams): ColumnFiltersState =
   return filters;
 };
 
+const getPinningStyles = (column: Column<AdminProductItem>) => {
+  const pinned = column.getIsPinned();
+  if (!pinned) return {};
+
+  return {
+    position: "sticky" as const,
+    left: `${column.getStart("left")}px`,
+    zIndex: 12,
+    backgroundColor: "hsl(var(--card))",
+  };
+};
+
 export function AdminProductsList({ products }: AdminProductsListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
 
   const initialQuery = searchParams.get("q") ?? "";
   const initialPage = Math.max(Number(searchParams.get("page") ?? "1") || 1, 1);
@@ -116,8 +145,15 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
     pageIndex: initialPage - 1,
     pageSize: initialPageSize,
   });
+  const [columnPinning] = useState<ColumnPinningState>({
+    left: ["select", "images", "name", "category"],
+  });
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [activeViewId, setActiveViewId] = useState("default");
   const [isBulkPending, setIsBulkPending] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState("");
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(520);
 
   useEffect(() => {
     try {
@@ -135,6 +171,37 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
     localStorage.setItem(STORAGE_KEY_VISIBILITY, JSON.stringify(columnVisibility));
   }, [columnVisibility]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_SAVED_VIEWS);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as SavedView[];
+      if (!Array.isArray(parsed)) return;
+      setSavedViews(parsed);
+    } catch {
+      // ignore invalid persisted saved views
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SAVED_VIEWS, JSON.stringify(savedViews));
+  }, [savedViews]);
+
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+
+    setContainerHeight(container.clientHeight);
+    const observer = new ResizeObserver((entries) => {
+      const nextHeight = entries[0]?.contentRect.height;
+      if (!nextHeight) return;
+      setContainerHeight(nextHeight);
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
+
   const categoryOptions = useMemo(() => {
     const map = new Map<string, string>();
     products.forEach((product) => {
@@ -143,6 +210,15 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
       }
     });
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [products]);
+
+  const searchSuggestions = useMemo(() => {
+    const suggestions = new Set<string>();
+    for (const product of products) {
+      suggestions.add(product.name);
+      suggestions.add(product.slug);
+    }
+    return Array.from(suggestions).slice(0, 80);
   }, [products]);
 
   const bulkCategoryOptions = useMemo(() => {
@@ -162,6 +238,64 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
       return [...without, { id, value }];
     });
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  };
+
+  const getCurrentViewSnapshot = () => {
+    const categoryValue =
+      (columnFilters.find((item) => item.id === "category")?.value as string | undefined) ?? "all";
+    const statusValue =
+      (columnFilters.find((item) => item.id === "isActive")?.value as string | undefined) ?? "all";
+
+    return {
+      query: globalFilter,
+      category: categoryValue,
+      status: statusValue,
+      sort: sorting,
+      pageSize: pagination.pageSize as (typeof PAGE_SIZE_OPTIONS)[number],
+      columnVisibility,
+    };
+  };
+
+  const applyView = (view: SavedView | null) => {
+    if (!view) {
+      setGlobalFilter("");
+      setColumnFilters([]);
+      setSorting([]);
+      setPagination((prev) => ({ ...prev, pageIndex: 0, pageSize: 25 }));
+      setActiveViewId("default");
+      return;
+    }
+
+    const nextFilters: ColumnFiltersState = [];
+    if (view.category && view.category !== "all") {
+      nextFilters.push({ id: "category", value: view.category });
+    }
+    if (view.status && view.status !== "all") {
+      nextFilters.push({ id: "isActive", value: view.status });
+    }
+
+    setGlobalFilter(view.query ?? "");
+    setColumnFilters(nextFilters);
+    setSorting(Array.isArray(view.sort) ? view.sort : []);
+    setPagination((prev) => ({ ...prev, pageIndex: 0, pageSize: view.pageSize ?? 25 }));
+    setColumnVisibility(view.columnVisibility ?? {});
+    setActiveViewId(view.id);
+  };
+
+  const saveCurrentView = () => {
+    const name = window.prompt("Názov pohľadu");
+    if (!name || !name.trim()) return;
+    const trimmedName = name.trim();
+    const snapshot = getCurrentViewSnapshot();
+    const id = `view-${Date.now()}`;
+    const nextView: SavedView = {
+      id,
+      name: trimmedName,
+      ...snapshot,
+    };
+    setSavedViews((prev) => [nextView, ...prev].slice(0, 10));
+    setActiveViewId(id);
+    toast.success("Pohľad bol uložený.");
   };
 
   const columns = useMemo<ColumnDef<AdminProductItem>[]>(() => {
@@ -312,11 +446,13 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
       sorting,
       columnFilters,
       columnVisibility,
+      columnPinning,
       globalFilter,
       rowSelection,
       pagination,
     },
     enableRowSelection: true,
+    enableColumnPinning: true,
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
     onSortingChange: (value) => {
@@ -345,6 +481,18 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
     },
   });
 
+  const pageRows = table.getRowModel().rows;
+  const shouldVirtualize = pageRows.length > 35;
+  const estimatedRowsInView = Math.ceil(containerHeight / VIRTUAL_ROW_HEIGHT);
+  const visibleCount = estimatedRowsInView + VIRTUAL_OVERSCAN * 2;
+  const virtualStart = shouldVirtualize
+    ? Math.max(Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN, 0)
+    : 0;
+  const virtualEnd = shouldVirtualize ? Math.min(virtualStart + visibleCount, pageRows.length) : pageRows.length;
+  const visibleRows = shouldVirtualize ? pageRows.slice(virtualStart, virtualEnd) : pageRows;
+  const topPaddingHeight = shouldVirtualize ? virtualStart * VIRTUAL_ROW_HEIGHT : 0;
+  const bottomPaddingHeight = shouldVirtualize ? Math.max((pageRows.length - virtualEnd) * VIRTUAL_ROW_HEIGHT, 0) : 0;
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const next = new URLSearchParams(window.location.search);
@@ -371,6 +519,13 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
       router.replace(`/admin/products?${nextValue}`, { scroll: false });
     }
   }, [columnFilters, globalFilter, pagination.pageIndex, pagination.pageSize, router, sorting]);
+
+  useEffect(() => {
+    setScrollTop(0);
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTop = 0;
+    }
+  }, [pagination.pageIndex, pagination.pageSize, globalFilter, columnFilters, sorting]);
 
   const selectedIds = table.getSelectedRowModel().rows.map((row) => row.original.id);
   const selectedCount = selectedIds.length;
@@ -445,12 +600,41 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
       <div className="sticky top-16 z-20 rounded-lg border bg-card p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={activeViewId}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === "default") {
+                  applyView(null);
+                  return;
+                }
+                const view = savedViews.find((item) => item.id === value) ?? null;
+                applyView(view);
+              }}
+            >
+              <option value="default">Predvolený pohľad</option>
+              {savedViews.map((view) => (
+                <option key={view.id} value={view.id}>
+                  {view.name}
+                </option>
+              ))}
+            </select>
+            <AdminButton type="button" variant="outline" size="sm" onClick={saveCurrentView}>
+              Uložiť pohľad
+            </AdminButton>
             <Input
               placeholder="Hľadať produkty…"
               value={globalFilter}
               onChange={(event) => setGlobalFilter(event.target.value)}
               className="w-72"
+              list="admin-products-suggestions"
             />
+            <datalist id="admin-products-suggestions">
+              {searchSuggestions.map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -600,13 +784,24 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
         </div>
       ) : null}
 
-      <div className="rounded-md border">
+      <div
+        ref={tableContainerRef}
+        className="max-h-[68vh] overflow-auto rounded-md border"
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      >
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-card">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} style={{ width: header.getSize() }}>
+                  <TableHead
+                    key={header.id}
+                    style={{
+                      width: header.getSize(),
+                      ...getPinningStyles(header.column),
+                    }}
+                    className={header.column.getIsPinned() ? "shadow-[1px_0_0_hsl(var(--border))]" : undefined}
+                  >
                     {header.isPlaceholder ? null : (
                       <div className="relative flex items-center">
                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -625,16 +820,32 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
+            {pageRows.length > 0 ? (
+              <>
+                {topPaddingHeight > 0 ? (
+                  <TableRow aria-hidden="true">
+                    <TableCell colSpan={table.getAllColumns().length} style={{ height: topPaddingHeight, padding: 0 }} />
+                  </TableRow>
+                ) : null}
+                {visibleRows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      style={getPinningStyles(cell.column)}
+                      className={cell.column.getIsPinned() ? "shadow-[1px_0_0_hsl(var(--border))]" : undefined}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
+                ))}
+                {bottomPaddingHeight > 0 ? (
+                  <TableRow aria-hidden="true">
+                    <TableCell colSpan={table.getAllColumns().length} style={{ height: bottomPaddingHeight, padding: 0 }} />
+                  </TableRow>
+                ) : null}
+              </>
             ) : (
               <TableRow>
                 <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Download, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/admin-button";
 import { AdminBadge } from "@/components/admin/admin-badge";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getCsrfHeader } from "@/lib/csrf";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
@@ -58,15 +66,62 @@ const PAYMENT_LABELS: Record<PaymentStatus, string> = {
   REFUNDED: "Refundovaná",
 };
 
+type ColumnKey = "order" | "customer" | "date" | "total" | "payment" | "status" | "actions";
+const COLUMN_VISIBILITY_KEY = "admin:orders:columnVisibility:v1";
+const DEFAULT_COLUMN_VISIBILITY: Record<ColumnKey, boolean> = {
+  order: true,
+  customer: true,
+  date: true,
+  total: true,
+  payment: true,
+  status: true,
+  actions: true,
+};
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  order: "Objednávka",
+  customer: "Zákazník",
+  date: "Dátum",
+  total: "Suma",
+  payment: "Platba",
+  status: "Status",
+  actions: "Akcie",
+};
+
 export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [quickStatus, setQuickStatus] = useState<"all" | OrderStatus>("all");
+  const [columnVisibility, setColumnVisibility] = useState<Record<ColumnKey, boolean>>(DEFAULT_COLUMN_VISIBILITY);
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>("PROCESSING");
   const [bulkNote, setBulkNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const orderIds = useMemo(() => orders.map((order) => order.id), [orders]);
+  const filteredOrders = useMemo(() => {
+    if (quickStatus === "all") return orders;
+    return orders.filter((order) => order.status === quickStatus);
+  }, [orders, quickStatus]);
+
+  const orderIds = useMemo(() => filteredOrders.map((order) => order.id), [filteredOrders]);
   const allSelected = orderIds.length > 0 && selectedIds.length === orderIds.length;
   const someSelected = selectedIds.length > 0 && selectedIds.length < orderIds.length;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COLUMN_VISIBILITY_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<Record<ColumnKey, boolean>>;
+      setColumnVisibility((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      // ignore malformed persisted state
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_VISIBILITY_KEY, JSON.stringify(columnVisibility));
+  }, [columnVisibility]);
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => orderIds.includes(id)));
+  }, [orderIds]);
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("sk-SK", {
@@ -120,8 +175,12 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   };
 
   const exportCsv = () => {
-    const currentQuery = typeof window !== "undefined" ? window.location.search : "";
-    window.location.href = `/api/admin/orders/export?format=csv${currentQuery ? `&${currentQuery.replace(/^\?/, "")}` : ""}`;
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+    params.set("format", "csv");
+    if (quickStatus !== "all") {
+      params.set("status", quickStatus);
+    }
+    window.location.href = `/api/admin/orders/export?${params.toString()}`;
   };
 
   if (orders.length === 0) {
@@ -137,8 +196,52 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card p-3">
-        <div className="text-sm text-muted-foreground">Záznamov: {orders.length}</div>
         <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Záznamov: {filteredOrders.length} / {orders.length}</span>
+          <div className="flex flex-wrap gap-1">
+            <AdminButton
+              size="sm"
+              variant={quickStatus === "all" ? "primary" : "outline"}
+              onClick={() => setQuickStatus("all")}
+            >
+              Všetky
+            </AdminButton>
+            {STATUS_OPTIONS.map((option) => (
+              <AdminButton
+                key={option.value}
+                size="sm"
+                variant={quickStatus === option.value ? "primary" : "outline"}
+                onClick={() => setQuickStatus(option.value)}
+              >
+                {option.label}
+              </AdminButton>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <AdminButton size="sm" variant="outline">
+                <Eye className="mr-2 h-4 w-4" />
+                Stĺpce
+              </AdminButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Zobraziť stĺpce</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {(Object.keys(DEFAULT_COLUMN_VISIBILITY) as ColumnKey[]).map((key) => (
+                <DropdownMenuCheckboxItem
+                  key={key}
+                  checked={columnVisibility[key]}
+                  onCheckedChange={(checked) =>
+                    setColumnVisibility((prev) => ({ ...prev, [key]: !!checked }))
+                  }
+                >
+                  {COLUMN_LABELS[key]}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <AdminButton size="sm" variant="outline" onClick={exportCsv}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
@@ -151,6 +254,14 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
           </AdminButton>
         </div>
       </div>
+
+      {filteredOrders.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            Pre zvolený filter sa nenašli žiadne objednávky.
+          </CardContent>
+        </Card>
+      ) : null}
 
       {selectedIds.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-3">
@@ -190,17 +301,17 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                   aria-label="Vybrať všetky objednávky"
                 />
               </th>
-              <th className="px-3 py-2 font-medium">Objednávka</th>
-              <th className="px-3 py-2 font-medium">Zákazník</th>
-              <th className="px-3 py-2 font-medium">Dátum</th>
-              <th className="px-3 py-2 font-medium">Suma</th>
-              <th className="px-3 py-2 font-medium">Platba</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 text-right font-medium">Akcie</th>
+              {columnVisibility.order ? <th className="px-3 py-2 font-medium">Objednávka</th> : null}
+              {columnVisibility.customer ? <th className="px-3 py-2 font-medium">Zákazník</th> : null}
+              {columnVisibility.date ? <th className="px-3 py-2 font-medium">Dátum</th> : null}
+              {columnVisibility.total ? <th className="px-3 py-2 font-medium">Suma</th> : null}
+              {columnVisibility.payment ? <th className="px-3 py-2 font-medium">Platba</th> : null}
+              {columnVisibility.status ? <th className="px-3 py-2 font-medium">Status</th> : null}
+              {columnVisibility.actions ? <th className="px-3 py-2 text-right font-medium">Akcie</th> : null}
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => {
+            {filteredOrders.map((order) => {
               const statusMeta = STATUS_OPTIONS.find((item) => item.value === order.status);
               const selected = selectedIds.includes(order.id);
               return (
@@ -212,24 +323,36 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                       aria-label={`Vybrať objednávku ${order.orderNumber}`}
                     />
                   </td>
-                  <td className="px-3 py-2 font-medium">#{order.orderNumber}</td>
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{order.customerName}</div>
-                    <div className="text-xs text-muted-foreground">{order.customerEmail}</div>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{formatDate(order.createdAt)}</td>
-                  <td className="px-3 py-2 font-semibold">{order.total.toFixed(2)} €</td>
-                  <td className="px-3 py-2 text-muted-foreground">{PAYMENT_LABELS[order.paymentStatus]}</td>
-                  <td className="px-3 py-2">
-                    <AdminBadge variant={statusMeta?.variant ?? "default"} size="sm">
-                      {statusMeta?.label ?? order.status}
-                    </AdminBadge>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <AdminButton asChild size="sm" variant="outline">
-                      <Link href={`/admin/orders/${order.id}`}>Detail</Link>
-                    </AdminButton>
-                  </td>
+                  {columnVisibility.order ? <td className="px-3 py-2 font-medium">#{order.orderNumber}</td> : null}
+                  {columnVisibility.customer ? (
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{order.customerName}</div>
+                      <div className="text-xs text-muted-foreground">{order.customerEmail}</div>
+                    </td>
+                  ) : null}
+                  {columnVisibility.date ? (
+                    <td className="px-3 py-2 text-muted-foreground">{formatDate(order.createdAt)}</td>
+                  ) : null}
+                  {columnVisibility.total ? (
+                    <td className="px-3 py-2 font-semibold">{order.total.toFixed(2)} €</td>
+                  ) : null}
+                  {columnVisibility.payment ? (
+                    <td className="px-3 py-2 text-muted-foreground">{PAYMENT_LABELS[order.paymentStatus]}</td>
+                  ) : null}
+                  {columnVisibility.status ? (
+                    <td className="px-3 py-2">
+                      <AdminBadge variant={statusMeta?.variant ?? "default"} size="sm">
+                        {statusMeta?.label ?? order.status}
+                      </AdminBadge>
+                    </td>
+                  ) : null}
+                  {columnVisibility.actions ? (
+                    <td className="px-3 py-2 text-right">
+                      <AdminButton asChild size="sm" variant="outline">
+                        <Link href={`/admin/orders/${order.id}`}>Detail</Link>
+                      </AdminButton>
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}

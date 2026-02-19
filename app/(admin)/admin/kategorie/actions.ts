@@ -14,6 +14,14 @@ type DeleteCategoryInput = {
   categoryId: string
 }
 
+type ReorderCategoriesInput = {
+  items: Array<{
+    id: string
+    parentId: string | null
+    sortOrder: number
+  }>
+}
+
 const normalizeSlug = (value: string) =>
   value
     .trim()
@@ -164,6 +172,41 @@ export async function deleteCategory(input: DeleteCategoryInput) {
   }
 
   await prisma.category.delete({ where: { id: category.id } })
+
+  invalidateCategories()
+  revalidatePath("/kategorie")
+  revalidatePath("/catalog")
+  revalidatePath("/admin/kategorie")
+}
+
+export async function reorderCategories(input: ReorderCategoriesInput) {
+  await requireAdmin()
+  const prisma = getPrisma()
+
+  if (!Array.isArray(input.items) || input.items.length === 0) {
+    return
+  }
+
+  const existing = await prisma.category.findMany({
+    select: { id: true },
+  })
+  const existingIds = new Set(existing.map((item) => item.id))
+  const normalizedItems = input.items.filter((item) => existingIds.has(item.id))
+
+  await prisma.$transaction(
+    normalizedItems.map((item) =>
+      prisma.category.update({
+        where: { id: item.id },
+        data: {
+          parentId:
+            item.parentId && item.parentId !== item.id && existingIds.has(item.parentId)
+              ? item.parentId
+              : null,
+          sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : 0,
+        },
+      })
+    )
+  )
 
   invalidateCategories()
   revalidatePath("/kategorie")

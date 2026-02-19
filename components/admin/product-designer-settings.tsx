@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Paintbrush, Settings } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 
 interface ProductDesignerSettingsProps {
   designerEnabled: boolean
@@ -28,11 +27,11 @@ export function ProductDesignerSettings({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Paintbrush className="h-5 w-5 text-purple-600" />
+        <Paintbrush className="h-5 w-5 text-primary" />
         <h3 className="text-base font-semibold">Design Studio</h3>
       </div>
 
-      <div className="flex flex-wrap gap-4 rounded-md border p-3">
+      <div className="flex flex-wrap gap-4 rounded-md border bg-card p-3">
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -43,12 +42,13 @@ export function ProductDesignerSettings({
             className="h-4 w-4 rounded border-input accent-primary"
           />
           <span className="font-medium">Povoliť dizajnér pre tento produkt</span>
+          <input type="hidden" name="designerEnabled" value="0" />
         </label>
       </div>
 
       {enabled && (
-        <div className="space-y-4 rounded-md border border-dashed border-purple-300 bg-purple-50/50 p-4">
-          <div className="flex items-center gap-2 text-sm text-purple-700">
+        <div className="space-y-4 rounded-md border border-dashed p-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Settings className="h-4 w-4" />
             <span className="font-medium">Nastavenia plátna dizajnéra</span>
           </div>

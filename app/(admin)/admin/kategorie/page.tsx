@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
+import { CategoriesDndManager } from "@/components/admin/categories-dnd-manager"
 import { requireAdmin } from "@/lib/auth-helpers"
 import { getAdminCategories } from "@/lib/catalog"
 import { createCategory, updateCategory, deleteCategory } from "./actions"
@@ -104,6 +105,18 @@ async function AdminCategoriesContent({
 
       <Card>
         <CardContent className="py-6">
+          <div className="mb-6">
+            <h2 className="mb-2 text-sm font-semibold">Rýchle poradie (drag & drop)</h2>
+            <CategoriesDndManager
+              categories={categories.map((category) => ({
+                id: category.id,
+                name: category.name,
+                parentId: category.parentId,
+                sortOrder: category.sortOrder,
+              }))}
+            />
+          </div>
+
           <form method="get" className="mb-4 flex items-end gap-2">
             <div className="space-y-1">
               <Label htmlFor="category-search">Vyhľadávanie</Label>

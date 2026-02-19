@@ -1,24 +1,19 @@
-import { LucideIcon } from 'lucide-react';
-import { ReactNode } from 'react';
-import { Slot } from "@radix-ui/react-slot"
+import { Slot } from "@radix-ui/react-slot";
+import { LucideIcon } from "lucide-react";
+import { ButtonHTMLAttributes, ReactNode, forwardRef } from "react";
 
-interface AdminButtonProps {
+interface AdminButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   icon?: LucideIcon;
   iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-  type?: 'button' | 'submit' | 'reset';
   className?: string;
   asChild?: boolean;
-  title?: string;
-  "aria-label"?: string;
 }
 
-export function AdminButton({
+export const AdminButton = forwardRef<HTMLButtonElement, AdminButtonProps>(function AdminButton({
   children,
   variant = 'primary',
   size = 'md',
@@ -32,7 +27,8 @@ export function AdminButton({
   asChild = false,
   title,
   "aria-label": ariaLabel,
-}: AdminButtonProps) {
+  ...props
+}: AdminButtonProps, ref) {
   const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2';
 
   const variantClasses = {
@@ -62,29 +58,33 @@ export function AdminButton({
   if (asChild) {
     return (
       <Slot
+        ref={ref}
         onClick={onClick}
         className={classes}
         title={title}
         aria-label={ariaLabel}
+        {...props}
         {...(disabled ? { "aria-disabled": true } : {})}
       >
         {children}
       </Slot>
-    )
+    );
   }
 
   return (
     <button
+      ref={ref}
       type={type}
       onClick={onClick}
       disabled={disabled}
       className={classes}
       title={title}
       aria-label={ariaLabel}
+      {...props}
     >
       {Icon && iconPosition === 'left' && <Icon className={iconSizes[size]} />}
       {children}
       {Icon && iconPosition === 'right' && <Icon className={iconSizes[size]} />}
     </button>
   );
-}
+});

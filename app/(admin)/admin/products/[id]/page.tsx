@@ -1,4 +1,3 @@
-
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
@@ -7,7 +6,6 @@ import { AdminButton as Button } from "@/components/admin/admin-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { MatrixVisibilitySwitch } from "@/components/admin/matrix-visibility-switch"
 import { ProductDescriptionEditor } from "@/components/admin/product-description-editor"
@@ -16,6 +14,7 @@ import { ProductDesignerSettings } from "@/components/admin/product-designer-set
 import { DesignTemplatesManager } from "@/components/admin/design-templates-manager"
 import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { ProductTitleEditor } from "@/components/admin/product-title-editor"
+import { FormSubmitButton } from "@/components/admin/form-submit-button"
 import { getAdminProductById } from "@/lib/catalog"
 import { getPrisma } from "@/lib/prisma"
 import { getWpCalculatorData } from "@/lib/wp-calculator"
@@ -35,6 +34,24 @@ type AdminProductPageProps = {
   params: Promise<{
     id: string
   }>
+  searchParams: Promise<{
+    tab?: string | string[]
+  }>
+}
+
+type ProductTab = "basic" | "prices" | "gallery" | "seo" | "design"
+
+const PRODUCT_TABS: Array<{ id: ProductTab; label: string }> = [
+  { id: "basic", label: "Základné info" },
+  { id: "prices", label: "Ceny (Matice)" },
+  { id: "gallery", label: "Galéria" },
+  { id: "seo", label: "SEO" },
+  { id: "design", label: "Design Studio" },
+]
+
+function resolveProductTab(rawTab: string | undefined): ProductTab {
+  if (!rawTab) return "basic"
+  return PRODUCT_TABS.some((tab) => tab.id === rawTab) ? (rawTab as ProductTab) : "basic"
 }
 
 async function getAttributesWithTerms() {
@@ -80,6 +97,7 @@ async function getCategories() {
 
 export default async function AdminProductPage({
   params,
+  searchParams,
 }: AdminProductPageProps) {
   return (
     <Suspense
@@ -95,19 +113,24 @@ export default async function AdminProductPage({
         </section>
       }
     >
-      <AdminProductDetails paramsPromise={params} />
+      <AdminProductDetails paramsPromise={params} searchParamsPromise={searchParams} />
     </Suspense>
   )
 }
 
 async function AdminProductDetails({
   paramsPromise,
+  searchParamsPromise,
 }: {
   paramsPromise: AdminProductPageProps["params"]
+  searchParamsPromise: AdminProductPageProps["searchParams"]
 }) {
   await requireAdmin()
-  
-  const { id } = await paramsPromise
+
+  const [{ id }, rawSearchParams] = await Promise.all([paramsPromise, searchParamsPromise])
+  const tabParam = Array.isArray(rawSearchParams.tab) ? rawSearchParams.tab[0] : rawSearchParams.tab
+  const activeTab = resolveProductTab(tabParam)
+
   const [product, attributeData, categories] = await Promise.all([
     getAdminProductById(id),
     getAttributesWithTerms(),
@@ -185,140 +208,237 @@ async function AdminProductDetails({
       terms: attributeTerms,
     }
   })
+  const seoDescriptionPreview = (product.excerpt ?? product.description ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
 
   return (
     <section className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <div className="text-sm text-muted-foreground">Administrácia</div>
+      <div className="space-y-4 rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Detail produktu
+            </div>
+            <h1 className="text-2xl font-semibold">{product.name}</h1>
+            <div className="text-sm text-muted-foreground">ID: {product.id}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={product.isActive ? "default" : "secondary"}>
+              {product.isActive ? "Aktívny" : "Neaktívny"}
+            </Badge>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/products">Späť na produkty</Link>
+            </Button>
+          </div>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin">Späť na produkty</Link>
-        </Button>
+        <nav className="flex min-w-max flex-wrap items-center gap-1 rounded-lg border bg-muted/20 p-1">
+          {PRODUCT_TABS.map((tab) => {
+            const isActive = tab.id === activeTab
+            return (
+              <Link
+                key={tab.id}
+                href={`/admin/products/${product.id}?tab=${tab.id}`}
+                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                  isActive
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            )
+          })}
+        </nav>
       </div>
 
+      {activeTab === "basic" || activeTab === "gallery" || activeTab === "design" || activeTab === "seo" ? (
       <Card>
         <CardContent className="space-y-6 py-6">
           <form
             action={updateProductDetails.bind(null, { productId: product.id })}
-            className="space-y-5"
+            className="space-y-6"
           >
-            <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-4">
-                     <div className="flex flex-col gap-2">
-                        <Label>Stav a Viditeľnosť</Label>
-                        <div className="flex flex-wrap gap-4 rounded-md border p-3">
-                             <label className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" name="isActive" value="1" defaultChecked={product.isActive} className="h-4 w-4 rounded border-input accent-primary" />
-                                <span className="font-medium">Aktívny produkt</span>
-                             </label>
-                             <div className="h-4 w-px bg-border" />
-                             <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <input type="checkbox" name="showInB2b" value="1" defaultChecked={product.showInB2b} className="h-4 w-4 rounded border-input accent-primary" />
-                                <span>Zobraziť v B2B</span>
-                             </label>
-                              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <input type="checkbox" name="showInB2c" value="1" defaultChecked={product.showInB2c} className="h-4 w-4 rounded border-input accent-primary" />
-                                <span>Zobraziť v B2C</span>
-                             </label>
-                        </div>
-                     </div>
-                     
-                     <div className="space-y-2">
-                        <Label htmlFor="category">Kategória</Label>
-                        <select 
-                            id="category" 
-                            name="categoryId" 
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            defaultValue={product.categoryId}
-                        >
-                            <option value="">-- Bez kategórie --</option>
-                            {categories.map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                            ))}
-                        </select>
-                     </div>
+            {activeTab === "basic" ? (
+              <>
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+                  <div className="space-y-5">
+                    <ProductTitleEditor
+                      initialName={product.name}
+                      initialSlug={product.slug}
+                    />
+                    <ProductDescriptionEditor
+                      name="excerpt"
+                      label="Krátky popis"
+                      initialValue={product.excerpt ?? ""}
+                      placeholder="Začnite písať krátky popis..."
+                    />
+                    <ProductDescriptionEditor
+                      name="description"
+                      initialValue={product.description ?? ""}
+                      placeholder="Začnite písať popis..."
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2 rounded-lg border p-4">
+                      <Label>Stav a Viditeľnosť</Label>
+                      <div className="space-y-3">
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span className="font-medium">Aktívny produkt</span>
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              name="isActive"
+                              value="1"
+                              defaultChecked={product.isActive}
+                              className="h-4 w-4 rounded border-input accent-primary"
+                            />
+                            <input type="hidden" name="isActive" value="0" />
+                          </span>
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                          <span>Zobraziť v B2B</span>
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              name="showInB2b"
+                              value="1"
+                              defaultChecked={product.showInB2b}
+                              className="h-4 w-4 rounded border-input accent-primary"
+                            />
+                            <input type="hidden" name="showInB2b" value="0" />
+                          </span>
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                          <span>Zobraziť v B2C</span>
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              name="showInB2c"
+                              value="1"
+                              defaultChecked={product.showInB2c}
+                              className="h-4 w-4 rounded border-input accent-primary"
+                            />
+                            <input type="hidden" name="showInB2c" value="0" />
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 rounded-lg border p-4">
+                      <Label htmlFor="category">Kategória</Label>
+                      <select
+                        id="category"
+                        name="categoryId"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        defaultValue={product.categoryId}
+                      >
+                        <option value="">-- Bez kategórie --</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="priceFrom">Cena od</Label>
+                        <Input
+                          id="priceFrom"
+                          name="priceFrom"
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          defaultValue={product.priceFrom?.toString() ?? ""}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="priceAfterDiscountFrom">Cena po zľave od</Label>
+                        <Input
+                          id="priceAfterDiscountFrom"
+                          name="priceAfterDiscountFrom"
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          defaultValue={product.priceAfterDiscountFrom?.toString() ?? ""}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        DPH sa nastavuje globálne v Nastavenia &gt; Obchod.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-            </div>
 
-            <Separator />
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Uložte zmeny pre aktualizáciu produktu.</span>
+                  <FormSubmitButton variant="secondary" size="sm" pendingText="Ukladám zmeny...">
+                    Uložiť zmeny
+                  </FormSubmitButton>
+                </div>
+              </>
+            ) : null}
 
-            <ProductImagesEditor
-              productId={product.id}
-              images={product.images}
-            />
-
-            <Separator />
-
-            <ProductTitleEditor
-              initialName={product.name}
-              initialSlug={product.slug}
-            />
-            <div className="space-y-2">
-              <ProductDescriptionEditor
-                name="excerpt"
-                label="Krátky popis"
-                initialValue={product.excerpt ?? ""}
-                placeholder="Začnite písať krátky popis..."
+            {activeTab === "gallery" ? (
+              <ProductImagesEditor
+                productId={product.id}
+                images={product.images}
               />
-            </div>
+            ) : null}
 
-            <ProductDescriptionEditor
-              name="description"
-              initialValue={product.description ?? ""}
-              placeholder="Začnite písať popis..."
-            />
-
-            <Separator />
-
-            <ProductDesignerSettings
-              designerEnabled={product.designerEnabled ?? false}
-              designerWidth={product.designerWidth ?? null}
-              designerHeight={product.designerHeight ?? null}
-              designerBgColor={product.designerBgColor ?? null}
-              designerDpi={product.designerDpi ?? null}
-              designerColorProfile={product.designerColorProfile ?? null}
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="priceFrom">Cena od</Label>
-                <Input
-                  id="priceFrom"
-                  name="priceFrom"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  defaultValue={product.priceFrom?.toString() ?? ""}
+            {activeTab === "design" ? (
+              <>
+                <ProductDesignerSettings
+                  designerEnabled={product.designerEnabled ?? false}
+                  designerWidth={product.designerWidth ?? null}
+                  designerHeight={product.designerHeight ?? null}
+                  designerBgColor={product.designerBgColor ?? null}
+                  designerDpi={product.designerDpi ?? null}
+                  designerColorProfile={product.designerColorProfile ?? null}
                 />
-                <p className="text-xs text-muted-foreground">
-                  DPH sa nastavuje globálne v Nastavenia &gt; Obchod.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="priceAfterDiscountFrom">Cena po zľave od</Label>
-                <Input
-                  id="priceAfterDiscountFrom"
-                  name="priceAfterDiscountFrom"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  defaultValue={product.priceAfterDiscountFrom?.toString() ?? ""}
-                />
-              </div>
-            </div>
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Uložte nastavenia pre Design Studio.</span>
+                  <FormSubmitButton variant="secondary" size="sm" pendingText="Ukladám nastavenia...">
+                    Uložiť nastavenia
+                  </FormSubmitButton>
+                </div>
+              </>
+            ) : null}
 
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Uložte zmeny pre aktualizáciu produktu.</span>
-              <Button type="submit" variant="secondary" size="sm">
-                Uložiť zmeny
-              </Button>
-            </div>
+            {activeTab === "seo" ? (
+              <div className="space-y-4 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <h2 className="text-base font-semibold">SEO náhľad</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Samostatné SEO polia doplníme v ďalšom kroku.
+                  </p>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Title</span>
+                    <div className="font-medium">{product.name}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">URL</span>
+                    <div className="text-muted-foreground">/product/{product.slug}</div>
+                  </div>
+                  <div>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Description</span>
+                    <div className="text-muted-foreground">{seoDescriptionPreview || "Bez popisu"}</div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </form>
         </CardContent>
       </Card>
+      ) : null}
 
-      {product.designerEnabled && (
+      {activeTab === "design" && product.designerEnabled && (
         <Card>
           <CardContent className="py-6">
             <DesignTemplatesManager
@@ -329,6 +449,7 @@ async function AdminProductDetails({
         </Card>
       )}
 
+      {activeTab === "prices" ? (
       <Card>
         <CardContent className="space-y-6 py-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -688,6 +809,7 @@ async function AdminProductDetails({
           )}
         </CardContent>
       </Card>
+      ) : null}
     </section>
   )
 }

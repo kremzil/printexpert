@@ -30,6 +30,7 @@ type Product = {
   id: string;
   name: string;
   slug: string;
+  category?: { id: string; name: string } | null;
   images?: { url: string; alt: string | null }[];
 };
 
@@ -58,6 +59,10 @@ export default function TopProductsPage() {
     b2c: Product[];
     b2b: Product[];
   }>({ b2c: [], b2b: [] });
+  const [categoryFilterByAudience, setCategoryFilterByAudience] = useState<{ b2c: string; b2b: string }>({
+    b2c: "all",
+    b2b: "all",
+  });
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -152,6 +157,20 @@ export default function TopProductsPage() {
     const setConfig = audience === "b2c" ? setB2cConfig : setB2bConfig;
     const availableProducts =
       audience === "b2c" ? productsByAudience.b2c : productsByAudience.b2b;
+    const selectedCategory = categoryFilterByAudience[audience];
+    const categoryOptions = Array.from(
+      new Map(
+        availableProducts
+          .filter((product) => product.category?.id && product.category?.name)
+          .map((product) => [product.category?.id as string, product.category?.name as string])
+      ).entries()
+    ).sort((a, b) => a[1].localeCompare(b[1]));
+    const filteredProducts =
+      selectedCategory === "all"
+        ? availableProducts
+        : selectedCategory === "none"
+          ? availableProducts.filter((product) => !product.category)
+          : availableProducts.filter((product) => product.category?.id === selectedCategory);
 
     const productById = new Map(availableProducts.map((product) => [product.id, product]));
     const selectedProducts = config.productIds
@@ -191,8 +210,29 @@ export default function TopProductsPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label>Vybrané produkty</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor={`top-products-category-${audience}`} className="text-xs text-muted-foreground">
+                Kategória
+              </Label>
+              <select
+                id={`top-products-category-${audience}`}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                value={selectedCategory}
+                onChange={(event) =>
+                  setCategoryFilterByAudience((prev) => ({ ...prev, [audience]: event.target.value }))
+                }
+              >
+                <option value="all">Všetky kategórie</option>
+                <option value="none">Bez kategórie</option>
+                {categoryOptions.map(([categoryId, categoryName]) => (
+                  <option key={categoryId} value={categoryId}>
+                    {categoryName}
+                  </option>
+                ))}
+              </select>
+            </div>
             <ProductCombobox
-              products={availableProducts}
+              products={filteredProducts}
               selected={selectedProducts}
               onChange={syncSelected}
             />

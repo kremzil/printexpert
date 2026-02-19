@@ -49,6 +49,7 @@ interface Order {
   notes: string | null;
   deliveryMethod?: "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP" | null;
   paymentMethod?: "STRIPE" | "BANK_TRANSFER" | "COD" | null;
+  paymentStatus?: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
   pickupPoint?: unknown;
   carrier?: string | null;
   carrierShipmentId?: string | null;
@@ -98,6 +99,11 @@ interface OrderAsset {
   createdAt: string;
 }
 
+type PanelFeedback = {
+  tone: "idle" | "loading" | "success" | "error";
+  message: string;
+};
+
 const getSelectedOptionAttributes = (selectedOptions: unknown): Record<string, string> | null => {
   if (!selectedOptions || typeof selectedOptions !== "object") {
     return null;
@@ -146,6 +152,14 @@ const assetKindLabels = {
   OTHER: "Iné",
 };
 
+const paymentStatusLabels = {
+  UNPAID: "Nezaplatená",
+  PENDING: "Čaká na platbu",
+  PAID: "Zaplatená",
+  FAILED: "Neúspešná",
+  REFUNDED: "Refundovaná",
+} as const;
+
 const hasDpdLabelUrlInMeta = (meta: unknown) => {
   if (!meta || typeof meta !== "object") return false;
   const value = (
@@ -158,6 +172,26 @@ const hasDpdLabelUrlInMeta = (meta: unknown) => {
   return typeof value === "string" && value.length > 0;
 };
 
+function PanelStatus({ feedback }: { feedback: PanelFeedback }) {
+  const toneClass =
+    feedback.tone === "error"
+      ? "border-destructive/40 bg-destructive/5 text-destructive"
+      : feedback.tone === "success"
+        ? "border-emerald-300/50 bg-emerald-50 text-emerald-900"
+        : feedback.tone === "loading"
+          ? "border-primary/30 bg-primary/5 text-primary"
+          : "border-border bg-muted/20 text-muted-foreground";
+
+  return (
+    <div className={`rounded-md border px-3 py-2 text-xs ${toneClass}`}>
+      <span className="inline-flex items-center gap-2">
+        {feedback.tone === "loading" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+        {feedback.message}
+      </span>
+    </div>
+  );
+}
+
 export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"items" | "customer" | "files" | "history" | "shipping" | "events">("items");
@@ -166,11 +200,22 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [assets, setAssets] = useState<OrderAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
+  const [assetsError, setAssetsError] = useState<string | null>(null);
+  const [assetsUpdatedAt, setAssetsUpdatedAt] = useState<string | null>(null);
+  const [filesFeedback, setFilesFeedback] = useState<PanelFeedback>({
+    tone: "idle",
+    message: "Súbory pripravené.",
+  });
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [isCreatingShipment, setIsCreatingShipment] = useState(false);
   const [isPrintingLabel, setIsPrintingLabel] = useState(false);
   const [isCancellingShipment, setIsCancellingShipment] = useState(false);
+  const [dpdFeedback, setDpdFeedback] = useState<PanelFeedback>(
+    order.carrierShipmentId
+      ? { tone: "idle", message: "DPD zásielka je vytvorená." }
+      : { tone: "idle", message: "DPD zásielka ešte nie je vytvorená." }
+  );
   const canPrintLabels =
     Boolean(order.carrierParcelNumbers?.length) || hasDpdLabelUrlInMeta(order.carrierMeta);
 
@@ -226,14 +271,24 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const fetchAssets = useCallback(async () => {
     try {
       setIsLoadingAssets(true);
+      setAssetsError(null);
+      setFilesFeedback({ tone: "loading", message: "Načítavam súbory objednávky..." });
       const response = await fetch(`/api/orders/${order.id}/assets`);
       if (!response.ok) {
         throw new Error("Nepodarilo sa načítať súbory.");
       }
       const data = await response.json();
       setAssets(data.assets ?? []);
+      setAssetsUpdatedAt(new Date().toISOString());
+      setFilesFeedback({
+        tone: "success",
+        message: `Súbory aktualizované (${Array.isArray(data.assets) ? data.assets.length : 0}).`,
+      });
     } catch (error) {
       console.error("Failed to load assets:", error);
+      const message = error instanceof Error ? error.message : "Nepodarilo sa načítať súbory.";
+      setAssetsError(message);
+      setFilesFeedback({ tone: "error", message });
     } finally {
       setIsLoadingAssets(false);
     }
@@ -319,6 +374,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
 
   const handleCreateShipment = async () => {
     setIsCreatingShipment(true);
+    setDpdFeedback({ tone: "loading", message: "Vytváram DPD zásielku..." });
     try {
       const response = await fetch(`/api/admin/orders/${order.id}/dpd/shipment`, {
         method: "POST",
@@ -327,9 +383,12 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Nepodarilo sa vytvoriť DPD zásielku");
       toast.success("DPD zásielka bola vytvorená");
+      setDpdFeedback({ tone: "success", message: "DPD zásielka bola vytvorená." });
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "DPD chyba");
+      const message = error instanceof Error ? error.message : "DPD chyba";
+      toast.error(message);
+      setDpdFeedback({ tone: "error", message });
     } finally {
       setIsCreatingShipment(false);
     }
@@ -337,6 +396,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
 
   const handlePrintLabels = async () => {
     setIsPrintingLabel(true);
+    setDpdFeedback({ tone: "loading", message: "Generujem DPD štítky..." });
     try {
       const response = await fetch(`/api/admin/orders/${order.id}/dpd/labels`, {
         method: "POST",
@@ -354,9 +414,12 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       toast.success("Štítky boli pripravené na stiahnutie");
+      setDpdFeedback({ tone: "success", message: "DPD štítky boli vygenerované." });
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "DPD chyba");
+      const message = error instanceof Error ? error.message : "DPD chyba";
+      toast.error(message);
+      setDpdFeedback({ tone: "error", message });
     } finally {
       setIsPrintingLabel(false);
     }
@@ -364,6 +427,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
 
   const handleCancelShipment = async () => {
     setIsCancellingShipment(true);
+    setDpdFeedback({ tone: "loading", message: "Ruším DPD zásielku..." });
     try {
       const response = await fetch(`/api/admin/orders/${order.id}/dpd/cancel`, {
         method: "POST",
@@ -372,9 +436,12 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Nepodarilo sa zrušiť DPD zásielku");
       toast.success("DPD zásielka bola zrušená");
+      setDpdFeedback({ tone: "success", message: "DPD zásielka bola zrušená." });
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "DPD chyba");
+      const message = error instanceof Error ? error.message : "DPD chyba";
+      toast.error(message);
+      setDpdFeedback({ tone: "error", message });
     } finally {
       setIsCancellingShipment(false);
     }
@@ -394,6 +461,33 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
         </div>
         <StatusBadge status={statusKeyMap[status]} size="lg" />
       </div>
+
+      <Card>
+        <CardContent className="grid gap-3 py-4 md:grid-cols-5">
+          <div className="rounded-md border p-3">
+            <p className="text-xs text-muted-foreground">Status</p>
+            <p className="mt-1 text-sm font-medium">{statusMap[status].label}</p>
+          </div>
+          <div className="rounded-md border p-3">
+            <p className="text-xs text-muted-foreground">Celkom</p>
+            <p className="mt-1 text-sm font-medium">{formatPrice(order.total)}</p>
+          </div>
+          <div className="rounded-md border p-3">
+            <p className="text-xs text-muted-foreground">Platba</p>
+            <p className="mt-1 text-sm font-medium">
+              {order.paymentStatus ? paymentStatusLabels[order.paymentStatus] : "Neznáma"}
+            </p>
+          </div>
+          <div className="rounded-md border p-3">
+            <p className="text-xs text-muted-foreground">Vytvorená</p>
+            <p className="mt-1 text-sm font-medium">{formatDate(order.createdAt)}</p>
+          </div>
+          <div className="rounded-md border p-3">
+            <p className="text-xs text-muted-foreground">E-mail klienta</p>
+            <p className="mt-1 text-sm font-medium break-all">{order.customerEmail}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
@@ -520,11 +614,29 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                   <CardTitle>Súbory k objednávke</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {isLoadingAssets ? <p className="text-xs text-muted-foreground">Načítavam zoznam...</p> : null}
-                  {!isLoadingAssets && assets.length === 0 ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {assetsUpdatedAt
+                        ? `Aktualizované: ${formatHistoryDate(assetsUpdatedAt)}`
+                        : "Aktualizované: —"}
+                    </p>
+                    <AdminButton size="sm" variant="outline" onClick={fetchAssets} disabled={isLoadingAssets}>
+                      {isLoadingAssets ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Načítavam...
+                        </>
+                      ) : (
+                        "Obnoviť"
+                      )}
+                    </AdminButton>
+                  </div>
+                  <PanelStatus feedback={filesFeedback} />
+
+                  {!isLoadingAssets && !assetsError && assets.length === 0 ? (
                     <p className="text-xs text-muted-foreground">K objednávke nie sú priložené žiadne súbory.</p>
                   ) : null}
-                  {!isLoadingAssets && assets.length > 0 ? (
+                  {!isLoadingAssets && !assetsError && assets.length > 0 ? (
                     <div className="space-y-3">
                       {assets.map((asset) => (
                         <div key={asset.id} className="flex items-center justify-between gap-4 text-sm">
@@ -729,6 +841,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                 <p>Shipment ID: {order.carrierShipmentId ?? "—"}</p>
                 <p>Parcely: {order.carrierParcelNumbers?.join(", ") || "—"}</p>
               </div>
+              <PanelStatus feedback={dpdFeedback} />
               <div className="flex flex-col gap-2">
                 <AdminButton
                   variant="outline"
