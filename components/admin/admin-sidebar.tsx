@@ -1,189 +1,234 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useState } from "react"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
-  LayoutDashboard,
-  Package,
   FolderTree,
-  Sliders,
-  Users,
   Home,
+  LayoutDashboard,
+  Megaphone,
+  Package,
   Settings,
   ShoppingCart,
+  Sliders,
+  Users,
   ChevronDown,
   ChevronRight,
-} from "lucide-react"
+  PanelLeft,
+} from "lucide-react";
 
-const menuItems = [
+import { AdminButton } from "@/components/admin/admin-button";
+import { cn } from "@/lib/utils";
+
+type SidebarEntry = {
+  id: string;
+  title: string;
+  url?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  children?: Array<{ id: string; title: string; url: string }>;
+};
+
+type SidebarGroup = {
+  id: string;
+  title: string;
+  items: SidebarEntry[];
+};
+
+const GROUPS: SidebarGroup[] = [
   {
-    id: "home",
-    title: "Domov",
-    url: "/",
-    icon: Home,
-  },
-  {
-    id: "dashboard",
+    id: "core",
     title: "Prehľad",
-    url: "/admin",
-    icon: LayoutDashboard,
+    items: [
+      { id: "home", title: "Domov webu", url: "/", icon: Home },
+      { id: "dashboard", title: "Dashboard", url: "/admin", icon: LayoutDashboard },
+    ],
   },
   {
-    id: "products",
-    title: "Produkty",
-    icon: Package,
-    children: [
+    id: "catalog",
+    title: "Katalóg",
+    items: [
       {
-        id: "all-products",
-        title: "Všetky produkty",
-        url: "/admin/products",
-      },
-      {
-        id: "collections",
-        title: "Kolekcie",
-        url: "/admin/kolekcie",
-      },
-      {
-        id: "top-products",
-        title: "Top produkty",
-        url: "/admin/top-products",
+        id: "products",
+        title: "Produkty",
+        icon: Package,
+        children: [
+          { id: "all-products", title: "Všetky produkty", url: "/admin/products" },
+          { id: "collections", title: "Kolekcie", url: "/admin/kolekcie" },
+          { id: "categories", title: "Kategórie", url: "/admin/kategorie" },
+          { id: "attributes", title: "Vlastnosti", url: "/admin/vlastnosti" },
+        ],
       },
     ],
   },
   {
-    id: "categories",
-    title: "Kategórie",
-    url: "/admin/kategorie",
-    icon: FolderTree,
-  },
-  {
     id: "orders",
     title: "Objednávky",
-    url: "/admin/orders",
-    icon: ShoppingCart,
-  },
-  {
-    id: "attributes",
-    title: "Vlastnosti",
-    url: "/admin/vlastnosti",
-    icon: Sliders,
+    items: [{ id: "orders", title: "Objednávky", url: "/admin/orders", icon: ShoppingCart }],
   },
   {
     id: "users",
     title: "Používatelia",
-    url: "/admin/users",
-    icon: Users,
+    items: [{ id: "users", title: "Používatelia", url: "/admin/users", icon: Users }],
   },
-]
+  {
+    id: "promotion",
+    title: "Propagácia",
+    items: [{ id: "top-products", title: "Top produkty", url: "/admin/top-products", icon: Megaphone }],
+  },
+  {
+    id: "settings",
+    title: "Nastavenia",
+    items: [{ id: "settings", title: "Nastavenia", url: "/admin/settings", icon: Settings }],
+  },
+];
 
-export function AdminSidebar() {
-  const pathname = usePathname()
-  const [expandedItems, setExpandedItems] = useState<string[]>(["products"])
+type AdminSidebarProps = {
+  collapsed?: boolean;
+  onNavigate?: () => void;
+  onToggleCollapse?: () => void;
+};
 
-  const toggleExpand = (id: string) => {
-    setExpandedItems((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    )
-  }
+export function AdminSidebar({ collapsed = false, onNavigate, onToggleCollapse }: AdminSidebarProps) {
+  const pathname = usePathname();
+  const [expanded, setExpanded] = useState<string[]>(["products"]);
 
-  const renderItem = (item: typeof menuItems[0], level = 0) => {
-    const isExpanded = expandedItems.includes(item.id)
-    const isActive = pathname === item.url
-    const hasChildren = item.children && item.children.length > 0
-    const hasActiveChild = item.children?.some((child) => pathname === child.url)
+  const flatChildUrls = useMemo(
+    () =>
+      GROUPS.flatMap((group) => group.items)
+        .flatMap((item) => item.children ?? [])
+        .map((child) => child.url),
+    []
+  );
 
-    return (
-      <div key={item.id}>
-        <button
-          onClick={() => {
-            if (hasChildren) {
-              toggleExpand(item.id)
-            } else if (item.url) {
-              window.location.href = item.url
-            }
-          }}
-          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            isActive || hasActiveChild
-              ? "bg-gray-900 text-white"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-          style={{ paddingLeft: `${12 + level * 16}px` }}
-        >
-          {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
-          <span className="flex-1 text-left">{item.title}</span>
-          {hasChildren &&
-            (isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            ))}
-        </button>
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id]));
+  };
 
-        {hasChildren && isExpanded && (
-          <div className="mt-1">
-            {item.children!.map((child) => {
-              const childActive = pathname === child.url
-              return (
-                <Link
-                  key={child.id}
-                  href={child.url}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                    childActive
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                  style={{ paddingLeft: `${12 + (level + 1) * 16}px` }}
-                >
-                  <span className="flex-1 text-left">{child.title}</span>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    )
-  }
+  const isRouteActive = (url?: string) => {
+    if (!url) return false;
+    if (url === "/admin") return pathname === "/admin";
+    return pathname === url || pathname.startsWith(`${url}/`);
+  };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="border-b border-border bg-white p-4">
-        <Link href="/admin" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-900 text-sm font-bold text-white">
+    <div className="flex h-full flex-col bg-white">
+      <div className="flex items-center justify-between border-b px-4 py-4">
+        <Link href="/admin" className="flex items-center gap-2" onClick={onNavigate}>
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-900 text-sm font-bold text-white">
             P
           </div>
-          <div className="text-sm font-bold text-foreground">PrintExpert Admin</div>
+          {!collapsed ? <span className="text-sm font-semibold text-foreground">PrintExpert Admin</span> : null}
         </Link>
+        {onToggleCollapse ? (
+          <AdminButton
+            variant="ghost"
+            size="sm"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? "Rozbaliť menu" : "Zbaliť menu"}
+            title={collapsed ? "Rozbaliť menu" : "Zbaliť menu"}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </AdminButton>
+        ) : null}
       </div>
 
-      {/* Navigation */}
-      <div className="flex-1 overflow-y-auto p-3">
-        <div className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground">
-          Navigácia
+      <nav className="flex-1 overflow-y-auto p-3">
+        <div className="space-y-4">
+          {GROUPS.map((group) => (
+            <section key={group.id}>
+              {!collapsed ? (
+                <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.title}
+                </div>
+              ) : null}
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const hasChildren = (item.children?.length ?? 0) > 0;
+                  const entryActive =
+                    hasChildren && item.children
+                      ? item.children.some((child) => isRouteActive(child.url))
+                      : isRouteActive(item.url);
+                  const entryExpanded = expanded.includes(item.id);
+                  const Icon = item.icon ?? Sliders;
+
+                  if (!hasChildren && item.url) {
+                    return (
+                      <Link
+                        key={item.id}
+                        href={item.url}
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
+                          entryActive ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
+                        )}
+                        title={collapsed ? item.title : undefined}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        {!collapsed ? <span>{item.title}</span> : null}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(item.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
+                          entryActive ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
+                        )}
+                        title={collapsed ? item.title : undefined}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        {!collapsed ? <span className="flex-1 text-left">{item.title}</span> : null}
+                        {!collapsed ? (
+                          entryExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />
+                        ) : null}
+                      </button>
+
+                      {!collapsed && entryExpanded && item.children ? (
+                        <div className="space-y-1 pl-6">
+                          {item.children.map((child) => {
+                            const childActive = isRouteActive(child.url);
+                            return (
+                              <Link
+                                key={child.id}
+                                href={child.url}
+                                onClick={onNavigate}
+                                className={cn(
+                                  "block rounded-md px-2 py-1.5 text-sm transition-colors",
+                                  childActive
+                                    ? "bg-gray-900 text-white"
+                                    : "text-gray-700 hover:bg-gray-100"
+                                )}
+                              >
+                                {child.title}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
-        <div className="space-y-1">{menuItems.map((item) => renderItem(item))}</div>
-      </div>
+      </nav>
 
-      {/* Settings at bottom */}
-      <div className="border-t border-border bg-white p-3">
-        <Link
-          href="/admin/settings"
-          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            pathname === "/admin/settings"
-              ? "bg-gray-900 text-white"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          <Settings className="h-4 w-4 shrink-0" />
-          <span className="flex-1 text-left">Nastavenia</span>
-        </Link>
-      </div>
-
-      {/* Version */}
-      <div className="border-t border-border bg-white p-4">
-        <div className="text-xs text-muted-foreground">Version 2.0.0</div>
+      <div className="border-t px-4 py-3 text-xs text-muted-foreground">
+        {!collapsed ? (
+          <div>v2.1.0</div>
+        ) : flatChildUrls.includes(pathname) ? (
+          <FolderTree className="h-4 w-4" />
+        ) : (
+          <Settings className="h-4 w-4" />
+        )}
       </div>
     </div>
-  )
+  );
 }
+

@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import Link from "next/link";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   flexRender,
   getCoreRowModel,
@@ -15,12 +15,16 @@ import {
   type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
-} from "@tanstack/react-table"
-import { MoreHorizontal, Eye, Edit, Trash, ArrowUpDown, Filter } from "lucide-react"
+  type PaginationState,
+  type RowSelectionState,
+} from "@tanstack/react-table";
+import { ArrowUpDown, Download, Eye, Filter, MoreHorizontal, Trash, Edit, Copy, Star, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-import { AdminBadge } from "@/components/admin/admin-badge"
-import { AdminButton } from "@/components/admin/admin-button"
-import { Input } from "@/components/ui/input"
+import { AdminBadge } from "@/components/admin/admin-badge";
+import { AdminButton } from "@/components/admin/admin-button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -28,7 +32,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -37,328 +41,488 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { formatPrice } from "@/lib/utils"
+} from "@/components/ui/dropdown-menu";
+import { formatPrice } from "@/lib/utils";
+import { getCsrfHeader } from "@/lib/csrf";
 
 type AdminProductItem = {
-  id: string
-  name: string
-  slug: string
-  isActive: boolean
-  showInB2b: boolean
-  showInB2c: boolean
-  priceFrom: string | null
-  vatRate: string
+  id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  showInB2b: boolean;
+  showInB2c: boolean;
+  priceFrom: string | null;
+  vatRate: string;
   category: {
-    name: string
-    slug: string
-  } | null
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
   images?: {
-    url: string
-    alt: string | null
-  }[]
+    url: string;
+    alt: string | null;
+  }[];
   _count?: {
-      orderItems: number
-  }
-}
+    orderItems: number;
+  };
+};
 
 type AdminProductsListProps = {
-  products: AdminProductItem[]
-}
+  products: AdminProductItem[];
+};
 
-const columns: ColumnDef<AdminProductItem>[] = [
-  {
-    accessorKey: "images",
-    header: "Obrázok",
-    cell: ({ row }) => {
-      const image = row.original.images?.[0]
-      return (
-        <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
-          {image ? (
-            <Image
-              src={image.url}
-              alt={image.alt || row.original.name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-              Bez foto
+const STORAGE_KEY_VISIBILITY = "admin:products:columnVisibility:v2";
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+
+const parseSortParam = (value: string | null): SortingState => {
+  if (!value) return [];
+  const [id, direction] = value.split(":");
+  if (!id) return [];
+  return [{ id, desc: direction === "desc" }];
+};
+
+const parseColumnFilters = (searchParams: URLSearchParams): ColumnFiltersState => {
+  const filters: ColumnFiltersState = [];
+  const category = searchParams.get("category");
+  const status = searchParams.get("status");
+  if (category && category !== "all") {
+    filters.push({ id: "category", value: category });
+  }
+  if (status && status !== "all") {
+    filters.push({ id: "isActive", value: status });
+  }
+  return filters;
+};
+
+export function AdminProductsList({ products }: AdminProductsListProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const initialQuery = searchParams.get("q") ?? "";
+  const initialPage = Math.max(Number(searchParams.get("page") ?? "1") || 1, 1);
+  const initialPageSize = PAGE_SIZE_OPTIONS.includes(
+    Number(searchParams.get("pageSize") ?? "25") as (typeof PAGE_SIZE_OPTIONS)[number]
+  )
+    ? (Number(searchParams.get("pageSize") ?? "25") as (typeof PAGE_SIZE_OPTIONS)[number])
+    : 25;
+
+  const [sorting, setSorting] = useState<SortingState>(() => parseSortParam(searchParams.get("sort")));
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => parseColumnFilters(searchParams));
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [globalFilter, setGlobalFilter] = useState(initialQuery);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: initialPage - 1,
+    pageSize: initialPageSize,
+  });
+  const [isBulkPending, setIsBulkPending] = useState(false);
+  const [bulkCategoryId, setBulkCategoryId] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_VISIBILITY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as VisibilityState;
+        setColumnVisibility(parsed);
+      }
+    } catch {
+      // ignore invalid persisted state
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_VISIBILITY, JSON.stringify(columnVisibility));
+  }, [columnVisibility]);
+
+  const categoryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    products.forEach((product) => {
+      if (product.category?.slug && product.category?.name) {
+        map.set(product.category.slug, product.category.name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [products]);
+
+  const bulkCategoryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    products.forEach((product) => {
+      if (product.category?.name) {
+        map.set(product.category.id, product.category.name);
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [products]);
+
+  const setSingleFilter = (id: string, value?: string) => {
+    setColumnFilters((prev) => {
+      const without = prev.filter((item) => item.id !== id);
+      if (!value || value === "all") return without;
+      return [...without, { id, value }];
+    });
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  };
+
+  const columns = useMemo<ColumnDef<AdminProductItem>[]>(() => {
+    return [
+      {
+        id: "select",
+        enableSorting: false,
+        enableHiding: false,
+        size: 40,
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() ? "indeterminate" : false)}
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Vybrať všetko"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label={`Vybrať produkt ${row.original.name}`}
+          />
+        ),
+      },
+      {
+        accessorKey: "images",
+        header: "Obrázok",
+        size: 92,
+        cell: ({ row }) => {
+          const image = row.original.images?.[0];
+          return (
+            <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
+              {image ? (
+                <Image
+                  src={image.url}
+                  alt={image.alt || row.original.name}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                  Bez foto
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => {
-        return (
-          <AdminButton
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
+          );
+        },
+      },
+      {
+        accessorKey: "name",
+        size: 260,
+        header: ({ column }) => (
+          <AdminButton variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Názov
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </AdminButton>
-        )
-    },
-    cell: ({ row }) => (
-      <div>
-        <div className="font-medium hover:underline">
-            <Link href={`/admin/products/${row.original.id}`}>
-                {row.getValue("name")}
+        ),
+        cell: ({ row }) => (
+          <div>
+            <Link href={`/admin/products/${row.original.id}`} className="font-medium hover:underline">
+              {row.original.name}
             </Link>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {row.original.slug}
-        </div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "category",
-    header: "Kategória",
-    cell: ({ row }) => {
-      const category = row.original.category
-      return (
-        <AdminBadge variant="default" size="sm">
-            {category?.name ?? "Bez kategórie"}
-        </AdminBadge>
-        )
-    },
-    filterFn: (row, id, value) => {
-      if (value === "all") return true
-      if (value === "none") return !row.original.category
-      return row.original.category?.slug === value
-    },
-  },
-  {
-      accessorKey: "priceFrom",
-      header: "Cena od",
-      cell: ({ row }) => {
-          const price = row.original.priceFrom
-          return price 
-            ? <div className="font-mono text-sm">{formatPrice(Number(price))}</div> 
-            : <span className="text-xs text-muted-foreground">Na vyžiadanie</span>
-      }
-  },
-  {
-    accessorKey: "isActive",
-    header: "Viditeľnosť",
-    cell: ({ row }) => {
-      const { isActive, showInB2b, showInB2c } = row.original
-      
-      if (!isActive) {
-          return <AdminBadge variant="inactive">Neaktívny</AdminBadge>
-      }
-
-      return (
-        <div className="flex gap-1 flex-wrap">
-            {showInB2b && <AdminBadge variant="b2b" size="sm">B2B</AdminBadge>}
-            {showInB2c && <AdminBadge variant="b2c" size="sm">B2C</AdminBadge>}
-            {!showInB2b && !showInB2c && <AdminBadge variant="default" size="sm">Skrytý</AdminBadge>}
-        </div>
-      )
-    },
-    filterFn: (row, id, value) => {
-      if (value === "all") return true
-      if (value === "active") return row.original.isActive === true
-      if (value === "inactive") return row.original.isActive === false
-      return true
-    },
-  },
-  {
-    accessorKey: "_count.orderItems",
-    header: ({ column }) => {
-        return (
-          <AdminButton
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
+            <div className="text-xs text-muted-foreground">/{row.original.slug}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "category",
+        header: "Kategória",
+        size: 170,
+        filterFn: (row, _id, value) => {
+          if (!value || value === "all") return true;
+          if (value === "none") return !row.original.category;
+          return row.original.category?.slug === value;
+        },
+        cell: ({ row }) => (
+          <AdminBadge variant="default" size="sm">
+            {row.original.category?.name ?? "Bez kategórie"}
+          </AdminBadge>
+        ),
+      },
+      {
+        accessorKey: "priceFrom",
+        header: "Cena od",
+        size: 120,
+        cell: ({ row }) =>
+          row.original.priceFrom ? (
+            <div className="font-mono text-sm">{formatPrice(Number(row.original.priceFrom))}</div>
+          ) : (
+            <span className="text-xs text-muted-foreground">Na vyžiadanie</span>
+          ),
+      },
+      {
+        accessorKey: "isActive",
+        header: "Viditeľnosť",
+        size: 190,
+        filterFn: (row, _id, value) => {
+          if (!value || value === "all") return true;
+          if (value === "active") return row.original.isActive;
+          if (value === "inactive") return !row.original.isActive;
+          return true;
+        },
+        cell: ({ row }) => {
+          const { isActive, showInB2b, showInB2c } = row.original;
+          if (!isActive) return <AdminBadge variant="inactive">Neaktívny</AdminBadge>;
+          return (
+            <div className="flex flex-wrap gap-1">
+              {showInB2b ? <AdminBadge variant="b2b" size="sm">B2B</AdminBadge> : null}
+              {showInB2c ? <AdminBadge variant="b2c" size="sm">B2C</AdminBadge> : null}
+              {!showInB2b && !showInB2c ? <AdminBadge size="sm">Skrytý</AdminBadge> : null}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "_count.orderItems",
+        id: "orderItems",
+        header: ({ column }) => (
+          <AdminButton variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Objednané
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </AdminButton>
-        )
-    },
-    cell: ({ row }) => {
-        const count = row.original._count?.orderItems || 0
-        return <div className="text-center">{count}x</div>
-    }
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => {
-      const product = row.original
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <AdminButton variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Otvoriť menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </AdminButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Akcie</DropdownMenuLabel>
-            <DropdownMenuItem asChild>
-                <Link href={`/product/${product.slug}`} target="_blank">
-                    <Eye className="mr-2 h-4 w-4" />
-                    Zobraziť na webe
-                </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-                <Link href={`/admin/products/${product.id}`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Upraviť
-                </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
-               <Trash className="mr-2 h-4 w-4" />
-               Zmazať
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  },
-]
+        ),
+        size: 120,
+        cell: ({ row }) => <div className="text-center">{row.original._count?.orderItems ?? 0}x</div>,
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        size: 96,
+        cell: ({ row }) => (
+          <ProductActions
+            product={row.original}
+            onDelete={async () => {
+              await runProductBulkAction("delete", [row.original.id], undefined, undefined);
+            }}
+            onAddedToTop={(message) => toast.success(message)}
+          />
+        ),
+      },
+    ];
+  }, []);
 
-export function AdminProductsList({ products }: AdminProductsListProps) {
-  const router = useRouter()
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [globalFilter, setGlobalFilter] = useState("")
-
-  const categoryOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    products.forEach((product) => {
-      if (product.category?.slug && product.category?.name) {
-        map.set(product.category.slug, product.category.name)
-      }
-    })
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]))
-  }, [products])
-
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: products,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, columnId, filterValue) => {
-      const search = filterValue.toLowerCase()
-      return (
-        row.original.name.toLowerCase().includes(search) ||
-        row.original.slug.toLowerCase().includes(search) ||
-        (row.original.category?.name ?? "").toLowerCase().includes(search)
-      )
-    },
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       globalFilter,
+      rowSelection,
+      pagination,
     },
-  })
+    enableRowSelection: true,
+    columnResizeMode: "onChange",
+    onRowSelectionChange: setRowSelection,
+    onSortingChange: (value) => {
+      setSorting(typeof value === "function" ? value(sorting) : value);
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onGlobalFilterChange: (value) => {
+      setGlobalFilter(String(value));
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const query = String(filterValue ?? "").trim().toLowerCase();
+      if (!query) return true;
+      return (
+        row.original.name.toLowerCase().includes(query) ||
+        row.original.slug.toLowerCase().includes(query) ||
+        (row.original.category?.name ?? "").toLowerCase().includes(query)
+      );
+    },
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next = new URLSearchParams(window.location.search);
+    const categoryValue = (columnFilters.find((item) => item.id === "category")?.value as string | undefined) ?? "all";
+    const statusValue = (columnFilters.find((item) => item.id === "isActive")?.value as string | undefined) ?? "all";
+    const sortValue = sorting[0] ? `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}` : "";
+
+    if (globalFilter) next.set("q", globalFilter);
+    else next.delete("q");
+    if (categoryValue !== "all") next.set("category", categoryValue);
+    else next.delete("category");
+    if (statusValue !== "all") next.set("status", statusValue);
+    else next.delete("status");
+    if (sortValue) next.set("sort", sortValue);
+    else next.delete("sort");
+    next.set("page", String(pagination.pageIndex + 1));
+    next.set("pageSize", String(pagination.pageSize));
+
+    const current = window.location.search.startsWith("?")
+      ? window.location.search.slice(1)
+      : window.location.search;
+    const nextValue = next.toString();
+    if (nextValue !== current) {
+      router.replace(`/admin/products?${nextValue}`, { scroll: false });
+    }
+  }, [columnFilters, globalFilter, pagination.pageIndex, pagination.pageSize, router, sorting]);
+
+  const selectedIds = table.getSelectedRowModel().rows.map((row) => row.original.id);
+  const selectedCount = selectedIds.length;
+
+  const handleBulkVisibility = async (visibility: { isActive?: boolean; showInB2b?: boolean; showInB2c?: boolean }) => {
+    if (selectedIds.length === 0) return;
+    setIsBulkPending(true);
+    try {
+      const response = await runProductBulkAction("setVisibility", selectedIds, undefined, visibility);
+      toast.success(`Aktualizovaných: ${response.updated ?? 0}`);
+      setRowSelection({});
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk akcia zlyhala.");
+    } finally {
+      setIsBulkPending(false);
+    }
+  };
+
+  const handleBulkCategory = async () => {
+    if (!bulkCategoryId || selectedIds.length === 0) return;
+    setIsBulkPending(true);
+    try {
+      const response = await runProductBulkAction("setCategory", selectedIds, bulkCategoryId, undefined);
+      toast.success(`Presunutých do kategórie: ${response.updated ?? 0}`);
+      setRowSelection({});
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk akcia zlyhala.");
+    } finally {
+      setIsBulkPending(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const confirmed = window.confirm("Naozaj chcete odstrániť vybrané produkty?");
+    if (!confirmed) return;
+    setIsBulkPending(true);
+    try {
+      const response = await runProductBulkAction("delete", selectedIds, undefined, undefined);
+      toast.success(`Odstránené: ${response.deleted ?? 0}, deaktivované: ${response.deactivated ?? 0}`);
+      setRowSelection({});
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bulk akcia zlyhala.");
+    } finally {
+      setIsBulkPending(false);
+    }
+  };
+
+  const triggerExport = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("format", "csv");
+    params.set(
+      "columns",
+      table
+        .getVisibleLeafColumns()
+        .map((column) => column.id)
+        .join(",")
+    );
+    window.location.href = `/api/admin/products/export?${params.toString()}`;
+  };
+
+  const categoryFilterValue =
+    (columnFilters.find((item) => item.id === "category")?.value as string | undefined) ?? "all";
+  const statusFilterValue =
+    (columnFilters.find((item) => item.id === "isActive")?.value as string | undefined) ?? "all";
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="Hľadať produkty..."
-            value={globalFilter ?? ""}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            className="max-w-xs"
-          />
-        </div>
+      <div className="sticky top-16 z-20 rounded-lg border bg-card p-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Hľadať produkty…"
+              value={globalFilter}
+              onChange={(event) => setGlobalFilter(event.target.value)}
+              className="w-72"
+            />
 
-        <div className="flex items-center gap-2">
             <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <AdminButton variant="outline" size="sm" className="ml-auto h-8 border-dashed">
-                <Filter className="mr-2 h-4 w-4" />
-                Kategórie
+              <DropdownMenuTrigger asChild>
+                <AdminButton variant="outline" size="sm">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Kategória
                 </AdminButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-50">
-                <DropdownMenuLabel>Filtrovať podľa kategórie</DropdownMenuLabel>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Filtrovanie podľa kategórie</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
-                    checked={!table.getColumn("category")?.getFilterValue()}
-                    onCheckedChange={() => table.getColumn("category")?.setFilterValue(undefined)}
+                  checked={categoryFilterValue === "all"}
+                  onCheckedChange={() => setSingleFilter("category", "all")}
                 >
-                    Všetky kategórie
+                  Všetky kategórie
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                    checked={table.getColumn("category")?.getFilterValue() === "none"}
-                    onCheckedChange={(checked) => 
-                        table.getColumn("category")?.setFilterValue(checked ? "none" : undefined)
-                    }
+                  checked={categoryFilterValue === "none"}
+                  onCheckedChange={(checked) => setSingleFilter("category", checked ? "none" : "all")}
                 >
-                    Bez kategórie
+                  Bez kategórie
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 {categoryOptions.map(([slug, name]) => (
-                <DropdownMenuCheckboxItem
+                  <DropdownMenuCheckboxItem
                     key={slug}
-                    checked={table.getColumn("category")?.getFilterValue() === slug}
-                    onCheckedChange={(checked) => 
-                        table.getColumn("category")?.setFilterValue(checked ? slug : undefined)
-                    }
-                >
+                    checked={categoryFilterValue === slug}
+                    onCheckedChange={(checked) => setSingleFilter("category", checked ? slug : "all")}
+                  >
                     {name}
-                </DropdownMenuCheckboxItem>
+                  </DropdownMenuCheckboxItem>
                 ))}
-            </DropdownMenuContent>
+              </DropdownMenuContent>
             </DropdownMenu>
 
             <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <AdminButton variant="outline" size="sm" className="ml-auto h-8 border-dashed">
-                <Filter className="mr-2 h-4 w-4" />
-                Stav
+              <DropdownMenuTrigger asChild>
+                <AdminButton variant="outline" size="sm">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Stav
                 </AdminButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtrovať podľa stavu</DropdownMenuLabel>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Filtrovanie podľa stavu</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
-                checked={!table.getColumn("isActive")?.getFilterValue()}
-                onCheckedChange={() => table.getColumn("isActive")?.setFilterValue(undefined)}
+                  checked={statusFilterValue === "all"}
+                  onCheckedChange={() => setSingleFilter("isActive", "all")}
                 >
-                Všetky stavy
+                  Všetky stavy
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                checked={table.getColumn("isActive")?.getFilterValue() === "active"}
-                onCheckedChange={(checked) => 
-                    table.getColumn("isActive")?.setFilterValue(checked ? "active" : undefined)
-                }
+                  checked={statusFilterValue === "active"}
+                  onCheckedChange={(checked) => setSingleFilter("isActive", checked ? "active" : "all")}
                 >
-                Len aktívne
+                  Aktívne
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                checked={table.getColumn("isActive")?.getFilterValue() === "inactive"}
-                onCheckedChange={(checked) => 
-                    table.getColumn("isActive")?.setFilterValue(checked ? "inactive" : undefined)
-                }
+                  checked={statusFilterValue === "inactive"}
+                  onCheckedChange={(checked) => setSingleFilter("isActive", checked ? "inactive" : "all")}
                 >
-                Len neaktívne
+                  Neaktívne
                 </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
+              </DropdownMenuContent>
             </DropdownMenu>
-            
-             <DropdownMenu>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <AdminButton variant="outline" size="sm" className="ml-auto h-8">
+                <AdminButton variant="outline" size="sm">
                   <Eye className="mr-2 h-4 w-4" />
                   Stĺpce
                 </AdminButton>
@@ -369,75 +533,111 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
                 {table
                   .getAllColumns()
                   .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id === "images" && "Obrázok"}
-                        {column.id === "name" && "Názov"}
-                        {column.id === "category" && "Kategória"}
-                        {column.id === "isActive" && "Stav"}
-                        {column.id === "priceFrom" && "Cena"}
-                        {column.id === "_count_orderItems" && "Predajnosť"}
-                        {column.id !== "images" && column.id !== "name" && column.id !== "category" && column.id !== "isActive" && column.id !== "priceFrom" && column.id !== "_count_orderItems" && column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
+                  .map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {column.id}
+                    </DropdownMenuCheckboxItem>
+                  ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <AdminButton variant="outline" size="sm" onClick={triggerExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </AdminButton>
+            <AdminButton variant="outline" size="sm" disabled title="Čoskoro dostupné">
+              Export XLS (čoskoro)
+            </AdminButton>
+            <AdminButton variant="outline" size="sm" disabled title="Čoskoro dostupné">
+              Export PDF (čoskoro)
+            </AdminButton>
+          </div>
         </div>
       </div>
+
+      {selectedCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-3">
+          <div className="text-sm font-medium">Vybrané: {selectedCount}</div>
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={bulkCategoryId}
+            onChange={(event) => setBulkCategoryId(event.target.value)}
+          >
+            <option value="">Kategória…</option>
+            {bulkCategoryOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+          <AdminButton size="sm" variant="outline" onClick={handleBulkCategory} disabled={!bulkCategoryId || isBulkPending}>
+            Presunúť kategóriu
+          </AdminButton>
+          <AdminButton
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkVisibility({ isActive: true, showInB2b: true, showInB2c: true })}
+            disabled={isBulkPending}
+          >
+            Zviditeľniť
+          </AdminButton>
+          <AdminButton
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkVisibility({ isActive: false, showInB2b: false, showInB2c: false })}
+            disabled={isBulkPending}
+          >
+            Skryť
+          </AdminButton>
+          <AdminButton size="sm" variant="danger" onClick={handleBulkDelete} disabled={isBulkPending}>
+            {isBulkPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash className="mr-2 h-4 w-4" />}
+            Odstrániť
+          </AdminButton>
+        </div>
+      ) : null}
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  )
-                })}
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} style={{ width: header.getSize() }}>
+                    {header.isPlaceholder ? null : (
+                      <div className="relative flex items-center">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanResize() ? (
+                          <div
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none bg-border/50 opacity-0 transition-opacity hover:opacity-100"
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/admin/products/${row.original.id}`)}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
                   Žiadne produkty.
                 </TableCell>
               </TableRow>
@@ -445,11 +645,24 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} produktov celkom.
-        </div>
-        <div className="space-x-2">
+
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="text-sm text-muted-foreground">{table.getFilteredRowModel().rows.length} produktov celkom</div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">Počet na stránku</label>
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={String(pagination.pageSize)}
+            onChange={(event) =>
+              setPagination({ pageIndex: 0, pageSize: Number(event.target.value) || pagination.pageSize })
+            }
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
           <AdminButton
             variant="outline"
             size="sm"
@@ -458,6 +671,9 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
           >
             Späť
           </AdminButton>
+          <div className="text-sm text-muted-foreground">
+            {pagination.pageIndex + 1} / {Math.max(table.getPageCount(), 1)}
+          </div>
           <AdminButton
             variant="outline"
             size="sm"
@@ -469,5 +685,156 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
         </div>
       </div>
     </div>
-  )
+  );
+}
+
+async function runProductBulkAction(
+  action: "setCategory" | "setVisibility" | "delete",
+  productIds: string[],
+  categoryId?: string,
+  visibility?: { isActive?: boolean; showInB2b?: boolean; showInB2c?: boolean }
+) {
+  const payload: {
+    action: "setCategory" | "setVisibility" | "delete";
+    productIds: string[];
+    categoryId?: string;
+    visibility?: { isActive?: boolean; showInB2b?: boolean; showInB2c?: boolean };
+  } = {
+    action,
+    productIds,
+  };
+  if (categoryId) payload.categoryId = categoryId;
+  if (visibility) payload.visibility = visibility;
+
+  const response = await fetch("/api/admin/products/bulk", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getCsrfHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error ?? "Nepodarilo sa vykonať bulk akciu.");
+  }
+  return (await response.json()) as Record<string, number>;
+}
+
+function ProductActions({
+  product,
+  onDelete,
+  onAddedToTop,
+}: {
+  product: AdminProductItem;
+  onDelete: () => Promise<void>;
+  onAddedToTop: (message: string) => void;
+}) {
+  const [isPending, setIsPending] = useState(false);
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}/product/${product.slug}`;
+    await navigator.clipboard.writeText(url);
+    toast.success("Odkaz bol skopírovaný.");
+  };
+
+  const addToTopProducts = async (audience: "b2b" | "b2c") => {
+    setIsPending(true);
+    try {
+      const currentRes = await fetch(`/api/admin/top-products?audience=${audience}`);
+      const current = (await currentRes.json().catch(() => ({}))) as { productIds?: string[] };
+      const currentIds = Array.isArray(current.productIds) ? current.productIds : [];
+      const nextIds = Array.from(new Set([product.id, ...currentIds])).slice(0, 8);
+
+      const saveRes = await fetch("/api/admin/top-products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getCsrfHeader(),
+        },
+        body: JSON.stringify({
+          audience,
+          mode: "MANUAL",
+          productIds: nextIds,
+        }),
+      });
+
+      if (!saveRes.ok) {
+        const data = await saveRes.json().catch(() => ({}));
+        throw new Error(data.error ?? "Nepodarilo sa uložiť top produkty.");
+      }
+
+      onAddedToTop(`Produkt bol pridaný do Top produktov (${audience.toUpperCase()}).`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Akcia zlyhala.");
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <AdminButton variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Otvoriť menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </AdminButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Akcie</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href={`/product/${product.slug}`} target="_blank">
+            <Eye className="mr-2 h-4 w-4" />
+            Zobraziť na webe
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/products/${product.id}`}>
+            <Edit className="mr-2 h-4 w-4" />
+            Upraviť
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={(event) => { event.preventDefault(); copyLink(); }}>
+          <Copy className="mr-2 h-4 w-4" />
+          Kopírovať odkaz
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={isPending}
+          onSelect={(event) => {
+            event.preventDefault();
+            addToTopProducts("b2c");
+          }}
+        >
+          <Star className="mr-2 h-4 w-4" />
+          Pridať do Top (B2C)
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={isPending}
+          onSelect={(event) => {
+            event.preventDefault();
+            addToTopProducts("b2b");
+          }}
+        >
+          <Star className="mr-2 h-4 w-4" />
+          Pridať do Top (B2B)
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onSelect={async (event) => {
+            event.preventDefault();
+            const confirmed = window.confirm("Naozaj chcete produkt odstrániť?");
+            if (!confirmed) return;
+            await onDelete();
+            toast.success("Produkt bol spracovaný v bulk odstránení.");
+          }}
+        >
+          <Trash className="mr-2 h-4 w-4" />
+          Odstrániť
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }

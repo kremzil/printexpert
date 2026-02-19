@@ -6,7 +6,10 @@ import { UserRole } from "@/lib/generated/prisma"
 import { revalidatePath } from "next/cache"
 
 export async function updateUserRole(userId: string, role: UserRole) {
-  await requireAdmin()
+  const session = await requireAdmin()
+  if (session.user.id === userId) {
+    throw new Error("Nemôžete meniť vlastnú rolu.")
+  }
 
   const prisma = getPrisma()
 

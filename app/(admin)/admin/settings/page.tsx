@@ -38,6 +38,7 @@ export default async function AdminSettingsPage() {
               <TabsTrigger value="pdf">PDF / Faktúry</TabsTrigger>
               <TabsTrigger value="dpd">DPD</TabsTrigger>
               <TabsTrigger value="payment">Metódy platby</TabsTrigger>
+              <TabsTrigger value="notifications">Notifikácie</TabsTrigger>
             </TabsList>
             <TabsContent value="vat">
               <Card>
@@ -249,6 +250,20 @@ export default async function AdminSettingsPage() {
                       <AdminButton type="submit" size="sm">Uložiť metódy platby</AdminButton>
                     </div>
                   </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="notifications">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notifikácie</CardTitle>
+                  <CardDescription>
+                    Pripravujeme správu notifikácií (e-mail, Slack, SMS) podľa udalostí.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p>Táto časť je dočasne dostupná ako náhľad UX.</p>
+                  <p>Uloženie notifikačných pravidiel bude doplnené v ďalšej iterácii.</p>
                 </CardContent>
               </Card>
             </TabsContent>

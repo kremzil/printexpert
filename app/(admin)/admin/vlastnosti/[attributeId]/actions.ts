@@ -22,6 +22,15 @@ type UpdateTermOrderInput = {
   termId: number
 }
 
+type UpdateTermInput = {
+  attributeId: number
+  termId: number
+}
+
+type DeleteTermsBulkInput = {
+  attributeId: number
+}
+
 const normalizeSlug = (value: string) =>
   value
     .trim()
@@ -165,6 +174,79 @@ export async function updateTermOrder(
       },
     })
   }
+
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes")
+  updateTag(audienceTag)
+  revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
+}
+
+export async function updateTerm(
+  input: UpdateTermInput,
+  formData: FormData
+) {
+  await requireAdmin()
+  const prisma = getPrisma()
+  const name = String(formData.get("name") ?? "").trim()
+  const rawSlug = String(formData.get("slug") ?? "").trim()
+
+  if (!name) return
+  const slug = normalizeSlug(rawSlug || name)
+
+  await prisma.wpTerm.update({
+    where: { termId: input.termId },
+    data: {
+      name,
+      slug,
+    },
+  })
+
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes")
+  updateTag(audienceTag)
+  revalidatePath(`/admin/vlastnosti/${input.attributeId}`)
+}
+
+export async function deleteTermsBulk(
+  input: DeleteTermsBulkInput,
+  formData: FormData
+) {
+  await requireAdmin()
+  const prisma = getPrisma()
+  const rawIds = formData.getAll("termTaxonomyId")
+  const termTaxonomyIds = rawIds
+    .map((value) => Number(String(value)))
+    .filter((value) => Number.isFinite(value))
+
+  if (termTaxonomyIds.length === 0) return
+
+  const termTaxonomies = await prisma.wpTermTaxonomy.findMany({
+    where: { termTaxonomyId: { in: termTaxonomyIds } },
+    select: { termTaxonomyId: true, termId: true },
+  })
+
+  await prisma.$transaction(async (tx) => {
+    for (const taxonomy of termTaxonomies) {
+      await tx.wpTermRelationship.deleteMany({
+        where: { termTaxonomyId: taxonomy.termTaxonomyId },
+      })
+      await tx.wpTermTaxonomy.delete({
+        where: { termTaxonomyId: taxonomy.termTaxonomyId },
+      })
+
+      const remaining = await tx.wpTermTaxonomy.count({
+        where: { termId: taxonomy.termId },
+      })
+      if (remaining === 0) {
+        await tx.wpTermMeta.deleteMany({
+          where: { termId: taxonomy.termId },
+        })
+        await tx.wpTerm.delete({
+          where: { termId: taxonomy.termId },
+        })
+      }
+    }
+  })
 
   const audienceTag = await getAudienceTag()
   updateTag("attributes")

@@ -33,6 +33,14 @@ const GETHandler = async (request: NextRequest) => {
       id: true,
       name: true,
       slug: true,
+      images: {
+        take: 1,
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+        select: {
+          url: true,
+          alt: true,
+        },
+      },
     },
     orderBy: {
       name: "asc",

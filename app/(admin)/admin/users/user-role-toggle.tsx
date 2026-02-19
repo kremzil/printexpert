@@ -16,14 +16,22 @@ import { ShieldAlert, User } from "lucide-react"
 interface UserRoleToggleProps {
   userId: string
   currentRole: UserRole
+  isSelf?: boolean
 }
 
-export function UserRoleToggle({ userId, currentRole }: UserRoleToggleProps) {
+export function UserRoleToggle({ userId, currentRole, isSelf = false }: UserRoleToggleProps) {
   const [isPending, startTransition] = useTransition()
   const [role, setRole] = useState(currentRole)
   const router = useRouter()
 
   const handleRoleChange = (newRole: UserRole) => {
+    if (isSelf) return
+    if (newRole === role) return
+    const confirmed = window.confirm(
+      `Naozaj chcete zmeniť rolu používateľa na ${newRole}?`
+    )
+    if (!confirmed) return
+
     startTransition(async () => {
       setRole(newRole)
       try {
@@ -38,10 +46,13 @@ export function UserRoleToggle({ userId, currentRole }: UserRoleToggleProps) {
 
   return (
     <div className="flex items-center gap-2">
+      {isSelf ? (
+        <span className="text-xs text-muted-foreground">Aktuálny používateľ</span>
+      ) : null}
       <Select
         value={role}
         onValueChange={(value) => handleRoleChange(value as UserRole)}
-        disabled={isPending}
+        disabled={isPending || isSelf}
       >
         <SelectTrigger className="w-35">
           <SelectValue />

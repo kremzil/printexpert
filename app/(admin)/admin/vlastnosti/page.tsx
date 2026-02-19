@@ -8,7 +8,17 @@ import { Label } from "@/components/ui/label"
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form"
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
-import { createAttribute, deleteAttribute } from "./actions"
+import { createAttribute, deleteAttribute, updateAttribute } from "./actions"
+
+type AttributesSearchParams = {
+  q?: string | string[]
+}
+
+const normalizeString = (value?: string | string[]) => {
+  if (!value) return ""
+  if (Array.isArray(value)) return value[0] ?? ""
+  return value
+}
 
 async function getAdminAttributes() {
   const prisma = getPrisma()
@@ -17,7 +27,11 @@ async function getAdminAttributes() {
   })
 }
 
-export default function AdminPropertiesPage() {
+export default function AdminPropertiesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<AttributesSearchParams>
+}) {
   return (
     <Suspense
       fallback={
@@ -32,15 +46,28 @@ export default function AdminPropertiesPage() {
         </section>
       }
     >
-      <AdminPropertiesContent />
+      <AdminPropertiesContent searchParamsPromise={searchParams} />
     </Suspense>
   )
 }
 
-async function AdminPropertiesContent() {
+async function AdminPropertiesContent({
+  searchParamsPromise,
+}: {
+  searchParamsPromise?: Promise<AttributesSearchParams>
+}) {
   await requireAdmin()
 
   const attributes = await getAdminAttributes()
+  const resolvedParams = searchParamsPromise ? await searchParamsPromise : {}
+  const query = normalizeString(resolvedParams.q).trim().toLowerCase()
+  const filteredAttributes = query
+    ? attributes.filter(
+        (attr) =>
+          attr.attributeLabel.toLowerCase().includes(query) ||
+          attr.attributeName.toLowerCase().includes(query)
+      )
+    : attributes
 
   return (
     <div className="p-6">
@@ -69,6 +96,22 @@ async function AdminPropertiesContent() {
 
       <Card>
         <CardContent className="py-6">
+          <form method="get" className="mb-4 flex items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="attribute-search">Vyhľadávanie</Label>
+              <Input
+                id="attribute-search"
+                name="q"
+                defaultValue={query}
+                placeholder="Názov alebo slug vlastnosti"
+                className="w-80"
+              />
+            </div>
+            <AdminButton type="submit" size="sm" variant="outline">
+              Hľadať
+            </AdminButton>
+          </form>
+
           <form
             action={createAttribute}
             className="mb-6 grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_auto]"
@@ -102,9 +145,9 @@ async function AdminPropertiesContent() {
             </AdminButton>
           </form>
           <div className="mb-4 text-sm text-muted-foreground">
-            Počet vlastností: {attributes.length}
+            Počet vlastností: {filteredAttributes.length} / {attributes.length}
           </div>
-          {attributes.length === 0 ? (
+          {filteredAttributes.length === 0 ? (
             <div className="text-sm text-muted-foreground">
               Zatiaľ tu nie sú žiadne vlastnosti.
             </div>
@@ -120,34 +163,34 @@ async function AdminPropertiesContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {attributes.map((attr) => (
+                  {filteredAttributes.map((attr) => (
                     <tr key={attr.attributeId} className="border-b last:border-b-0">
-                      <td className="px-2 py-2 font-medium">
-                        {attr.attributeLabel || attr.attributeName}
-                      </td>
-                      <td className="px-2 py-2 text-muted-foreground">
-                        {attr.attributeName}
-                      </td>
-                      <td className="px-2 py-2 text-muted-foreground">
-                        {attr.attributeType ?? "—"}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <AdminButton asChild size="sm" variant="outline">
-                            <Link href={`/admin/vlastnosti/${attr.attributeId}`}>
-                              Otvoriť
-                            </Link>
-                          </AdminButton>
-                          <ConfirmDeleteForm
-                            action={deleteAttribute.bind(null, {
-                              attributeId: attr.attributeId,
-                              attributeName: attr.attributeName,
-                            })}
-                            triggerText="Odstrániť"
-                            title="Odstrániť vlastnosť?"
-                            description="Odstránite vlastnosť aj všetky jej hodnoty a väzby."
-                          />
-                        </div>
+                      <td colSpan={4} className="px-2 py-3">
+                        <form
+                          action={updateAttribute.bind(null, { attributeId: attr.attributeId })}
+                          className="grid gap-2 md:grid-cols-[1.3fr_1fr_1fr_auto]"
+                        >
+                          <Input name="label" defaultValue={attr.attributeLabel || attr.attributeName} />
+                          <Input name="name" defaultValue={attr.attributeName} />
+                          <Input name="type" defaultValue={attr.attributeType ?? ""} />
+                          <div className="flex items-center justify-end gap-2">
+                            <AdminButton type="submit" size="sm" variant="outline">
+                              Uložiť
+                            </AdminButton>
+                            <AdminButton asChild size="sm" variant="outline">
+                              <Link href={`/admin/vlastnosti/${attr.attributeId}`}>Otvoriť</Link>
+                            </AdminButton>
+                            <ConfirmDeleteForm
+                              action={deleteAttribute.bind(null, {
+                                attributeId: attr.attributeId,
+                                attributeName: attr.attributeName,
+                              })}
+                              triggerText="Odstrániť"
+                              title="Odstrániť vlastnosť?"
+                              description="Odstránite vlastnosť aj všetky jej hodnoty a väzby."
+                            />
+                          </div>
+                        </form>
                       </td>
                     </tr>
                   ))}

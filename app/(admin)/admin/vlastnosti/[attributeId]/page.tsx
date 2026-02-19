@@ -9,12 +9,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getPrisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth-helpers"
-import { createTerm, deleteTerm, updateTermOrder } from "./actions"
+import { createTerm, deleteTerm, deleteTermsBulk, updateTerm, updateTermOrder } from "./actions"
 
 type AdminPropertyPageProps = {
   params: Promise<{
     attributeId: string
   }>
+  searchParams?: Promise<{
+    q?: string | string[]
+  }>
+}
+
+const normalizeString = (value?: string | string[]) => {
+  if (!value) return ""
+  if (Array.isArray(value)) return value[0] ?? ""
+  return value
 }
 
 async function getAttributeDetails(attributeId: number) {
@@ -51,6 +60,7 @@ async function getAttributeDetails(attributeId: number) {
 
 export default async function AdminPropertyPage({
   params,
+  searchParams,
 }: AdminPropertyPageProps) {
   return (
     <Suspense
@@ -66,18 +76,22 @@ export default async function AdminPropertyPage({
         </section>
       }
     >
-      <AdminPropertyDetails paramsPromise={params} />
+      <AdminPropertyDetails paramsPromise={params} searchParamsPromise={searchParams} />
     </Suspense>
   )
 }
 
 async function AdminPropertyDetails({
   paramsPromise,
+  searchParamsPromise,
 }: {
   paramsPromise: AdminPropertyPageProps["params"]
+  searchParamsPromise?: AdminPropertyPageProps["searchParams"]
 }) {
   await requireAdmin()
   const { attributeId } = await paramsPromise
+  const resolvedSearchParams = searchParamsPromise ? await searchParamsPromise : {}
+  const query = normalizeString(resolvedSearchParams.q).trim().toLowerCase()
   const { attribute, termTaxonomies, terms, termMeta, taxonomy } =
     await getAttributeDetails(Number(attributeId))
 
@@ -106,6 +120,24 @@ async function AdminPropertyDetails({
     return termOrderByKey.get(`${termId}:order`) ?? null
   }
 
+  const termRows = termTaxonomies
+    .map((row) => ({
+      row,
+      term: termById.get(row.termId),
+      order: getTermOrder(row.termId),
+    }))
+    .filter(({ term }) => {
+      if (!query) return true
+      const haystack = `${term?.name ?? ""} ${term?.slug ?? ""}`.toLowerCase()
+      return haystack.includes(query)
+    })
+    .sort((a, b) => {
+      const orderA = a.order ?? Number.MAX_SAFE_INTEGER
+      const orderB = b.order ?? Number.MAX_SAFE_INTEGER
+      if (orderA !== orderB) return orderA - orderB
+      return (a.term?.name ?? "").localeCompare(b.term?.name ?? "")
+    })
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -133,7 +165,29 @@ async function AdminPropertyDetails({
           <div className="rounded-lg border">
             <div className="flex items-center justify-between border-b px-4 py-2 text-xs font-medium text-muted-foreground">
               <span>Hodnoty</span>
-              <span>Počet: {termTaxonomies.length}</span>
+              <span>Počet: {termRows.length} / {termTaxonomies.length}</span>
+            </div>
+            <div className="border-b px-4 py-3">
+              <form method="get" className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="term-search">Vyhľadávanie</Label>
+                  <Input
+                    id="term-search"
+                    name="q"
+                    defaultValue={query}
+                    placeholder="Názov alebo slug hodnoty"
+                    className="w-80"
+                  />
+                </div>
+                <Button type="submit" size="sm" variant="outline">
+                  Hľadať
+                </Button>
+                {query ? (
+                  <Button asChild type="button" size="sm" variant="ghost">
+                    <Link href={`/admin/vlastnosti/${attribute.attributeId}`}>Zrušiť filter</Link>
+                  </Button>
+                ) : null}
+              </form>
             </div>
             <div className="border-b px-4 py-4">
               <form
@@ -164,15 +218,30 @@ async function AdminPropertyDetails({
                 </Button>
               </form>
             </div>
-            {termTaxonomies.length === 0 ? (
+            {termRows.length === 0 ? (
               <div className="px-4 py-6 text-sm text-muted-foreground">
-                Zatiaľ tu nie sú žiadne hodnoty.
+                {termTaxonomies.length === 0
+                  ? "Zatiaľ tu nie sú žiadne hodnoty."
+                  : "Žiadne hodnoty nezodpovedajú filtru."}
               </div>
             ) : (
-              <div className="table-responsive rounded-lg border">
+              <div className="space-y-3 p-3">
+                <form
+                  id="bulk-delete-terms-form"
+                  action={deleteTermsBulk.bind(null, {
+                    attributeId: attribute.attributeId,
+                  })}
+                  className="flex justify-end"
+                >
+                  <Button size="sm" variant="destructive" type="submit">
+                    Odstrániť vybrané
+                  </Button>
+                </form>
+                <div className="table-responsive rounded-lg border">
                 <table className="w-full text-left text-sm">
                   <thead className="text-xs text-muted-foreground">
                     <tr className="border-b">
+                      <th className="px-2 py-2 font-medium">Výber</th>
                       <th className="px-2 py-2 font-medium">Názov</th>
                       <th className="px-2 py-2 font-medium">Slug</th>
                       <th className="px-2 py-2 font-medium">Poradie</th>
@@ -181,28 +250,57 @@ async function AdminPropertyDetails({
                     </tr>
                   </thead>
                   <tbody>
-                    {termTaxonomies
-                      .map((row) => ({
-                        row,
-                        term: termById.get(row.termId),
-                        order: getTermOrder(row.termId),
-                      }))
-                      .sort((a, b) => {
-                        const orderA = a.order ?? Number.MAX_SAFE_INTEGER
-                        const orderB = b.order ?? Number.MAX_SAFE_INTEGER
-                        if (orderA !== orderB) return orderA - orderB
-                        return (a.term?.name ?? "").localeCompare(b.term?.name ?? "")
-                      })
-                      .map(({ row, term, order }) => {
+                    {termRows.map(({ row, term, order }) => {
                       return (
                         <tr key={row.termTaxonomyId} className="border-b last:border-b-0">
-                          <td className="px-2 py-2 font-medium">
-                            {term?.name ?? `Term ${row.termId}`}
+                          <td className="px-2 py-2 align-top">
+                            <input
+                              type="checkbox"
+                              name="termTaxonomyId"
+                              value={row.termTaxonomyId}
+                              form="bulk-delete-terms-form"
+                              className="h-4 w-4 accent-primary"
+                              aria-label={`Vybrať ${term?.name ?? `Term ${row.termId}`}`}
+                            />
                           </td>
-                          <td className="px-2 py-2 text-muted-foreground">
-                            {term?.slug ?? "—"}
+                          <td className="px-2 py-2 align-top">
+                            <form
+                              action={updateTerm.bind(null, {
+                                attributeId: attribute.attributeId,
+                                termId: row.termId,
+                              })}
+                              className="flex items-center gap-2"
+                            >
+                              <Input
+                                name="name"
+                                defaultValue={term?.name ?? ""}
+                                className="h-8 w-44"
+                              />
+                              <Button size="xs" variant="outline" type="submit">
+                                Uložiť
+                              </Button>
+                            </form>
                           </td>
-                          <td className="px-2 py-2 text-muted-foreground">
+                          <td className="px-2 py-2 align-top text-muted-foreground">
+                            <form
+                              action={updateTerm.bind(null, {
+                                attributeId: attribute.attributeId,
+                                termId: row.termId,
+                              })}
+                              className="flex items-center gap-2"
+                            >
+                              <Input
+                                name="slug"
+                                defaultValue={term?.slug ?? ""}
+                                className="h-8 w-44"
+                              />
+                              <input type="hidden" name="name" value={term?.name ?? ""} />
+                              <Button size="xs" variant="outline" type="submit">
+                                Uložiť
+                              </Button>
+                            </form>
+                          </td>
+                          <td className="px-2 py-2 align-top text-muted-foreground">
                             <form
                               action={updateTermOrder.bind(null, {
                                 attributeId: attribute.attributeId,
@@ -223,10 +321,10 @@ async function AdminPropertyDetails({
                               </Button>
                             </form>
                           </td>
-                          <td className="px-2 py-2 text-muted-foreground">
+                          <td className="px-2 py-2 align-top text-muted-foreground">
                             {row.termId}
                           </td>
-                          <td className="px-2 py-2 text-right">
+                          <td className="px-2 py-2 align-top text-right">
                             <form
                               action={deleteTerm.bind(null, {
                                 attributeId: attribute.attributeId,
@@ -244,6 +342,7 @@ async function AdminPropertyDetails({
                     })}
                   </tbody>
                 </table>
+              </div>
               </div>
             )}
           </div>

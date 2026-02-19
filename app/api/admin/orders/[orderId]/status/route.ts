@@ -6,6 +6,14 @@ import { NotificationService, sendInvoiceEmail } from "@/lib/notifications";
 import { getPdfSettings, generateAndSaveInvoice } from "@/lib/pdf";
 import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
+const ALLOWED_STATUSES: OrderStatus[] = [
+  "PENDING",
+  "CONFIRMED",
+  "PROCESSING",
+  "COMPLETED",
+  "CANCELLED",
+];
+
 const PATCHHandler = async (
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
@@ -22,14 +30,17 @@ const PATCHHandler = async (
     }
 
     const body = await req.json();
-    const { status } = body;
+    const { status, note } = body as { status?: string; note?: string };
 
-    if (!status || !["PENDING", "CONFIRMED", "PROCESSING", "COMPLETED", "CANCELLED"].includes(status)) {
+    if (!status || !ALLOWED_STATUSES.includes(status as OrderStatus)) {
       return NextResponse.json(
         { error: "Invalid status" },
         { status: 400 }
       );
     }
+    const nextStatus = status as OrderStatus;
+    const normalizedNote =
+      typeof note === "string" ? note.trim().slice(0, 1000) : null;
 
     const currentOrder = await prisma.order.findUnique({
       where: { id: orderId },
@@ -46,16 +57,17 @@ const PATCHHandler = async (
     const order = await prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
         where: { id: orderId },
-        data: { status },
+        data: { status: nextStatus },
       });
 
-      if (currentOrder.status !== status) {
+      if (currentOrder.status !== nextStatus) {
         await tx.orderStatusHistory.create({
           data: {
             orderId,
             fromStatus: currentOrder.status,
-            toStatus: status as OrderStatus,
+            toStatus: nextStatus,
             changedByUserId: session.user.id,
+            note: normalizedNote && normalizedNote.length > 0 ? normalizedNote : null,
           },
         });
       }
@@ -63,17 +75,17 @@ const PATCHHandler = async (
       return updated;
     });
 
-    if (currentOrder.status !== status) {
+    if (currentOrder.status !== nextStatus) {
       NotificationService.sendOrderStatusChanged(
         orderId,
         currentOrder.status,
-        status as OrderStatus
+        nextStatus
       ).catch((error) => {
         console.error("Failed to send status change notification:", error);
       });
 
       // Auto-generate and send invoice only when status changes to COMPLETED.
-      if (status === "COMPLETED") {
+      if (nextStatus === "COMPLETED") {
         getPdfSettings().then(async (pdfSettings) => {
           const autoGenerateEnabled =
             pdfSettings.autoGenerateEnabled ??

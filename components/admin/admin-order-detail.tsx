@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminBadge } from "@/components/admin/admin-badge";
 import { AdminButton } from "@/components/admin/admin-button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/print/status-badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -158,7 +160,9 @@ const hasDpdLabelUrlInMeta = (meta: unknown) => {
 
 export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"items" | "customer" | "files" | "history" | "shipping" | "events">("items");
   const [status, setStatus] = useState<OrderStatus>(order.status);
+  const [statusNote, setStatusNote] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [assets, setAssets] = useState<OrderAsset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
@@ -247,7 +251,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       const response = await fetch(`/api/admin/orders/${order.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getCsrfHeader() },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, note: statusNote.trim() || undefined }),
       });
 
       if (!response.ok) {
@@ -255,6 +259,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       }
 
       setStatus(newStatus);
+      setStatusNote("");
       router.refresh();
     } catch (error) {
       console.error("Failed to update status:", error);
@@ -391,217 +396,215 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Položky objednávky</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {order.items.map((item, index) => (
-                  <div key={`${item.id}-${index}`} className="flex justify-between border-b pb-4 last:border-0 last:pb-0">
-                    <div className="flex-1">
-                      <p className="font-medium">{item.productName}</p>
-                      {(item.width || item.height) && (
-                        <p className="text-sm text-muted-foreground">
-                          Rozmery: {item.width} × {item.height} cm
-                        </p>
-                      )}
-                      {(() => {
-                        const attributes = getSelectedOptionAttributes(item.selectedOptions);
+        <div className="lg:col-span-2 space-y-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "items" | "customer" | "files" | "history" | "shipping" | "events")
+            }
+            className="space-y-4"
+          >
+            <TabsList className="grid w-full grid-cols-3 gap-2 md:grid-cols-6">
+              <TabsTrigger value="items">Položky</TabsTrigger>
+              <TabsTrigger value="customer">Klient</TabsTrigger>
+              <TabsTrigger value="shipping">Doprava</TabsTrigger>
+              <TabsTrigger value="files">Súbory</TabsTrigger>
+              <TabsTrigger value="history">História</TabsTrigger>
+              <TabsTrigger value="events">Udalosti</TabsTrigger>
+            </TabsList>
 
-                        if (!attributes || Object.keys(attributes).length === 0) {
-                          return null;
-                        }
-
-                        return (
-                        <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-                          {Object.entries(attributes).map(([key, value]) => (
-                            <div key={key}>
-                              <span className="font-medium">{key}:</span> {value}
+            <TabsContent value="items">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Položky objednávky</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {order.items.map((item, index) => (
+                      <div key={`${item.id}-${index}`} className="flex justify-between border-b pb-4 last:border-0 last:pb-0">
+                        <div className="flex-1">
+                          <p className="font-medium">{item.productName}</p>
+                          {(item.width || item.height) ? (
+                            <p className="text-sm text-muted-foreground">
+                              Rozmery: {item.width} × {item.height} cm
+                            </p>
+                          ) : null}
+                          {(() => {
+                            const attributes = getSelectedOptionAttributes(item.selectedOptions);
+                            if (!attributes || Object.keys(attributes).length === 0) return null;
+                            return (
+                              <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                {Object.entries(attributes).map(([key, value]) => (
+                                  <div key={key}>
+                                    <span className="font-medium">{key}:</span> {value}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                          {Array.isArray(item.designData) ? (
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-purple-600">
+                              Design Studio ({(item.designData as unknown[]).length} elementov)
                             </div>
-                          ))}
+                          ) : null}
+                          <p className="text-sm text-muted-foreground">Množstvo: {item.quantity}</p>
                         </div>
-                        );
-                      })()}
-                      {Array.isArray(item.designData) && (
-                        <div className="mt-1 flex items-center gap-1.5 text-xs text-purple-600">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-                          Design Studio ({(item.designData as unknown[]).length} elementov)
+                        <div className="text-right">
+                          {(() => {
+                            const { lineTotal, unitPrice } = resolveItemPrices(item);
+                            return (
+                              <>
+                                <p className="font-semibold">{formatPrice(lineTotal)}</p>
+                                <p className="text-sm text-muted-foreground">{formatPrice(unitPrice)} / ks</p>
+                              </>
+                            );
+                          })()}
                         </div>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        Množstvo: {item.quantity}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {(() => {
-                        const { lineTotal, unitPrice } = resolveItemPrices(item);
-                        return (
-                          <>
-                      <p className="font-semibold">
-                            {formatPrice(lineTotal)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                            {formatPrice(unitPrice)} / ks
-                      </p>
-                          </>
-                        );
-                      })()}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Kontaktné údaje</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div>
-                <span className="text-muted-foreground">Meno: </span>
-                <span>{order.customerName}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">E-mail: </span>
-                <span>{order.customerEmail}</span>
-              </div>
-              {order.customerPhone && (
-                <div>
-                  <span className="text-muted-foreground">Telefón: </span>
-                  <span>{order.customerPhone}</span>
-                </div>
-              )}
-              {order.user && (
-                <div className="pt-2 border-t">
-                  <span className="text-muted-foreground">Používateľský účet: </span>
-                  <p className="mt-1">{order.user.email}</p>
-                  {order.user.name && <p className="text-sm">{order.user.name}</p>}
-                </div>
-              )}
-              {order.notes && (
-                <div className="pt-2 border-t">
-                  <span className="text-muted-foreground">Poznámka: </span>
-                  <p className="mt-1">{order.notes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Súbory k objednávke</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isLoadingAssets && (
-                <p className="text-xs text-muted-foreground">Načítavam zoznam...</p>
-              )}
-              {!isLoadingAssets && assets.length === 0 && (
-                <p className="text-xs text-muted-foreground">K objednávke nie sú priložené žiadne súbory.</p>
-              )}
-              {!isLoadingAssets && assets.length > 0 && (
-                <div className="space-y-3">
-                  {assets.map((asset) => (
-                    <div key={asset.id} className="flex items-center justify-between gap-4 text-sm">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{asset.fileNameOriginal}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {assetKindLabels[asset.kind]} · {formatBytes(asset.sizeBytes)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <AdminBadge variant={assetStatusMap[asset.status].variant}>
-                          {assetStatusMap[asset.status].label}
-                        </AdminBadge>
-                        <AdminButton asChild size="sm" variant="outline">
-                          <a href={`/api/assets/${asset.id}/download`}>
-                            Stiahnuť
-                          </a>
-                        </AdminButton>
-                      </div>
+            <TabsContent value="customer">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Klient a platba</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div><span className="text-muted-foreground">Meno: </span>{order.customerName}</div>
+                  <div><span className="text-muted-foreground">E-mail: </span>{order.customerEmail}</div>
+                  {order.customerPhone ? <div><span className="text-muted-foreground">Telefón: </span>{order.customerPhone}</div> : null}
+                  <div><span className="text-muted-foreground">Platba: </span>{order.paymentMethod ?? "STRIPE"}</div>
+                  {order.user ? (
+                    <div className="border-t pt-2">
+                      <span className="text-muted-foreground">Používateľský účet: </span>
+                      <p className="mt-1">{order.user.email}</p>
+                      {order.user.name ? <p>{order.user.name}</p> : null}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>História stavu</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {order.statusHistory.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Zatiaľ nebola zaznamenaná žiadna zmena stavu.
-                </p>
-              )}
-              {order.statusHistory.length > 0 && (
-                <div className="space-y-3">
-                  {order.statusHistory.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="border-b pb-3 last:border-0 last:pb-0"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <div className="font-medium">
-                          {statusMap[entry.fromStatus].label} → {statusMap[entry.toStatus].label}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatHistoryDate(entry.createdAt)}
-                        </div>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {entry.changedByUser
-                          ? entry.changedByUser.name ?? entry.changedByUser.email
-                          : "Systém"}
-                      </div>
-                      {entry.note && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {entry.note}
-                        </div>
-                      )}
+                  ) : null}
+                  {order.notes ? (
+                    <div className="border-t pt-2">
+                      <span className="text-muted-foreground">Poznámka: </span>
+                      <p className="mt-1">{order.notes}</p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Stripe udalosti</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {order.stripeEvents.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Zatiaľ neboli zaznamenané žiadne webhook udalosti.
-                </p>
-              )}
-              {order.stripeEvents.length > 0 && (
-                <div className="space-y-3">
-                  {order.stripeEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="border-b pb-3 last:border-0 last:pb-0"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <div className="font-medium">{event.type}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatEventDate(event.createdAt)}
+            <TabsContent value="shipping">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Doprava a DPD</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p>
+                    <span className="text-muted-foreground">Metóda doručenia: </span>
+                    {order.deliveryMethod === "PERSONAL_PICKUP"
+                      ? "Osobný odber - Rozvojová 2, Košice"
+                      : order.deliveryMethod === "DPD_PICKUP"
+                        ? "DPD Pickup/Pickup Station"
+                        : "DPD kuriér"}
+                  </p>
+                  <p><span className="text-muted-foreground">Shipment ID: </span>{order.carrierShipmentId ?? "—"}</p>
+                  <p><span className="text-muted-foreground">Parcely: </span>{order.carrierParcelNumbers?.join(", ") || "—"}</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="files">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Súbory k objednávke</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {isLoadingAssets ? <p className="text-xs text-muted-foreground">Načítavam zoznam...</p> : null}
+                  {!isLoadingAssets && assets.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">K objednávke nie sú priložené žiadne súbory.</p>
+                  ) : null}
+                  {!isLoadingAssets && assets.length > 0 ? (
+                    <div className="space-y-3">
+                      {assets.map((asset) => (
+                        <div key={asset.id} className="flex items-center justify-between gap-4 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{asset.fileNameOriginal}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {assetKindLabels[asset.kind]} · {formatBytes(asset.sizeBytes)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <AdminBadge variant={assetStatusMap[asset.status].variant}>
+                              {assetStatusMap[asset.status].label}
+                            </AdminBadge>
+                            <AdminButton asChild size="sm" variant="outline">
+                              <a href={`/api/assets/${asset.id}/download`}>Stiahnuť</a>
+                            </AdminButton>
+                          </div>
                         </div>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground break-all">
-                        {event.id}
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history">
+              <Card>
+                <CardHeader>
+                  <CardTitle>História stavu</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {order.statusHistory.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Zatiaľ nebola zaznamenaná žiadna zmena stavu.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {order.statusHistory.map((entry) => (
+                        <div key={entry.id} className="border-b pb-3 last:border-b-0 last:pb-0">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                            <div className="font-medium">
+                              {statusMap[entry.fromStatus].label} → {statusMap[entry.toStatus].label}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{formatHistoryDate(entry.createdAt)}</div>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {entry.changedByUser ? entry.changedByUser.name ?? entry.changedByUser.email : "Systém"}
+                          </div>
+                          {entry.note ? <div className="mt-1 text-xs text-muted-foreground">{entry.note}</div> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="events">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Stripe udalosti</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {order.stripeEvents.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Zatiaľ neboli zaznamenané žiadne webhook udalosti.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {order.stripeEvents.map((event) => (
+                        <div key={event.id} className="border-b pb-3 last:border-b-0 last:pb-0">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                            <div className="font-medium">{event.type}</div>
+                            <div className="text-xs text-muted-foreground">{formatEventDate(event.createdAt)}</div>
+                          </div>
+                          <div className="mt-1 break-all text-xs text-muted-foreground">{event.id}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -688,6 +691,16 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                     <SelectItem value="CANCELLED">Zrušená</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="space-y-1">
+                  <Label htmlFor="status-note">Poznámka do histórie</Label>
+                  <Textarea
+                    id="status-note"
+                    placeholder="Voliteľná poznámka pri zmene statusu…"
+                    value={statusNote}
+                    onChange={(event) => setStatusNote(event.target.value)}
+                    rows={3}
+                  />
+                </div>
                 {isUpdating && (
                   <p className="text-xs text-muted-foreground flex items-center gap-2">
                     <Loader2 className="h-3 w-3 animate-spin" />

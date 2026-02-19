@@ -10,7 +10,21 @@ import { requireAdmin } from "@/lib/auth-helpers"
 import { getAdminCategories } from "@/lib/catalog"
 import { createCategory, updateCategory, deleteCategory } from "./actions"
 
-export default function AdminCategoriesPage() {
+type CategoriesSearchParams = {
+  q?: string | string[]
+}
+
+const normalizeString = (value?: string | string[]) => {
+  if (!value) return ""
+  if (Array.isArray(value)) return value[0] ?? ""
+  return value
+}
+
+export default function AdminCategoriesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<CategoriesSearchParams>
+}) {
   return (
     <Suspense
       fallback={
@@ -25,15 +39,43 @@ export default function AdminCategoriesPage() {
         </section>
       }
     >
-      <AdminCategoriesContent />
+      <AdminCategoriesContent searchParamsPromise={searchParams} />
     </Suspense>
   )
 }
 
-async function AdminCategoriesContent() {
+async function AdminCategoriesContent({
+  searchParamsPromise,
+}: {
+  searchParamsPromise?: Promise<CategoriesSearchParams>
+}) {
   await requireAdmin()
 
   const categories = await getAdminCategories()
+  const resolvedParams = searchParamsPromise ? await searchParamsPromise : {}
+  const query = normalizeString(resolvedParams.q).trim().toLowerCase()
+
+  const parentById = new Map(categories.map((category) => [category.id, category.parentId]))
+  const getDepth = (id: string) => {
+    let depth = 0
+    let currentParent = parentById.get(id)
+    const seen = new Set<string>()
+    while (currentParent && !seen.has(currentParent)) {
+      seen.add(currentParent)
+      depth += 1
+      currentParent = parentById.get(currentParent)
+    }
+    return depth
+  }
+  const depthMap = new Map(categories.map((category) => [category.id, getDepth(category.id)]))
+
+  const filteredCategories = query
+    ? categories.filter(
+        (category) =>
+          category.name.toLowerCase().includes(query) ||
+          category.slug.toLowerCase().includes(query)
+      )
+    : categories
 
   return (
     <section className="p-6">
@@ -62,6 +104,22 @@ async function AdminCategoriesContent() {
 
       <Card>
         <CardContent className="py-6">
+          <form method="get" className="mb-4 flex items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="category-search">Vyhľadávanie</Label>
+              <Input
+                id="category-search"
+                name="q"
+                defaultValue={query}
+                placeholder="Názov alebo slug kategórie"
+                className="w-80"
+              />
+            </div>
+            <Button type="submit" size="sm" variant="outline">
+              Hľadať
+            </Button>
+          </form>
+
           <form
             action={createCategory}
             className="mb-6 grid gap-3 md:grid-cols-[1.1fr_1fr_1.1fr_0.8fr_0.7fr_auto]"
@@ -156,10 +214,10 @@ async function AdminCategoriesContent() {
           </form>
 
           <div className="mb-4 text-sm text-muted-foreground">
-            Počet kategórií: {categories.length}
+            Počet kategórií: {filteredCategories.length} / {categories.length}
           </div>
 
-          {categories.length === 0 ? (
+          {filteredCategories.length === 0 ? (
             <div className="text-sm text-muted-foreground">
               Zatiaľ tu nie sú žiadne kategórie.
             </div>
@@ -175,9 +233,10 @@ async function AdminCategoriesContent() {
                 <span>Režim</span>
                 <span className="text-right">Akcia</span>
               </div>
-              {categories.map((category) => {
+              {filteredCategories.map((category) => {
                 const hasRelations =
                   category._count.products > 0 || category._count.children > 0
+                const depth = depthMap.get(category.id) ?? 0
 
                 return (
                   <form
@@ -192,7 +251,17 @@ async function AdminCategoriesContent() {
                         <Label className="text-xs text-muted-foreground">
                           Názov
                         </Label>
-                        <Input name="name" defaultValue={category.name} />
+                        <div className="flex items-center gap-2">
+                          {depth > 0 ? (
+                            <span
+                              className="text-xs text-muted-foreground"
+                              style={{ marginLeft: `${Math.max(depth - 1, 0) * 12}px` }}
+                            >
+                              ↳
+                            </span>
+                          ) : null}
+                          <Input name="name" defaultValue={category.name} />
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">

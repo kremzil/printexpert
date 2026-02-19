@@ -14,6 +14,8 @@ interface AdminButtonProps {
   type?: 'button' | 'submit' | 'reset';
   className?: string;
   asChild?: boolean;
+  title?: string;
+  "aria-label"?: string;
 }
 
 export function AdminButton({
@@ -28,6 +30,8 @@ export function AdminButton({
   type = 'button',
   className = '',
   asChild = false,
+  title,
+  "aria-label": ariaLabel,
 }: AdminButtonProps) {
   const baseClasses = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2';
 
@@ -60,6 +64,8 @@ export function AdminButton({
       <Slot
         onClick={onClick}
         className={classes}
+        title={title}
+        aria-label={ariaLabel}
         {...(disabled ? { "aria-disabled": true } : {})}
       >
         {children}
@@ -73,6 +79,8 @@ export function AdminButton({
       onClick={onClick}
       disabled={disabled}
       className={classes}
+      title={title}
+      aria-label={ariaLabel}
     >
       {Icon && iconPosition === 'left' && <Icon className={iconSizes[size]} />}
       {children}

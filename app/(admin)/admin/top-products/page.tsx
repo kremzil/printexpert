@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useState, useEffect } from "react";
+import Image from "next/image";
+import { GripVertical, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { AdminButton as Button } from "@/components/admin/admin-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
 import { getCsrfHeader } from "@/lib/csrf";
+import { cn } from "@/lib/utils";
 
 type Mode = "MANUAL";
 
@@ -27,6 +30,7 @@ type Product = {
   id: string;
   name: string;
   slug: string;
+  images?: { url: string; alt: string | null }[];
 };
 
 type Config = {
@@ -149,9 +153,32 @@ export default function TopProductsPage() {
     const availableProducts =
       audience === "b2c" ? productsByAudience.b2c : productsByAudience.b2b;
 
-    const selectedProducts = availableProducts.filter((prod) =>
-      config.productIds.includes(prod.id)
-    );
+    const productById = new Map(availableProducts.map((product) => [product.id, product]));
+    const selectedProducts = config.productIds
+      .map((id) => productById.get(id))
+      .filter((product): product is Product => Boolean(product));
+
+    const syncSelected = (selected: Product[]) => {
+      const selectedIds = selected.map((product) => product.id).slice(0, 8);
+      const kept = config.productIds.filter((id) => selectedIds.includes(id));
+      const appended = selectedIds.filter((id) => !kept.includes(id));
+      setConfig({ ...config, productIds: [...kept, ...appended].slice(0, 8) });
+    };
+
+    const reorderSelected = (draggedId: string, targetId: string) => {
+      if (draggedId === targetId) return;
+      const current = [...config.productIds];
+      const fromIndex = current.indexOf(draggedId);
+      const toIndex = current.indexOf(targetId);
+      if (fromIndex < 0 || toIndex < 0) return;
+      const [moved] = current.splice(fromIndex, 1);
+      current.splice(toIndex, 0, moved);
+      setConfig({ ...config, productIds: current });
+    };
+
+    const removeSelected = (productId: string) => {
+      setConfig({ ...config, productIds: config.productIds.filter((id) => id !== productId) });
+    };
 
     return (
       <Card>
@@ -167,13 +194,29 @@ export default function TopProductsPage() {
             <ProductCombobox
               products={availableProducts}
               selected={selectedProducts}
-              onChange={(selected) =>
-                setConfig({ ...config, productIds: selected.map((p) => p.id) })
-              }
+              onChange={syncSelected}
             />
-            <p className="text-sm text-muted-foreground">
-              Vyberte až 8 produktov.
-            </p>
+            <p className="text-sm text-muted-foreground">Vybrané: {selectedProducts.length} / 8</p>
+          </div>
+
+          {selectedProducts.length > 0 ? (
+            <div className="space-y-2">
+              <Label>Poradie zobrazenia (drag & drop)</Label>
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                {selectedProducts.map((product) => (
+                  <ReorderItem
+                    key={product.id}
+                    product={product}
+                    onMove={reorderSelected}
+                    onRemove={removeSelected}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="text-xs text-muted-foreground">
+            Vyberte maximálne 8 produktov. Poradie v zozname určuje poradie na vitrine.
           </div>
 
           <Button onClick={() => saveConfig(audience)} disabled={saving}>
@@ -209,6 +252,67 @@ export default function TopProductsPage() {
           {renderConfig("b2b")}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function ReorderItem({
+  product,
+  onMove,
+  onRemove,
+}: {
+  product: Product;
+  onMove: (draggedId: string, targetId: string) => void;
+  onRemove: (productId: string) => void;
+}) {
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  return (
+    <div
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData("text/plain", product.id);
+        event.dataTransfer.effectAllowed = "move";
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        const draggedId = event.dataTransfer.getData("text/plain");
+        setIsDragOver(false);
+        onMove(draggedId, product.id);
+      }}
+      className={cn(
+        "flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm transition-colors",
+        isDragOver ? "border-primary bg-primary/5" : "border-border"
+      )}
+    >
+      <GripVertical className="h-4 w-4 text-muted-foreground" />
+      <div className="relative h-8 w-8 overflow-hidden rounded-md border bg-muted">
+        {product.images?.[0]?.url ? (
+          <Image
+            src={product.images[0].url}
+            alt={product.images[0].alt || product.name}
+            fill
+            className="object-cover"
+          />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">{product.name}</div>
+        <div className="truncate text-xs text-muted-foreground">/{product.slug}</div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(product.id)}
+        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label={`Odstrániť ${product.name}`}
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }

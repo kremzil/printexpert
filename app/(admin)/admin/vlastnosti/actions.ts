@@ -11,6 +11,10 @@ type DeleteAttributeInput = {
   attributeName: string
 }
 
+type UpdateAttributeInput = {
+  attributeId: number
+}
+
 const normalizeSlug = (value: string) =>
   value
     .trim()
@@ -103,6 +107,45 @@ export async function deleteAttribute(input: DeleteAttributeInput) {
     await tx.wpAttributeTaxonomy.delete({
       where: { attributeId: input.attributeId },
     })
+  })
+
+  const audienceTag = await getAudienceTag()
+  updateTag("attributes")
+  updateTag(audienceTag)
+  revalidatePath("/admin/vlastnosti")
+}
+
+export async function updateAttribute(input: UpdateAttributeInput, formData: FormData) {
+  await requireAdmin()
+  const prisma = getPrisma()
+
+  const label = String(formData.get("label") ?? "").trim()
+  const rawName = String(formData.get("name") ?? "").trim()
+  const type = String(formData.get("type") ?? "").trim()
+
+  if (!label && !rawName) return
+
+  const normalizedName = normalizeSlug(rawName || label)
+  const nextLabel = label || rawName
+
+  const existing = await prisma.wpAttributeTaxonomy.findFirst({
+    where: {
+      attributeName: normalizedName,
+      attributeId: { not: input.attributeId },
+    },
+    select: { attributeId: true },
+  })
+  if (existing) {
+    throw new Error("Slug vlastnosti už existuje.")
+  }
+
+  await prisma.wpAttributeTaxonomy.update({
+    where: { attributeId: input.attributeId },
+    data: {
+      attributeName: normalizedName,
+      attributeLabel: nextLabel,
+      attributeType: type || null,
+    },
   })
 
   const audienceTag = await getAudienceTag()
