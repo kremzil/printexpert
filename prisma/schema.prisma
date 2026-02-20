@@ -184,6 +184,7 @@ model Product {
   designerBgColor      String?  // background color hex
   designerDpi          Int?     @default(300)
   designerColorProfile String?  @default("CMYK")
+  designCanvasProfiles DesignCanvasProfile[]
   designTemplates      DesignTemplate[]
 
   @@index([categoryId])
@@ -620,6 +621,8 @@ model DesignTemplate {
   id          String   @id @default(uuid()) @db.Uuid
   productId   String   @db.Uuid
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  canvasProfileId String @db.Uuid
+  canvasProfile DesignCanvasProfile @relation(fields: [canvasProfileId], references: [id], onDelete: Cascade)
   name        String
   elements    Json     // array of DesignElement objects
   thumbnailUrl String?
@@ -629,6 +632,38 @@ model DesignTemplate {
   updatedAt   DateTime @updatedAt
 
   @@index([productId])
+  @@index([canvasProfileId])
+}
+
+model DesignCanvasProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  productId      String   @db.Uuid
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name           String
+  sizeAid        String?
+  sizeTermId     String?
+  sizeLabel      String?
+  trimWidthMm    Decimal  @default(0) @db.Decimal(10, 2)
+  trimHeightMm   Decimal  @default(0) @db.Decimal(10, 2)
+  dpi            Int      @default(300)
+  bgColor        String   @default("#ffffff")
+  colorProfile   String   @default("CMYK")
+  bleedTopMm     Decimal  @default(0) @db.Decimal(10, 2)
+  bleedRightMm   Decimal  @default(0) @db.Decimal(10, 2)
+  bleedBottomMm  Decimal  @default(0) @db.Decimal(10, 2)
+  bleedLeftMm    Decimal  @default(0) @db.Decimal(10, 2)
+  safeTopMm      Decimal  @default(0) @db.Decimal(10, 2)
+  safeRightMm    Decimal  @default(0) @db.Decimal(10, 2)
+  safeBottomMm   Decimal  @default(0) @db.Decimal(10, 2)
+  safeLeftMm     Decimal  @default(0) @db.Decimal(10, 2)
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  templates      DesignTemplate[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([productId])
+  @@unique([productId, sizeAid, sizeTermId])
 }
 
 model ShopSettings {

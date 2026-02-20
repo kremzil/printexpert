@@ -38,7 +38,11 @@ import {
 } from "@/components/print/use-wp-configurator"
 import { RealConfiguratorPanel } from "@/components/print/real-configurator-panel"
 import { Button } from "@/components/ui/button"
-import { DesignEditor, type DesignElement } from "@/components/print/design-editor"
+import {
+  DesignEditor,
+  type DesignElement,
+  type DesignTemplate as EditorDesignTemplate,
+} from "@/components/print/design-editor"
 import { LoginDialog } from "@/components/auth/login-dialog"
 import { toast } from "sonner"
 import {
@@ -47,14 +51,50 @@ import {
 } from "@/lib/quote-request-store"
 import { getCsrfHeader } from "@/lib/csrf"
 import { calculateShipmentDate } from "@/lib/shipment-date"
+import {
+  extractDesignElements,
+  getDesignElementCount,
+  normalizeDesignDataV2,
+  type DesignDataV2,
+} from "@/lib/design-studio"
 
-export type DesignerConfig = {
-  enabled: boolean
-  width: number
-  height: number
-  bgColor: string
+type DesignerRuntimeTemplate = {
+  id: string
+  name: string
+  elements: unknown
+  isDefault: boolean
+  sortOrder: number
+  thumbnailUrl: string | null
+}
+
+type DesignerRuntimeProfile = {
+  id: string
+  productId: string
+  name: string
+  sizeAid: string | null
+  sizeTermId: string | null
+  sizeLabel: string | null
+  trimWidthMm: number
+  trimHeightMm: number
   dpi: number
+  bgColor: string
   colorProfile: string
+  bleedTopMm: number
+  bleedRightMm: number
+  bleedBottomMm: number
+  bleedLeftMm: number
+  safeTopMm: number
+  safeRightMm: number
+  safeBottomMm: number
+  safeLeftMm: number
+  sortOrder: number
+  isActive: boolean
+  templates: DesignerRuntimeTemplate[]
+}
+
+export type DesignerRuntimeConfig = {
+  enabled: boolean
+  profiles: DesignerRuntimeProfile[]
 } | null
 
 type ProductPageClientProps = {
@@ -80,7 +120,7 @@ type ProductPageClientProps = {
     images: Array<{ url: string; alt?: string | null }>
     isTopProduct?: boolean
   }
-  designerConfig?: DesignerConfig
+  designerConfig?: DesignerRuntimeConfig
   isLoggedIn?: boolean
 }
 
@@ -137,6 +177,53 @@ const SIMPLE_PRODUCTION_SPEED_OPTIONS: Array<{
     days: 2,
   },
 ]
+
+const mmToPx = (mm: number, dpi: number) => (mm * dpi) / 25.4
+
+const getProfileSizeKey = (profile: DesignerRuntimeProfile) =>
+  profile.sizeAid && profile.sizeTermId ? `${profile.sizeAid}:${profile.sizeTermId}` : null
+
+const buildSizeProfileMap = (profiles: DesignerRuntimeProfile[]) => {
+  const map = new Map<string, DesignerRuntimeProfile>()
+  profiles.forEach((profile) => {
+    const key = getProfileSizeKey(profile)
+    if (key && !map.has(key)) {
+      map.set(key, profile)
+    }
+  })
+  return map
+}
+
+const resolveSizeSelectFromCalculator = (data: WpConfiguratorData | null) => {
+  if (!data) return null
+  const baseMatrix = data.matrices.find((matrix) => matrix.kind === "simple")
+  if (!baseMatrix) return null
+  const sizeSelect = baseMatrix.selects.find((select) =>
+    select.class.includes("smatrix-size")
+  )
+  if (!sizeSelect) return null
+  return { matrixId: baseMatrix.mtid, aid: sizeSelect.aid, select: sizeSelect }
+}
+
+const getInitialSizeKey = (data: WpConfiguratorData | null) => {
+  const sizeMeta = resolveSizeSelectFromCalculator(data)
+  if (!sizeMeta) return null
+  const selected = sizeMeta.select.options.find((option) => option.selected) ?? sizeMeta.select.options[0]
+  return selected ? `${sizeMeta.aid}:${selected.value}` : null
+}
+
+const toEditorTemplates = (templates: DesignerRuntimeTemplate[]): EditorDesignTemplate[] =>
+  templates
+    .slice()
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder
+      return left.name.localeCompare(right.name)
+    })
+    .map((template) => ({
+      id: template.id,
+      name: template.name,
+      elements: Array.isArray(template.elements) ? (template.elements as DesignElement[]) : [],
+    }))
 
 function ProductShareButtons({
   productName,
@@ -287,12 +374,14 @@ function RealConfiguratorSection({
   fileStatus,
   fileStatusMessage,
   onFileSelect,
-  designerConfig,
+  designerEnabled,
   onOpenDesigner,
   designData,
   designThumbnail,
   isLoggedIn,
   showFloatingBar,
+  onSizeKeyChange,
+  onBeforeSizeChange,
 }: {
   mode: CustomerMode
   data: WpConfiguratorData
@@ -301,12 +390,14 @@ function RealConfiguratorSection({
   fileStatus: "idle" | "success"
   fileStatusMessage?: string
   onFileSelect: (files: FileList) => void
-  designerConfig?: DesignerConfig
+  designerEnabled?: boolean
   onOpenDesigner?: () => void
   designData?: unknown
   designThumbnail?: string | null
   isLoggedIn?: boolean
   showFloatingBar: boolean
+  onSizeKeyChange?: (sizeKey: string | null) => void
+  onBeforeSizeChange?: (nextSizeKey: string | null) => boolean
 }) {
   const {
     selections,
@@ -340,8 +431,19 @@ function RealConfiguratorSection({
     serverError,
   } = useWpConfigurator({ data, productId, designData })
 
-  const elementCount = Array.isArray(designData) ? (designData as unknown[]).length : 0
-  const hasDesignData = Boolean(designData)
+  const sizeSelectMeta = useMemo(() => resolveSizeSelectFromCalculator(data), [data])
+  const currentSizeKey = useMemo(() => {
+    if (!sizeSelectMeta) return null
+    const selectedValue = selections[sizeSelectMeta.matrixId]?.[sizeSelectMeta.aid]
+    return selectedValue ? `${sizeSelectMeta.aid}:${selectedValue}` : null
+  }, [selections, sizeSelectMeta])
+
+  useEffect(() => {
+    onSizeKeyChange?.(currentSizeKey)
+  }, [currentSizeKey, onSizeKeyChange])
+
+  const elementCount = getDesignElementCount(designData)
+  const hasDesignData = elementCount > 0
   const topShareRef = useRef<HTMLDivElement | null>(null)
   const [isTopShareVisible, setIsTopShareVisible] = useState(true)
 
@@ -491,13 +593,25 @@ function RealConfiguratorSection({
                       label={select.label}
                       selected={selections[matrix.mtid]?.[select.aid]}
                       onSelect={(value) =>
-                        setSelections((current) => ({
-                          ...current,
-                          [matrix.mtid]: {
-                            ...(current[matrix.mtid] ?? {}),
-                            [select.aid]: value,
-                          },
-                        }))
+                        {
+                          const isSizeSelect =
+                            sizeSelectMeta?.matrixId === matrix.mtid &&
+                            sizeSelectMeta?.aid === select.aid
+                          if (isSizeSelect && onBeforeSizeChange) {
+                            const nextSizeKey = `${select.aid}:${value}`
+                            const allowed = onBeforeSizeChange(nextSizeKey)
+                            if (!allowed) {
+                              return
+                            }
+                          }
+                          setSelections((current) => ({
+                            ...current,
+                            [matrix.mtid]: {
+                              ...(current[matrix.mtid] ?? {}),
+                              [select.aid]: value,
+                            },
+                          }))
+                        }
                       }
                       options={select.options.map((option) => ({
                         id: option.value,
@@ -525,7 +639,7 @@ function RealConfiguratorSection({
         </Card>
 
         {/* Design Studio button — rendered via ProductPageClient below */}
-        {designerConfig?.enabled && onOpenDesigner && (
+        {designerEnabled && onOpenDesigner && (
           <Card className="overflow-hidden border-2 border-dashed border-purple-200 bg-linear-to-br from-purple-50/80 to-pink-50/60 p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white shadow-md">
@@ -702,7 +816,7 @@ function SimpleConfiguratorSection({
   mode,
   productId,
   product,
-  designerConfig,
+  designerEnabled,
   onOpenDesigner,
   designData,
   designThumbnail,
@@ -712,7 +826,7 @@ function SimpleConfiguratorSection({
   mode: CustomerMode
   productId: string
   product: ProductPageClientProps["product"]
-  designerConfig?: DesignerConfig
+  designerEnabled?: boolean
   onOpenDesigner?: () => void
   designData?: unknown
   designThumbnail?: string | null
@@ -725,8 +839,8 @@ function SimpleConfiguratorSection({
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const elementCount = Array.isArray(designData) ? (designData as unknown[]).length : 0
-  const hasDesignData = Boolean(designData)
+  const elementCount = getDesignElementCount(designData)
+  const hasDesignData = elementCount > 0
   const selectedProductionSpeed = useMemo(
     () =>
       SIMPLE_PRODUCTION_SPEED_OPTIONS.find(
@@ -907,7 +1021,7 @@ function SimpleConfiguratorSection({
           />
         </Card>
 
-          {designerConfig?.enabled && onOpenDesigner && (
+          {designerEnabled && onOpenDesigner && (
             <Card className="overflow-hidden border-2 border-dashed border-purple-200 bg-linear-to-br from-purple-50/80 to-pink-50/60 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white shadow-md">
@@ -1087,6 +1201,9 @@ export function ProductPageClient({
   const [showDesigner, setShowDesigner] = useState(false)
   const [designData, setDesignData] = useState<unknown>(null)
   const [designThumbnail, setDesignThumbnail] = useState<string | null>(null)
+  const [selectedSizeKey, setSelectedSizeKey] = useState<string | null>(() =>
+    getInitialSizeKey(calculatorData)
+  )
   const productTitleRef = useRef<HTMLHeadingElement | null>(null)
   const [showFloatingBar, setShowFloatingBar] = useState(false)
 
@@ -1109,6 +1226,79 @@ export function ProductPageClient({
     observer.observe(target)
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    setSelectedSizeKey(getInitialSizeKey(calculatorData))
+  }, [calculatorData])
+
+  const handleResetDesign = () => {
+    setDesignData(null)
+    setDesignThumbnail(null)
+    if (typeof window !== "undefined" && window.__pendingDesignPdf) {
+      delete window.__pendingDesignPdf
+    }
+  }
+
+  const profiles = useMemo(
+    () => designerConfig?.profiles ?? [],
+    [designerConfig?.profiles]
+  )
+  const sizeProfileMap = useMemo(() => buildSizeProfileMap(profiles), [profiles])
+
+  const activeDesignerProfile = useMemo(() => {
+    if (!designerConfig?.enabled) return null
+    if (!calculatorData) return null
+    if (!selectedSizeKey) return null
+    return sizeProfileMap.get(selectedSizeKey) ?? null
+  }, [calculatorData, designerConfig?.enabled, selectedSizeKey, sizeProfileMap])
+
+  const canUseDesigner = Boolean(activeDesignerProfile)
+  const designPayload = normalizeDesignDataV2(designData)
+  const hasDesignElements = getDesignElementCount(designData) > 0
+
+  const handleBeforeSizeChange = (nextSizeKey: string | null) => {
+    if (nextSizeKey === selectedSizeKey) return true
+    if (!hasDesignElements) return true
+    const nextProfile = nextSizeKey ? sizeProfileMap.get(nextSizeKey) ?? null : null
+    const currentProfileId = designPayload?.canvasProfileId ?? null
+    if (currentProfileId && nextProfile?.id === currentProfileId) {
+      return true
+    }
+
+    const shouldReset = window.confirm(
+      "Zmenili ste veľkosť produktu. Existujúci dizajn bude odstránený. Pokračovať?"
+    )
+    if (!shouldReset) {
+      return false
+    }
+
+    handleResetDesign()
+    return true
+  }
+
+  useEffect(() => {
+    if (showDesigner && !activeDesignerProfile) {
+      setShowDesigner(false)
+    }
+  }, [activeDesignerProfile, showDesigner])
+
+  const editorDimensions = useMemo(() => {
+    if (!activeDesignerProfile) return null
+    const fullWidthMm =
+      activeDesignerProfile.trimWidthMm +
+      activeDesignerProfile.bleedLeftMm +
+      activeDesignerProfile.bleedRightMm
+    const fullHeightMm =
+      activeDesignerProfile.trimHeightMm +
+      activeDesignerProfile.bleedTopMm +
+      activeDesignerProfile.bleedBottomMm
+    return {
+      widthPx: Math.max(1, Math.round(mmToPx(fullWidthMm, activeDesignerProfile.dpi))),
+      heightPx: Math.max(1, Math.round(mmToPx(fullHeightMm, activeDesignerProfile.dpi))),
+      fullWidthMm,
+      fullHeightMm,
+    }
+  }, [activeDesignerProfile])
 
   const handleFileSelect = (files: FileList) => {
     const file = files[0]
@@ -1186,20 +1376,22 @@ export function ProductPageClient({
             fileStatus={fileStatus}
             fileStatusMessage={fileStatusMessage}
             onFileSelect={handleFileSelect}
-            designerConfig={designerConfig}
-            onOpenDesigner={() => setShowDesigner(true)}
+            designerEnabled={canUseDesigner}
+            onOpenDesigner={canUseDesigner ? () => setShowDesigner(true) : undefined}
             designData={designData}
             designThumbnail={designThumbnail}
             isLoggedIn={isLoggedIn}
             showFloatingBar={showFloatingBar}
+            onSizeKeyChange={setSelectedSizeKey}
+            onBeforeSizeChange={handleBeforeSizeChange}
           />
         ) : (
           <SimpleConfiguratorSection
             mode={mode}
             productId={productId}
             product={product}
-            designerConfig={designerConfig}
-            onOpenDesigner={() => setShowDesigner(true)}
+            designerEnabled={false}
+            onOpenDesigner={undefined}
             designData={designData}
             designThumbnail={designThumbnail}
             isLoggedIn={isLoggedIn}
@@ -1240,19 +1432,53 @@ export function ProductPageClient({
       </div>
 
       {/* Design Studio Fullscreen Modal — rendered via portal to escape header stacking context */}
-      {showDesigner && designerConfig?.enabled && createPortal(
+      {showDesigner && activeDesignerProfile && editorDimensions && createPortal(
         <div className="fixed inset-0 z-[9999] flex flex-col bg-background">
           <DesignEditor
-            width={designerConfig.width}
-            height={designerConfig.height}
-            bgColor={designerConfig.bgColor}
-            dpi={designerConfig.dpi}
-            colorProfile={designerConfig.colorProfile}
+            width={editorDimensions.widthPx}
+            height={editorDimensions.heightPx}
+            bgColor={activeDesignerProfile.bgColor}
+            dpi={activeDesignerProfile.dpi}
+            colorProfile={activeDesignerProfile.colorProfile}
+            trimWidthMm={activeDesignerProfile.trimWidthMm}
+            trimHeightMm={activeDesignerProfile.trimHeightMm}
+            bleedTopMm={activeDesignerProfile.bleedTopMm}
+            bleedRightMm={activeDesignerProfile.bleedRightMm}
+            bleedBottomMm={activeDesignerProfile.bleedBottomMm}
+            bleedLeftMm={activeDesignerProfile.bleedLeftMm}
+            safeTopMm={activeDesignerProfile.safeTopMm}
+            safeRightMm={activeDesignerProfile.safeRightMm}
+            safeBottomMm={activeDesignerProfile.safeBottomMm}
+            safeLeftMm={activeDesignerProfile.safeLeftMm}
+            templates={toEditorTemplates(activeDesignerProfile.templates)}
             productLabel={product.name}
-            initialElements={Array.isArray(designData) ? designData as DesignElement[] : undefined}
+            initialElements={extractDesignElements(designData) as DesignElement[]}
             onClose={() => setShowDesigner(false)}
             onSave={(elements, thumbnailDataUrl, pdfBlob) => {
-              setDesignData(elements)
+              const payload: DesignDataV2 = {
+                canvasProfileId: activeDesignerProfile.id,
+                sizeKey: selectedSizeKey,
+                trimMm: {
+                  width: activeDesignerProfile.trimWidthMm,
+                  height: activeDesignerProfile.trimHeightMm,
+                },
+                bleedMm: {
+                  top: activeDesignerProfile.bleedTopMm,
+                  right: activeDesignerProfile.bleedRightMm,
+                  bottom: activeDesignerProfile.bleedBottomMm,
+                  left: activeDesignerProfile.bleedLeftMm,
+                },
+                safeMm: {
+                  top: activeDesignerProfile.safeTopMm,
+                  right: activeDesignerProfile.safeRightMm,
+                  bottom: activeDesignerProfile.safeBottomMm,
+                  left: activeDesignerProfile.safeLeftMm,
+                },
+                dpi: activeDesignerProfile.dpi,
+                elements,
+              }
+
+              setDesignData(payload)
               setDesignThumbnail(thumbnailDataUrl ?? null)
               setShowDesigner(false)
 

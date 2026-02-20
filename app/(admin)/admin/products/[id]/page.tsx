@@ -11,7 +11,7 @@ import { MatrixVisibilitySwitch } from "@/components/admin/matrix-visibility-swi
 import { ProductDescriptionEditor } from "@/components/admin/product-description-editor"
 import { ProductImagesEditor } from "@/components/admin/product-images-editor"
 import { ProductDesignerSettings } from "@/components/admin/product-designer-settings"
-import { DesignTemplatesManager } from "@/components/admin/design-templates-manager"
+import { DesignCanvasProfilesManager } from "@/components/admin/design-canvas-profiles-manager"
 import { ProductMatrixDialog } from "@/components/admin/product-matrix-dialog"
 import { ProductTitleEditor } from "@/components/admin/product-title-editor"
 import { FormSubmitButton } from "@/components/admin/form-submit-button"
@@ -183,6 +183,15 @@ async function AdminProductDetails({
   const baseMatrix =
     calculatorData?.matrices.find((matrix) => matrix.kind === "simple") ?? null
   const baseSelects = baseMatrix?.selects ?? []
+  const sizeSelect =
+    baseMatrix?.selects.find((select) => select.class.includes("smatrix-size")) ?? null
+  const designerSizeOptions = sizeSelect
+    ? sizeSelect.options.map((option) => ({
+        aid: sizeSelect.aid,
+        termId: option.value,
+        label: option.label,
+      }))
+    : []
   const ntpLabelByValue: Record<string, string> = {
     "0": "Fixná",
     "2": "Plocha (šírka × výška)",
@@ -430,11 +439,6 @@ async function AdminProductDetails({
               <>
                 <ProductDesignerSettings
                   designerEnabled={product.designerEnabled ?? false}
-                  designerWidth={product.designerWidth ?? null}
-                  designerHeight={product.designerHeight ?? null}
-                  designerBgColor={product.designerBgColor ?? null}
-                  designerDpi={product.designerDpi ?? null}
-                  designerColorProfile={product.designerColorProfile ?? null}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Uložte nastavenia pre Design Studio.</span>
@@ -477,9 +481,10 @@ async function AdminProductDetails({
       {activeTab === "design" && product.designerEnabled && (
         <Card>
           <CardContent className="py-6">
-            <DesignTemplatesManager
+            <DesignCanvasProfilesManager
               productId={product.id}
-              templates={product.designTemplates ?? []}
+              profiles={product.designCanvasProfiles ?? []}
+              sizeOptions={designerSizeOptions}
             />
           </CardContent>
         </Card>

@@ -1,0 +1,236 @@
+;
+; Archive created at 2026-02-20 11:19:03 UTC
+;     dbname: shop
+;     TOC Entries: 225
+;     Compression: gzip
+;     Dump Version: 1.15-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 16.11 (Debian 16.11-1.pgdg13+1)
+;     Dumped by pg_dump version: 16.11 (Debian 16.11-1.pgdg13+1)
+;
+;
+; Selected TOC Entries:
+;
+1020; 1247 81744 TYPE public CheckoutPaymentMethod postgres
+1017; 1247 81739 TYPE public DeliveryMethod postgres
+972; 1247 28112 TYPE public NotificationStatus postgres
+969; 1247 28104 TYPE public NotificationType postgres
+960; 1247 28080 TYPE public OrderAssetKind postgres
+963; 1247 28090 TYPE public OrderAssetStatus postgres
+966; 1247 28100 TYPE public OrderAssetStorageProvider postgres
+939; 1247 25937 TYPE public OrderStatus postgres
+987; 1247 33400 TYPE public PaymentProvider postgres
+984; 1247 33389 TYPE public PaymentStatus postgres
+882; 1247 16430 TYPE public PriceType postgres
+894; 1247 16984 TYPE public PricingKind postgres
+954; 1247 26678 TYPE public TopProductsMode postgres
+930; 1247 25421 TYPE public UserRole postgres
+233; 1259 25426 TABLE public Account postgres
+231; 1259 21194 TABLE public AuthToken postgres
+235; 1259 25947 TABLE public Cart postgres
+236; 1259 25955 TABLE public CartItem postgres
+217; 1259 16439 TABLE public Category postgres
+246; 1259 47820 TABLE public CompanyProfile postgres
+250; 1259 55887 TABLE public DesignTemplate postgres
+241; 1259 28127 TABLE public NotificationLog postgres
+237; 1259 25963 TABLE public Order postgres
+240; 1259 28117 TABLE public OrderAsset postgres
+238; 1259 25973 TABLE public OrderItem postgres
+243; 1259 33404 TABLE public OrderStatusHistory postgres
+221; 1259 16998 TABLE public PricingEntry postgres
+220; 1259 16989 TABLE public PricingModel postgres
+218; 1259 16448 TABLE public Product postgres
+251; 1259 65325 TABLE public ProductCollection postgres
+219; 1259 16459 TABLE public ProductImage postgres
+245; 1259 46798 TABLE public RateLimitEntry postgres
+248; 1259 50003 TABLE public SavedCart postgres
+249; 1259 50011 TABLE public SavedCartItem postgres
+232; 1259 21202 TABLE public Session postgres
+242; 1259 29873 TABLE public ShopSettings postgres
+244; 1259 33412 TABLE public StripeEvent postgres
+239; 1259 26685 TABLE public TopProducts postgres
+216; 1259 16400 TABLE public User postgres
+247; 1259 47828 TABLE public UserAddress postgres
+234; 1259 25433 TABLE public VerificationToken postgres
+230; 1259 17269 TABLE public WpAttributeTaxonomy postgres
+224; 1259 17233 TABLE public WpMatrixPrice postgres
+223; 1259 17232 SEQUENCE public WpMatrixPrice_id_seq postgres
+3854; 0 0 SEQUENCE OWNED BY public WpMatrixPrice_id_seq postgres
+222; 1259 17225 TABLE public WpMatrixType postgres
+225; 1259 17241 TABLE public WpTerm postgres
+229; 1259 17262 TABLE public WpTermMeta postgres
+228; 1259 17256 TABLE public WpTermRelationship postgres
+227; 1259 17255 SEQUENCE public WpTermRelationship_id_seq postgres
+3855; 0 0 SEQUENCE OWNED BY public WpTermRelationship_id_seq postgres
+226; 1259 17248 TABLE public WpTermTaxonomy postgres
+215; 1259 16391 TABLE public _prisma_migrations postgres
+3469; 2604 17236 DEFAULT public WpMatrixPrice id postgres
+3470; 2604 17259 DEFAULT public WpTermRelationship id postgres
+3829; 0 25426 TABLE DATA public Account postgres
+3827; 0 21194 TABLE DATA public AuthToken postgres
+3831; 0 25947 TABLE DATA public Cart postgres
+3832; 0 25955 TABLE DATA public CartItem postgres
+3813; 0 16439 TABLE DATA public Category postgres
+3842; 0 47820 TABLE DATA public CompanyProfile postgres
+3846; 0 55887 TABLE DATA public DesignTemplate postgres
+3837; 0 28127 TABLE DATA public NotificationLog postgres
+3833; 0 25963 TABLE DATA public Order postgres
+3836; 0 28117 TABLE DATA public OrderAsset postgres
+3834; 0 25973 TABLE DATA public OrderItem postgres
+3839; 0 33404 TABLE DATA public OrderStatusHistory postgres
+3817; 0 16998 TABLE DATA public PricingEntry postgres
+3816; 0 16989 TABLE DATA public PricingModel postgres
+3814; 0 16448 TABLE DATA public Product postgres
+3847; 0 65325 TABLE DATA public ProductCollection postgres
+3815; 0 16459 TABLE DATA public ProductImage postgres
+3841; 0 46798 TABLE DATA public RateLimitEntry postgres
+3844; 0 50003 TABLE DATA public SavedCart postgres
+3845; 0 50011 TABLE DATA public SavedCartItem postgres
+3828; 0 21202 TABLE DATA public Session postgres
+3838; 0 29873 TABLE DATA public ShopSettings postgres
+3840; 0 33412 TABLE DATA public StripeEvent postgres
+3835; 0 26685 TABLE DATA public TopProducts postgres
+3812; 0 16400 TABLE DATA public User postgres
+3843; 0 47828 TABLE DATA public UserAddress postgres
+3830; 0 25433 TABLE DATA public VerificationToken postgres
+3826; 0 17269 TABLE DATA public WpAttributeTaxonomy postgres
+3820; 0 17233 TABLE DATA public WpMatrixPrice postgres
+3818; 0 17225 TABLE DATA public WpMatrixType postgres
+3821; 0 17241 TABLE DATA public WpTerm postgres
+3825; 0 17262 TABLE DATA public WpTermMeta postgres
+3824; 0 17256 TABLE DATA public WpTermRelationship postgres
+3822; 0 17248 TABLE DATA public WpTermTaxonomy postgres
+3811; 0 16391 TABLE DATA public _prisma_migrations postgres
+3856; 0 0 SEQUENCE SET public WpMatrixPrice_id_seq postgres
+3857; 0 0 SEQUENCE SET public WpTermRelationship_id_seq postgres
+3563; 2606 25432 CONSTRAINT public Account Account_pkey postgres
+3555; 2606 21201 CONSTRAINT public AuthToken AuthToken_pkey postgres
+3575; 2606 25962 CONSTRAINT public CartItem CartItem_pkey postgres
+3569; 2606 25954 CONSTRAINT public Cart Cart_pkey postgres
+3512; 2606 16447 CONSTRAINT public Category Category_pkey postgres
+3620; 2606 47827 CONSTRAINT public CompanyProfile CompanyProfile_pkey postgres
+3635; 2606 55896 CONSTRAINT public DesignTemplate DesignTemplate_pkey postgres
+3603; 2606 28134 CONSTRAINT public NotificationLog NotificationLog_pkey postgres
+3599; 2606 28126 CONSTRAINT public OrderAsset OrderAsset_pkey postgres
+3591; 2606 25979 CONSTRAINT public OrderItem OrderItem_pkey postgres
+3611; 2606 33411 CONSTRAINT public OrderStatusHistory OrderStatusHistory_pkey postgres
+3584; 2606 25972 CONSTRAINT public Order Order_pkey postgres
+3527; 2606 17005 CONSTRAINT public PricingEntry PricingEntry_pkey postgres
+3523; 2606 16997 CONSTRAINT public PricingModel PricingModel_pkey postgres
+3639; 2606 65336 CONSTRAINT public ProductCollection ProductCollection_pkey postgres
+3519; 2606 16467 CONSTRAINT public ProductImage ProductImage_pkey postgres
+3516; 2606 16458 CONSTRAINT public Product Product_pkey postgres
+3617; 2606 46806 CONSTRAINT public RateLimitEntry RateLimitEntry_pkey postgres
+3631; 2606 50018 CONSTRAINT public SavedCartItem SavedCartItem_pkey postgres
+3628; 2606 50010 CONSTRAINT public SavedCart SavedCart_pkey postgres
+3559; 2606 21209 CONSTRAINT public Session Session_pkey postgres
+3607; 2606 29882 CONSTRAINT public ShopSettings ShopSettings_pkey postgres
+3614; 2606 33419 CONSTRAINT public StripeEvent StripeEvent_pkey postgres
+3595; 2606 26693 CONSTRAINT public TopProducts TopProducts_pkey postgres
+3624; 2606 47836 CONSTRAINT public UserAddress UserAddress_pkey postgres
+3509; 2606 16407 CONSTRAINT public User User_pkey postgres
+3553; 2606 17275 CONSTRAINT public WpAttributeTaxonomy WpAttributeTaxonomy_pkey postgres
+3536; 2606 17240 CONSTRAINT public WpMatrixPrice WpMatrixPrice_pkey postgres
+3532; 2606 17231 CONSTRAINT public WpMatrixType WpMatrixType_pkey postgres
+3550; 2606 17268 CONSTRAINT public WpTermMeta WpTermMeta_pkey postgres
+3546; 2606 17261 CONSTRAINT public WpTermRelationship WpTermRelationship_pkey postgres
+3540; 2606 17254 CONSTRAINT public WpTermTaxonomy WpTermTaxonomy_pkey postgres
+3538; 2606 17247 CONSTRAINT public WpTerm WpTerm_pkey postgres
+3506; 2606 16399 CONSTRAINT public _prisma_migrations _prisma_migrations_pkey postgres
+3564; 1259 25439 INDEX public Account_provider_providerAccountId_key postgres
+3565; 1259 25438 INDEX public Account_userId_idx postgres
+3556; 1259 21210 INDEX public AuthToken_tokenHash_key postgres
+3557; 1259 21211 INDEX public AuthToken_userId_idx postgres
+3573; 1259 25983 INDEX public CartItem_cartId_idx postgres
+3576; 1259 25984 INDEX public CartItem_productId_idx postgres
+3570; 1259 25982 INDEX public Cart_sessionId_idx postgres
+3571; 1259 25981 INDEX public Cart_sessionId_key postgres
+3572; 1259 25980 INDEX public Cart_userId_key postgres
+3513; 1259 16468 INDEX public Category_slug_key postgres
+3621; 1259 47838 INDEX public CompanyProfile_userId_idx postgres
+3622; 1259 47837 INDEX public CompanyProfile_userId_key postgres
+3636; 1259 55897 INDEX public DesignTemplate_productId_idx postgres
+3601; 1259 28138 INDEX public NotificationLog_orderId_idx postgres
+3604; 1259 28139 INDEX public NotificationLog_status_idx postgres
+3605; 1259 28140 INDEX public NotificationLog_type_orderId_toEmail_key postgres
+3596; 1259 28135 INDEX public OrderAsset_orderId_createdAt_idx postgres
+3597; 1259 28136 INDEX public OrderAsset_orderItemId_idx postgres
+3600; 1259 28137 INDEX public OrderAsset_status_idx postgres
+3589; 1259 25989 INDEX public OrderItem_orderId_idx postgres
+3592; 1259 25990 INDEX public OrderItem_productId_idx postgres
+3608; 1259 33421 INDEX public OrderStatusHistory_changedByUserId_idx postgres
+3609; 1259 33420 INDEX public OrderStatusHistory_orderId_createdAt_idx postgres
+3577; 1259 33428 INDEX public Order_audience_idx postgres
+3578; 1259 33427 INDEX public Order_createdAt_idx postgres
+3579; 1259 33429 INDEX public Order_customerEmail_idx postgres
+3580; 1259 25988 INDEX public Order_orderNumber_idx postgres
+3581; 1259 25985 INDEX public Order_orderNumber_key postgres
+3582; 1259 33426 INDEX public Order_paymentStatus_idx postgres
+3585; 1259 25987 INDEX public Order_status_idx postgres
+3586; 1259 33425 INDEX public Order_stripeCheckoutSessionId_key postgres
+3587; 1259 33424 INDEX public Order_stripePaymentIntentId_key postgres
+3588; 1259 25986 INDEX public Order_userId_idx postgres
+3528; 1259 54115 INDEX public PricingEntry_pricingModelId_attrsKey_breakpoint_key postgres
+3529; 1259 17008 INDEX public PricingEntry_pricingModelId_attrsKey_idx postgres
+3530; 1259 54114 INDEX public PricingEntry_pricingModelId_breakpoint_idx postgres
+3524; 1259 17006 INDEX public PricingModel_productId_idx postgres
+3525; 1259 17007 INDEX public PricingModel_productId_sourceMtypeId_key postgres
+3637; 1259 65338 INDEX public ProductCollection_isActive_sortOrder_idx postgres
+3640; 1259 65337 INDEX public ProductCollection_slug_key postgres
+3520; 1259 16471 INDEX public ProductImage_productId_idx postgres
+3521; 1259 16854 INDEX public ProductImage_productId_url_key postgres
+3514; 1259 16470 INDEX public Product_categoryId_idx postgres
+3517; 1259 16469 INDEX public Product_slug_key postgres
+3618; 1259 46807 INDEX public RateLimitEntry_resetAt_idx postgres
+3632; 1259 50021 INDEX public SavedCartItem_productId_idx postgres
+3633; 1259 50020 INDEX public SavedCartItem_savedCartId_idx postgres
+3629; 1259 50019 INDEX public SavedCart_userId_idx postgres
+3560; 1259 21212 INDEX public Session_sessionToken_key postgres
+3561; 1259 21213 INDEX public Session_userId_idx postgres
+3612; 1259 33422 INDEX public StripeEvent_orderId_idx postgres
+3615; 1259 33423 INDEX public StripeEvent_type_idx postgres
+3593; 1259 26694 INDEX public TopProducts_audience_key postgres
+3625; 1259 47839 INDEX public UserAddress_userId_idx postgres
+3626; 1259 47840 INDEX public UserAddress_userId_isDefault_idx postgres
+3507; 1259 16408 INDEX public User_email_key postgres
+3510; 1259 33430 INDEX public User_stripeCustomerId_key postgres
+3566; 1259 25441 INDEX public VerificationToken_identifier_token_key postgres
+3567; 1259 25440 INDEX public VerificationToken_token_key postgres
+3533; 1259 17933 INDEX public WpMatrixPrice_mtypeId_aterms_number_key postgres
+3534; 1259 17276 INDEX public WpMatrixPrice_mtypeId_idx postgres
+3548; 1259 17284 INDEX public WpTermMeta_metaKey_idx postgres
+3551; 1259 17283 INDEX public WpTermMeta_termId_idx postgres
+3543; 1259 17280 INDEX public WpTermRelationship_objectId_idx postgres
+3544; 1259 17282 INDEX public WpTermRelationship_objectId_termTaxonomyId_key postgres
+3547; 1259 17281 INDEX public WpTermRelationship_termTaxonomyId_idx postgres
+3541; 1259 17279 INDEX public WpTermTaxonomy_taxonomy_idx postgres
+3542; 1259 17278 INDEX public WpTermTaxonomy_termId_idx postgres
+3648; 2606 25442 FK CONSTRAINT public Account Account_userId_fkey postgres
+3646; 2606 21214 FK CONSTRAINT public AuthToken AuthToken_userId_fkey postgres
+3650; 2606 25996 FK CONSTRAINT public CartItem CartItem_cartId_fkey postgres
+3651; 2606 26001 FK CONSTRAINT public CartItem CartItem_productId_fkey postgres
+3649; 2606 25991 FK CONSTRAINT public Cart Cart_userId_fkey postgres
+3641; 2606 19650 FK CONSTRAINT public Category Category_parentId_fkey postgres
+3662; 2606 47841 FK CONSTRAINT public CompanyProfile CompanyProfile_userId_fkey postgres
+3667; 2606 55898 FK CONSTRAINT public DesignTemplate DesignTemplate_productId_fkey postgres
+3658; 2606 28156 FK CONSTRAINT public NotificationLog NotificationLog_orderId_fkey postgres
+3655; 2606 28141 FK CONSTRAINT public OrderAsset OrderAsset_orderId_fkey postgres
+3656; 2606 28146 FK CONSTRAINT public OrderAsset OrderAsset_orderItemId_fkey postgres
+3657; 2606 28151 FK CONSTRAINT public OrderAsset OrderAsset_uploadedByUserId_fkey postgres
+3653; 2606 26011 FK CONSTRAINT public OrderItem OrderItem_orderId_fkey postgres
+3654; 2606 26016 FK CONSTRAINT public OrderItem OrderItem_productId_fkey postgres
+3659; 2606 33436 FK CONSTRAINT public OrderStatusHistory OrderStatusHistory_changedByUserId_fkey postgres
+3660; 2606 33431 FK CONSTRAINT public OrderStatusHistory OrderStatusHistory_orderId_fkey postgres
+3652; 2606 26006 FK CONSTRAINT public Order Order_userId_fkey postgres
+3645; 2606 17016 FK CONSTRAINT public PricingEntry PricingEntry_pricingModelId_fkey postgres
+3644; 2606 17011 FK CONSTRAINT public PricingModel PricingModel_productId_fkey postgres
+3643; 2606 16477 FK CONSTRAINT public ProductImage ProductImage_productId_fkey postgres
+3642; 2606 16472 FK CONSTRAINT public Product Product_categoryId_fkey postgres
+3665; 2606 50032 FK CONSTRAINT public SavedCartItem SavedCartItem_productId_fkey postgres
+3666; 2606 50027 FK CONSTRAINT public SavedCartItem SavedCartItem_savedCartId_fkey postgres
+3664; 2606 50022 FK CONSTRAINT public SavedCart SavedCart_userId_fkey postgres
+3647; 2606 25447 FK CONSTRAINT public Session Session_userId_fkey postgres
+3661; 2606 33441 FK CONSTRAINT public StripeEvent StripeEvent_orderId_fkey postgres
+3663; 2606 47846 FK CONSTRAINT public UserAddress UserAddress_userId_fkey postgres

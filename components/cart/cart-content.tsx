@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { ModeButton } from "@/components/print/mode-button";
 import { PriceDisplay } from "@/components/print/price-display";
 import { getCsrfHeader } from "@/lib/csrf";
+import { getDesignElementCount } from "@/lib/design-studio";
 import type { CartData } from "@/types/cart";
 import type { CustomerMode } from "@/components/print/types";
 
@@ -439,12 +440,16 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                               ))}
                             </div>
                           ) : null}
-                          {item.designData && Array.isArray(item.designData) && (item.designData as unknown[]).length > 0 ? (
+                          {(() => {
+                            const designElements = getDesignElementCount(item.designData);
+                            if (designElements <= 0) return null;
+                            return (
                             <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-medium text-purple-700">
                               <Paintbrush className="h-3 w-3" />
-                              Design Studio ({(item.designData as unknown[]).length} elementov)
+                              Design Studio ({designElements} elementov)
                             </div>
-                          ) : null}
+                            );
+                          })()}
                         </div>
 
                         <div className="text-right">

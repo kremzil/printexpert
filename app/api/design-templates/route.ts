@@ -6,19 +6,25 @@ import { requireAdmin } from "@/lib/auth-helpers"
 // GET /api/design-templates?productId=xxx
 const GETHandler = async (request: NextRequest) => {
   const productId = request.nextUrl.searchParams.get("productId")
-  if (!productId) {
+  const canvasProfileId = request.nextUrl.searchParams.get("canvasProfileId")
+  if (!productId && !canvasProfileId) {
     return NextResponse.json(
-      { error: "productId is required" },
+      { error: "productId or canvasProfileId is required" },
       { status: 400 }
     )
   }
 
   const prisma = getPrisma()
   const templates = await prisma.designTemplate.findMany({
-    where: { productId },
+    where: {
+      ...(productId ? { productId } : {}),
+      ...(canvasProfileId ? { canvasProfileId } : {}),
+    },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     select: {
       id: true,
+      productId: true,
+      canvasProfileId: true,
       name: true,
       elements: true,
       thumbnailUrl: true,
@@ -39,21 +45,31 @@ const POSTHandler = async (request: NextRequest) => {
   }
 
   const body = await request.json()
-  const { productId, name, elements, thumbnailUrl, isDefault } = body
+  const { productId, canvasProfileId, name, elements, thumbnailUrl, isDefault } = body
 
-  if (!productId || !name || !elements) {
+  if (!productId || !canvasProfileId || !name || elements === undefined) {
     return NextResponse.json(
-      { error: "productId, name, and elements are required" },
+      { error: "productId, canvasProfileId, name, and elements are required" },
       { status: 400 }
     )
   }
 
   const prisma = getPrisma()
+  const profile = await prisma.designCanvasProfile.findUnique({
+    where: { id: canvasProfileId },
+    select: { id: true, productId: true },
+  })
+  if (!profile || profile.productId !== productId) {
+    return NextResponse.json(
+      { error: "Invalid canvas profile for this product" },
+      { status: 400 }
+    )
+  }
 
   // If setting as default, unset other defaults first
   if (isDefault) {
     await prisma.designTemplate.updateMany({
-      where: { productId, isDefault: true },
+      where: { canvasProfileId, isDefault: true },
       data: { isDefault: false },
     })
   }
@@ -61,6 +77,7 @@ const POSTHandler = async (request: NextRequest) => {
   const template = await prisma.designTemplate.create({
     data: {
       productId,
+      canvasProfileId,
       name,
       elements,
       thumbnailUrl: thumbnailUrl || null,

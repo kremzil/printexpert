@@ -83,6 +83,21 @@ export interface DesignEditorProps {
   productLabel?: string
   /** Background color for canvas */
   bgColor?: string
+  /** Canvas profile id for export metadata */
+  canvasProfileId?: string
+  /** Trim size in millimeters */
+  trimWidthMm?: number
+  trimHeightMm?: number
+  /** Bleed offsets in millimeters */
+  bleedTopMm?: number
+  bleedRightMm?: number
+  bleedBottomMm?: number
+  bleedLeftMm?: number
+  /** Safe-zone offsets in millimeters (inside trim) */
+  safeTopMm?: number
+  safeRightMm?: number
+  safeBottomMm?: number
+  safeLeftMm?: number
   /** Predefined templates from DB */
   templates?: DesignTemplate[]
   /** Called when user clicks "Use in order" — receives elements + thumbnail data URL + PDF blob */
@@ -113,6 +128,17 @@ export function DesignEditor({
   colorProfile = "CMYK",
   productLabel,
   bgColor = "#ffffff",
+  canvasProfileId,
+  trimWidthMm,
+  trimHeightMm,
+  bleedTopMm = 0,
+  bleedRightMm = 0,
+  bleedBottomMm = 0,
+  bleedLeftMm = 0,
+  safeTopMm = 0,
+  safeRightMm = 0,
+  safeBottomMm = 0,
+  safeLeftMm = 0,
   templates = [],
   onSave,
   onClose,
@@ -152,8 +178,90 @@ export function DesignEditor({
     if (doStroke) ctx.stroke()
   }
   const [showTemplates, setShowTemplates] = useState(false)
+  const [imageRedrawNonce, setImageRedrawNonce] = useState(0)
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map())
 
   const selectedData = elements.find((el) => el.id === selectedElement)
+  const pxPerMm = dpi / 25.4
+  const pxToMm = (px: number) => px / pxPerMm
+  const mmToPx = (mm: number) => mm * pxPerMm
+  const toMmInput = (px: number) => Number(pxToMm(px).toFixed(2))
+  const parseMmToPx = (
+    value: string,
+    fallbackPx: number,
+    options?: { minMm?: number }
+  ) => {
+    const parsed = Number.parseFloat(value)
+    if (!Number.isFinite(parsed)) return fallbackPx
+    const minMm = options?.minMm ?? 0
+    return mmToPx(Math.max(minMm, parsed))
+  }
+
+  const canvasWidthMm = pxToMm(width)
+  const canvasHeightMm = pxToMm(height)
+  const resolvedTrimWidthMm = trimWidthMm ?? Math.max(0, canvasWidthMm - bleedLeftMm - bleedRightMm)
+  const resolvedTrimHeightMm = trimHeightMm ?? Math.max(0, canvasHeightMm - bleedTopMm - bleedBottomMm)
+  const getLoadedImage = useCallback((src: string): HTMLImageElement | null => {
+    const cached = imageCacheRef.current.get(src)
+    if (cached) {
+      return cached.complete && cached.naturalWidth > 0 ? cached : null
+    }
+
+    const img = new Image()
+    if (!src.startsWith("data:")) {
+      img.crossOrigin = "anonymous"
+    }
+    img.onload = () => setImageRedrawNonce((value) => value + 1)
+    img.onerror = () => {
+      imageCacheRef.current.delete(src)
+    }
+    img.src = src
+    imageCacheRef.current.set(src, img)
+    return null
+  }, [])
+  const waitForImage = useCallback(
+    (img: HTMLImageElement): Promise<HTMLImageElement | null> =>
+      new Promise((resolve) => {
+        if (img.complete) {
+          resolve(img.naturalWidth > 0 ? img : null)
+          return
+        }
+
+        const handleLoad = () => {
+          cleanup()
+          resolve(img.naturalWidth > 0 ? img : null)
+        }
+        const handleError = () => {
+          cleanup()
+          resolve(null)
+        }
+        const cleanup = () => {
+          img.removeEventListener("load", handleLoad)
+          img.removeEventListener("error", handleError)
+        }
+
+        img.addEventListener("load", handleLoad)
+        img.addEventListener("error", handleError)
+      }),
+    []
+  )
+  const loadImageForExport = useCallback(
+    async (src: string): Promise<HTMLImageElement | null> => {
+      const cached = imageCacheRef.current.get(src)
+      if (cached) {
+        return waitForImage(cached)
+      }
+
+      const img = new Image()
+      if (!src.startsWith("data:")) {
+        img.crossOrigin = "anonymous"
+      }
+      img.src = src
+      imageCacheRef.current.set(src, img)
+      return waitForImage(img)
+    },
+    [waitForImage]
+  )
 
   // Helpers for multi-selection
   const selectSingle = (id: string) => {
@@ -189,6 +297,30 @@ export function DesignEditor({
 
     ctx.fillStyle = bgColor
     ctx.fillRect(0, 0, width, height)
+
+    const trimX = mmToPx(bleedLeftMm)
+    const trimY = mmToPx(bleedTopMm)
+    const trimW = mmToPx(resolvedTrimWidthMm)
+    const trimH = mmToPx(resolvedTrimHeightMm)
+    const safeX = trimX + mmToPx(safeLeftMm)
+    const safeY = trimY + mmToPx(safeTopMm)
+    const safeW = Math.max(0, trimW - mmToPx(safeLeftMm + safeRightMm))
+    const safeH = Math.max(0, trimH - mmToPx(safeTopMm + safeBottomMm))
+
+    // Production guides: bleed boundary (canvas), trim line and safe zone.
+    ctx.save()
+    ctx.lineWidth = 1
+    ctx.strokeStyle = "#d946ef"
+    ctx.setLineDash([6, 4])
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+    ctx.strokeStyle = "#2563eb"
+    ctx.setLineDash([10, 4])
+    ctx.strokeRect(trimX, trimY, trimW, trimH)
+    ctx.strokeStyle = "#16a34a"
+    ctx.setLineDash([4, 3])
+    ctx.strokeRect(safeX, safeY, safeW, safeH)
+    ctx.setLineDash([])
+    ctx.restore()
 
     for (const element of elements) {
       if (!element.visible) continue
@@ -257,9 +389,8 @@ export function DesignEditor({
         }
         ctx.fillText(element.content || "", textX, element.y, element.width)
       } else if (element.type === "image" && element.imageUrl) {
-        const img = new Image()
-        img.src = element.imageUrl
-        img.onload = () => {
+        const img = getLoadedImage(element.imageUrl)
+        if (img) {
           ctx.drawImage(img, element.x, element.y, element.width, element.height)
         }
       }
@@ -307,7 +438,24 @@ export function DesignEditor({
 
       ctx.restore()
     }
-  }, [elements, selectedElement, selectedIds, width, height, bgColor])
+  }, [
+    elements,
+    selectedElement,
+    selectedIds,
+    width,
+    height,
+    bgColor,
+    bleedLeftMm,
+    bleedTopMm,
+    resolvedTrimWidthMm,
+    resolvedTrimHeightMm,
+    safeLeftMm,
+    safeTopMm,
+    safeRightMm,
+    safeBottomMm,
+    mmToPx,
+    getLoadedImage,
+  ])
 
   // Auto-size text bounding boxes after canvas draw
   useEffect(() => {
@@ -334,7 +482,7 @@ export function DesignEditor({
 
   useEffect(() => {
     drawCanvas()
-  }, [drawCanvas])
+  }, [drawCanvas, imageRedrawNonce])
 
   // ───── Element actions ─────
   const addText = () => {
@@ -735,7 +883,7 @@ export function DesignEditor({
   }, [width, height])
 
   // ───── Generate PDF blob ─────
-  const generatePdfBlob = useCallback((): Blob | undefined => {
+  const generatePdfBlob = useCallback(async (): Promise<Blob | undefined> => {
     const widthMm = (width / dpi) * 25.4
     const heightMm = (height / dpi) * 25.4
     const orientation = widthMm > heightMm ? "landscape" as const : "portrait" as const
@@ -798,6 +946,11 @@ export function DesignEditor({
           ctx.fillRect(el.x, el.y, el.width, el.height)
           if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
         }
+      } else if (el.type === "image" && el.imageUrl) {
+        const img = await loadImageForExport(el.imageUrl)
+        if (img) {
+          ctx.drawImage(img, el.x, el.y, el.width, el.height)
+        }
       }
       ctx.restore()
     }
@@ -806,7 +959,7 @@ export function DesignEditor({
     pdf.setProperties({
       title: `Design - ${productLabel || "export"}`,
       creator: "PrintExpert Design Studio",
-      keywords: `DPI:${dpi}, Profile:${colorProfile}`,
+      keywords: `DPI:${dpi}, Profile:${colorProfile}${canvasProfileId ? `, CanvasProfile:${canvasProfileId}` : ""}`,
     })
     const imgData = exportCanvas.toDataURL("image/png", 1.0)
     pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST")
@@ -818,9 +971,13 @@ export function DesignEditor({
       [
         `PrintExpert Design Studio`,
         `Produkt: ${productLabel || "-"}`,
-        `Rozmer: ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
+        `Rozmer (full): ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
+        `Trim: ${resolvedTrimWidthMm.toFixed(1)} × ${resolvedTrimHeightMm.toFixed(1)} mm`,
+        `Bleed T/R/B/L: ${bleedTopMm}/${bleedRightMm}/${bleedBottomMm}/${bleedLeftMm} mm`,
+        `Safe T/R/B/L: ${safeTopMm}/${safeRightMm}/${safeBottomMm}/${safeLeftMm} mm`,
         `DPI: ${dpi}`,
         `Farebný profil: ${colorProfile}`,
+        `Canvas profil ID: ${canvasProfileId || "-"}`,
         `Pixely: ${width} × ${height} px`,
         `Dátum: ${new Date().toLocaleDateString("sk-SK")}`,
       ],
@@ -829,18 +986,38 @@ export function DesignEditor({
     )
 
     return pdf.output("blob")
-  }, [elements, width, height, bgColor, productLabel, dpi, colorProfile])
+  }, [
+    elements,
+    width,
+    height,
+    bgColor,
+    productLabel,
+    dpi,
+    colorProfile,
+    canvasProfileId,
+    resolvedTrimWidthMm,
+    resolvedTrimHeightMm,
+    bleedTopMm,
+    bleedRightMm,
+    bleedBottomMm,
+    bleedLeftMm,
+    safeTopMm,
+    safeRightMm,
+    safeBottomMm,
+    safeLeftMm,
+    loadImageForExport,
+  ])
 
   // ───── Use in order handler ─────
-  const handleUseInOrder = useCallback(() => {
+  const handleUseInOrder = useCallback(async () => {
     if (!onSave) return
     const thumbnail = generateThumbnail()
-    const pdfBlob = elements.length > 0 ? generatePdfBlob() : undefined
+    const pdfBlob = elements.length > 0 ? await generatePdfBlob() : undefined
     onSave(elements, thumbnail, pdfBlob)
   }, [onSave, elements, generateThumbnail, generatePdfBlob])
 
   // ───── Download PDF ─────
-  const handleDownloadPdf = useCallback(() => {
+  const handleDownloadPdf = useCallback(async () => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -911,6 +1088,11 @@ export function DesignEditor({
           ctx.fillRect(el.x, el.y, el.width, el.height)
           if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
         }
+      } else if (el.type === "image" && el.imageUrl) {
+        const img = await loadImageForExport(el.imageUrl)
+        if (img) {
+          ctx.drawImage(img, el.x, el.y, el.width, el.height)
+        }
       }
       ctx.restore()
     }
@@ -927,7 +1109,7 @@ export function DesignEditor({
     pdf.setProperties({
       title: `Design - ${productLabel || "export"}`,
       creator: "PrintExpert Design Studio",
-      keywords: `DPI:${dpi}, Profile:${colorProfile}`,
+      keywords: `DPI:${dpi}, Profile:${colorProfile}${canvasProfileId ? `, CanvasProfile:${canvasProfileId}` : ""}`,
     })
 
     // Place canvas image covering the full page
@@ -942,9 +1124,13 @@ export function DesignEditor({
       [
         `PrintExpert Design Studio`,
         `Produkt: ${productLabel || "-"}`,
-        `Rozmer: ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
+        `Rozmer (full): ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
+        `Trim: ${resolvedTrimWidthMm.toFixed(1)} × ${resolvedTrimHeightMm.toFixed(1)} mm`,
+        `Bleed T/R/B/L: ${bleedTopMm}/${bleedRightMm}/${bleedBottomMm}/${bleedLeftMm} mm`,
+        `Safe T/R/B/L: ${safeTopMm}/${safeRightMm}/${safeBottomMm}/${safeLeftMm} mm`,
         `DPI: ${dpi}`,
         `Farebný profil: ${colorProfile}`,
+        `Canvas profil ID: ${canvasProfileId || "-"}`,
         `Pixely: ${width} × ${height} px`,
         `Dátum: ${new Date().toLocaleDateString("sk-SK")}`,
       ],
@@ -953,7 +1139,27 @@ export function DesignEditor({
     )
 
     pdf.save(`design-${productLabel || "export"}.pdf`)
-  }, [elements, width, height, bgColor, productLabel, dpi, colorProfile])
+  }, [
+    elements,
+    width,
+    height,
+    bgColor,
+    productLabel,
+    dpi,
+    colorProfile,
+    canvasProfileId,
+    resolvedTrimWidthMm,
+    resolvedTrimHeightMm,
+    bleedTopMm,
+    bleedRightMm,
+    bleedBottomMm,
+    bleedLeftMm,
+    safeTopMm,
+    safeRightMm,
+    safeBottomMm,
+    safeLeftMm,
+    loadImageForExport,
+  ])
 
   // ───── Built-in templates ─────
   const builtInTemplates: DesignTemplate[] = [
@@ -1053,7 +1259,9 @@ export function DesignEditor({
         <div className="flex items-center gap-1 text-sm text-foreground">
           <Palette className="h-4 w-4 text-muted-foreground" />
           {productLabel && <span>{productLabel} •</span>}
-          <span>{((width / dpi) * 25.4).toFixed(0)} × {((height / dpi) * 25.4).toFixed(0)} mm</span>
+          <span>{canvasWidthMm.toFixed(1)} × {canvasHeightMm.toFixed(1)} mm (full)</span>
+          <span className="text-muted-foreground">•</span>
+          <span>{resolvedTrimWidthMm.toFixed(1)} × {resolvedTrimHeightMm.toFixed(1)} mm (trim)</span>
           <span className="text-muted-foreground">•</span>
           <span>{width} × {height} px</span>
           <span className="text-muted-foreground">•</span>
@@ -1400,38 +1608,58 @@ export function DesignEditor({
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium">X</label>
+                  <label className="mb-1 block text-xs font-medium">X (mm)</label>
                   <input
                     type="number"
-                    value={Math.round(selectedData.x)}
-                    onChange={(e) => updateElement({ x: parseInt(e.target.value) })}
+                    step={0.1}
+                    value={toMmInput(selectedData.x)}
+                    onChange={(e) =>
+                      updateElement({
+                        x: parseMmToPx(e.target.value, selectedData.x),
+                      })
+                    }
                     className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium">Y</label>
+                  <label className="mb-1 block text-xs font-medium">Y (mm)</label>
                   <input
                     type="number"
-                    value={Math.round(selectedData.y)}
-                    onChange={(e) => updateElement({ y: parseInt(e.target.value) })}
+                    step={0.1}
+                    value={toMmInput(selectedData.y)}
+                    onChange={(e) =>
+                      updateElement({
+                        y: parseMmToPx(e.target.value, selectedData.y),
+                      })
+                    }
                     className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium">Šírka</label>
+                  <label className="mb-1 block text-xs font-medium">Šírka (mm)</label>
                   <input
                     type="number"
-                    value={Math.round(selectedData.width)}
-                    onChange={(e) => updateElement({ width: parseInt(e.target.value) })}
+                    step={0.1}
+                    value={toMmInput(selectedData.width)}
+                    onChange={(e) =>
+                      updateElement({
+                        width: parseMmToPx(e.target.value, selectedData.width, { minMm: 0.1 }),
+                      })
+                    }
                     className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium">Výška</label>
+                  <label className="mb-1 block text-xs font-medium">Výška (mm)</label>
                   <input
                     type="number"
-                    value={Math.round(selectedData.height)}
-                    onChange={(e) => updateElement({ height: parseInt(e.target.value) })}
+                    step={0.1}
+                    value={toMmInput(selectedData.height)}
+                    onChange={(e) =>
+                      updateElement({
+                        height: parseMmToPx(e.target.value, selectedData.height, { minMm: 0.1 }),
+                      })
+                    }
                     className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
                   />
                 </div>

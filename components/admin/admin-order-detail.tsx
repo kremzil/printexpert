@@ -20,6 +20,7 @@ import {
 import { ArrowLeft, Loader2, Send, Download, FilePlus, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { getCsrfHeader } from "@/lib/csrf";
+import { getDesignElementCount } from "@/lib/design-studio";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
 
@@ -536,11 +537,15 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                               </div>
                             );
                           })()}
-                          {Array.isArray(item.designData) ? (
-                            <div className="mt-1 flex items-center gap-1.5 text-xs text-purple-600">
-                              Design Studio ({(item.designData as unknown[]).length} elementov)
-                            </div>
-                          ) : null}
+                          {(() => {
+                            const designElements = getDesignElementCount(item.designData);
+                            if (designElements <= 0) return null;
+                            return (
+                              <div className="mt-1 flex items-center gap-1.5 text-xs text-purple-600">
+                                Design Studio ({designElements} elementov)
+                              </div>
+                            );
+                          })()}
                           <p className="text-sm text-muted-foreground">Množstvo: {item.quantity}</p>
                         </div>
                         <div className="text-right">

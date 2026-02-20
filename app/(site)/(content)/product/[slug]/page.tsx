@@ -221,11 +221,39 @@ async function ProductDetails({
         product.designerEnabled
           ? {
               enabled: true,
-              width: product.designerWidth ?? 1050,
-              height: product.designerHeight ?? 600,
-              bgColor: product.designerBgColor ?? "#ffffff",
-              dpi: product.designerDpi ?? 300,
-              colorProfile: product.designerColorProfile ?? "CMYK",
+              profiles: (product.designCanvasProfiles ?? [])
+                .filter((profile) => profile.isActive)
+                .map((profile) => ({
+                  id: profile.id,
+                  productId: profile.productId,
+                  name: profile.name,
+                  sizeAid: profile.sizeAid ?? null,
+                  sizeTermId: profile.sizeTermId ?? null,
+                  sizeLabel: profile.sizeLabel ?? null,
+                  trimWidthMm: Number(profile.trimWidthMm),
+                  trimHeightMm: Number(profile.trimHeightMm),
+                  dpi: profile.dpi ?? 300,
+                  bgColor: profile.bgColor ?? "#ffffff",
+                  colorProfile: profile.colorProfile ?? "CMYK",
+                  bleedTopMm: Number(profile.bleedTopMm),
+                  bleedRightMm: Number(profile.bleedRightMm),
+                  bleedBottomMm: Number(profile.bleedBottomMm),
+                  bleedLeftMm: Number(profile.bleedLeftMm),
+                  safeTopMm: Number(profile.safeTopMm),
+                  safeRightMm: Number(profile.safeRightMm),
+                  safeBottomMm: Number(profile.safeBottomMm),
+                  safeLeftMm: Number(profile.safeLeftMm),
+                  sortOrder: profile.sortOrder,
+                  isActive: profile.isActive,
+                  templates: (profile.templates ?? []).map((template) => ({
+                    id: template.id,
+                    name: template.name,
+                    elements: template.elements,
+                    isDefault: template.isDefault,
+                    sortOrder: template.sortOrder,
+                    thumbnailUrl: template.thumbnailUrl,
+                  })),
+                })),
             }
           : null
       }

@@ -22,6 +22,61 @@ const serializeProduct = <
     : null,
   vatRate: product.vatRate.toString(),
 });
+
+const toNumberOrZero = (value: { toString(): string } | number | null | undefined) => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number(value.toString());
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const serializeDesignCanvasProfiles = <
+  T extends {
+    designCanvasProfiles?: Array<{
+      trimWidthMm: { toString(): string } | number;
+      trimHeightMm: { toString(): string } | number;
+      bleedTopMm: { toString(): string } | number;
+      bleedRightMm: { toString(): string } | number;
+      bleedBottomMm: { toString(): string } | number;
+      bleedLeftMm: { toString(): string } | number;
+      safeTopMm: { toString(): string } | number;
+      safeRightMm: { toString(): string } | number;
+      safeBottomMm: { toString(): string } | number;
+      safeLeftMm: { toString(): string } | number;
+      templates?: Array<{
+        id: string;
+        productId: string;
+        canvasProfileId: string;
+        name: string;
+        elements: unknown;
+        thumbnailUrl: string | null;
+        isDefault: boolean;
+        sortOrder: number;
+      }>;
+    }>;
+  },
+>(
+  product: T
+) => {
+  if (!product.designCanvasProfiles) return product;
+  return {
+    ...product,
+    designCanvasProfiles: product.designCanvasProfiles.map((profile) => ({
+      ...profile,
+      trimWidthMm: toNumberOrZero(profile.trimWidthMm),
+      trimHeightMm: toNumberOrZero(profile.trimHeightMm),
+      bleedTopMm: toNumberOrZero(profile.bleedTopMm),
+      bleedRightMm: toNumberOrZero(profile.bleedRightMm),
+      bleedBottomMm: toNumberOrZero(profile.bleedBottomMm),
+      bleedLeftMm: toNumberOrZero(profile.bleedLeftMm),
+      safeTopMm: toNumberOrZero(profile.safeTopMm),
+      safeRightMm: toNumberOrZero(profile.safeRightMm),
+      safeBottomMm: toNumberOrZero(profile.safeBottomMm),
+      safeLeftMm: toNumberOrZero(profile.safeLeftMm),
+      templates: profile.templates ?? [],
+    })),
+  };
+};
 /** Append cache-busting ?v=updatedAt to product image URLs */
 function versionImages<
   T extends {
@@ -279,10 +334,21 @@ export async function getProductBySlug(slug: string) {
               { id: "asc" },
             ],
           },
+          designCanvasProfiles: {
+            where: { isActive: true },
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+            include: {
+              templates: {
+                orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+              },
+            },
+          },
         },
       });
 
-      return product ? versionImages(serializeProduct(product)) : null;
+      return product
+        ? versionImages(serializeDesignCanvasProfiles(serializeProduct(product)))
+        : null;
     },
     ["product-by-slug", slug],
     { tags: [productTag(slug), TAGS.PRODUCTS] }
@@ -504,10 +570,18 @@ export async function getAdminProductById(id: string) {
           { createdAt: "desc" },
         ],
       },
+      designCanvasProfiles: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        include: {
+          templates: {
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+          },
+        },
+      },
     },
   });
 
-  return product ? serializeProduct(product) : null;
+  return product ? serializeDesignCanvasProfiles(serializeProduct(product)) : null;
 }
 
 // ===== Top Products (server-side, cached) =====

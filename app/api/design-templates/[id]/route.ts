@@ -17,19 +17,45 @@ const PUTHandler = async (request: NextRequest, { params }: Params) => {
 
   const { id } = await params
   const body = await request.json()
-  const { name, elements, thumbnailUrl, isDefault, sortOrder } = body
+  const { name, elements, thumbnailUrl, isDefault, sortOrder, canvasProfileId } = body
 
   const prisma = getPrisma()
 
-  const existing = await prisma.designTemplate.findUnique({ where: { id } })
+  const existing = await prisma.designTemplate.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      productId: true,
+      canvasProfileId: true,
+      isDefault: true,
+    },
+  })
   if (!existing) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 })
   }
 
+  let nextCanvasProfileId = existing.canvasProfileId
+  if (canvasProfileId !== undefined) {
+    if (typeof canvasProfileId !== "string" || !canvasProfileId.trim()) {
+      return NextResponse.json({ error: "Invalid canvasProfileId" }, { status: 400 })
+    }
+    const profile = await prisma.designCanvasProfile.findUnique({
+      where: { id: canvasProfileId },
+      select: { id: true, productId: true },
+    })
+    if (!profile || profile.productId !== existing.productId) {
+      return NextResponse.json(
+        { error: "Invalid canvas profile for this product" },
+        { status: 400 }
+      )
+    }
+    nextCanvasProfileId = profile.id
+  }
+
   // If setting as default, unset other defaults
-  if (isDefault && !existing.isDefault) {
+  if (isDefault && (!existing.isDefault || nextCanvasProfileId !== existing.canvasProfileId)) {
     await prisma.designTemplate.updateMany({
-      where: { productId: existing.productId, isDefault: true },
+      where: { canvasProfileId: nextCanvasProfileId, isDefault: true },
       data: { isDefault: false },
     })
   }
@@ -37,6 +63,7 @@ const PUTHandler = async (request: NextRequest, { params }: Params) => {
   const updated = await prisma.designTemplate.update({
     where: { id },
     data: {
+      ...(canvasProfileId !== undefined && { canvasProfileId: nextCanvasProfileId }),
       ...(name !== undefined && { name }),
       ...(elements !== undefined && { elements }),
       ...(thumbnailUrl !== undefined && { thumbnailUrl }),
