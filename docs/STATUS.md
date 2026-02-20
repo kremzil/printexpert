@@ -1,7 +1,7 @@
 # Статус проекта
 
-Дата: 2026-02-19
-Версия: 0.3.2
+Дата: 2026-02-20
+Версия: 0.3.3
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).
@@ -11,7 +11,8 @@
 - Новые модели:
   - `OrderAsset` (файлы к заказу) + enums `OrderAssetKind`, `OrderAssetStatus`, `OrderAssetStorageProvider`.
   - `NotificationLog` + enums `NotificationType`, `NotificationStatus`.
-  - `DesignTemplate` — шаблоны дизайнов (JSON с элементами, привязка к `Product`).
+  - `DesignCanvasProfile` — профили canvas для Design Studio (привязка к `Product` и значению `Veľkosť`).
+  - `DesignTemplate` — шаблоны дизайнов (JSON, привязка к `Product` и `DesignCanvasProfile`, поддержка `pages`).
   - `OrderStatusHistory` — история изменений статуса заказа (связь с `User` кто изменил).
   - `SavedCart`, `SavedCartItem` — сохранённые корзины (для B2B клиентов).
   - `StripeEvent` — логирование событий Stripe для идемпотентности.
@@ -21,7 +22,7 @@
 - Сидинг: `npm run db:seed` (читает `data/*`).
 - Health-check: `app/api/health/route.ts` (SELECT 1).
 - Флаги видимости: `showInB2b` и `showInB2c` в Product и Category
-- Поля Design Studio в `Product`: `designerEnabled`, `designerWidth`, `designerHeight`, `designerBgColor`, `designerDpi`, `designerColorProfile`.
+- Поля Design Studio в `Product`: `designerEnabled` + legacy-поля `designerWidth`, `designerHeight`, `designerBgColor`, `designerDpi`, `designerColorProfile` (read-compat).
 - Добавлено поле `Product.priceAfterDiscountFrom` (ручная скидочная цена "od", `Cena po zľave od` в админке).
 
 ## Каталог (DB-backed)
@@ -48,10 +49,10 @@
   - к сроку производства добавляется `+1` день доставки
 - **Design Studio** — встроенный canvas-редактор дизайна на странице товара:
   - Включается чекбоксом `designerEnabled` в настройках товара (админка).
-  - Кнопка «Otvoriť dizajnér» появляется в блоке конфигурации товара (для матричных — после загрузки файлов, для товаров без матриц — без блока загрузки).
-  - Полноэкранный редактор с инструментами (текст, изображения, фигуры), панелью свойств и панелью слоёв.
-  - Поддержка шаблонов (встроенные + из БД `DesignTemplate`).
-  - Настраиваемые параметры на уровне товара: размеры плотна, DPI, цветовой профиль, фон.
+  - Кнопка «Otvoriť dizajnér» показывается только если для выбранного `Veľkosť` найден активный `DesignCanvasProfile`.
+  - Полноэкранный редактор поддерживает bleed/safe зоны, единицы в мм и многостраничный дизайн.
+  - Поддержка шаблонов (встроенные + из БД `DesignTemplate`), включая многостраничные шаблоны (`pages`).
+  - В админке на уровне профиля canvas доступны: SVG import, создание пустых шаблонов на N страниц, выбор default-шаблона профиля.
 
 ## Маршрутизация и layout
 - Витрина и админка разделены на route groups:

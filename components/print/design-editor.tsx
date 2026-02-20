@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import {
   Type,
   Image as ImageIcon,
@@ -68,6 +68,13 @@ export interface DesignTemplate {
   id: string
   name: string
   elements: DesignElement[]
+  pages?: DesignPage[]
+}
+
+export interface DesignPage {
+  id: string
+  name: string
+  elements: DesignElement[]
 }
 
 export interface DesignEditorProps {
@@ -101,11 +108,18 @@ export interface DesignEditorProps {
   /** Predefined templates from DB */
   templates?: DesignTemplate[]
   /** Called when user clicks "Use in order" — receives elements + thumbnail data URL + PDF blob */
-  onSave?: (elements: DesignElement[], thumbnailDataUrl?: string, pdfBlob?: Blob) => void
+  onSave?: (
+    elements: DesignElement[],
+    thumbnailDataUrl?: string,
+    pdfBlob?: Blob,
+    pages?: DesignPage[]
+  ) => void
   /** Called when closing editor */
   onClose?: () => void
   /** Pre-loaded elements (e.g. from a previous save) */
   initialElements?: DesignElement[]
+  /** Pre-loaded pages for multi-page designs */
+  initialPages?: DesignPage[]
 }
 
 const FONTS = [
@@ -119,6 +133,44 @@ const FONTS = [
   "Open Sans",
   "Montserrat",
 ]
+
+// Helper: draw a rounded rectangle path on any canvas context
+const roundedRectPath = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) => {
+  const radius = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.lineTo(x + w - radius, y)
+  ctx.arcTo(x + w, y, x + w, y + radius, radius)
+  ctx.lineTo(x + w, y + h - radius)
+  ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius)
+  ctx.lineTo(x + radius, y + h)
+  ctx.arcTo(x, y + h, x, y + h - radius, radius)
+  ctx.lineTo(x, y + radius)
+  ctx.arcTo(x, y, x + radius, y, radius)
+  ctx.closePath()
+}
+
+// Helper: draw a rounded rectangle (fill + optional stroke)
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  doStroke = false
+) => {
+  roundedRectPath(ctx, x, y, w, h, r)
+  ctx.fill()
+  if (doStroke) ctx.stroke()
+}
 
 // ───── Component ─────────────────────────────────────────
 export function DesignEditor({
@@ -143,9 +195,37 @@ export function DesignEditor({
   onSave,
   onClose,
   initialElements,
+  initialPages,
 }: DesignEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [elements, setElements] = useState<DesignElement[]>(initialElements ?? [])
+  const initialPageList = (() => {
+    if (initialPages && initialPages.length > 0) {
+      return initialPages.map((page, index) => ({
+        id: page.id || `page-${index + 1}`,
+        name: page.name?.trim() || `Strana ${index + 1}`,
+        elements: page.elements ?? [],
+      }))
+    }
+    return [
+      {
+        id: "page-1",
+        name: "Strana 1",
+        elements: initialElements ?? [],
+      },
+    ]
+  })()
+  const [pages, setPages] = useState<DesignPage[]>(initialPageList)
+  const [activePageId, setActivePageId] = useState<string>(
+    initialPageList[0]?.id ?? "page-1"
+  )
+  const currentPage = useMemo(
+    () => pages.find((page) => page.id === activePageId) ?? pages[0] ?? null,
+    [pages, activePageId]
+  )
+  const elements = useMemo(
+    () => currentPage?.elements ?? [],
+    [currentPage]
+  )
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [zoom, setZoom] = useState(1)
@@ -155,36 +235,33 @@ export function DesignEditor({
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; elX: number; elY: number; elW: number; elH: number; fontSize?: number } | null>(null)
   const [showLayers, setShowLayers] = useState(true)
 
-  // Helper: draw a rounded rectangle path on any canvas context
-  const roundedRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
-    const radius = Math.min(r, w / 2, h / 2)
-    ctx.beginPath()
-    ctx.moveTo(x + radius, y)
-    ctx.lineTo(x + w - radius, y)
-    ctx.arcTo(x + w, y, x + w, y + radius, radius)
-    ctx.lineTo(x + w, y + h - radius)
-    ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius)
-    ctx.lineTo(x + radius, y + h)
-    ctx.arcTo(x, y + h, x, y + h - radius, radius)
-    ctx.lineTo(x, y + radius)
-    ctx.arcTo(x, y, x + radius, y, radius)
-    ctx.closePath()
-  }
-
-  // Helper: draw a rounded rectangle (fill + optional stroke)
-  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, doStroke = false) => {
-    roundedRectPath(ctx, x, y, w, h, r)
-    ctx.fill()
-    if (doStroke) ctx.stroke()
-  }
   const [showTemplates, setShowTemplates] = useState(false)
   const [imageRedrawNonce, setImageRedrawNonce] = useState(0)
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map())
+  const setElements = useCallback(
+    (updater: DesignElement[] | ((prev: DesignElement[]) => DesignElement[])) => {
+      setPages((prevPages) =>
+        prevPages.map((page) => {
+          if (page.id !== activePageId) return page
+          const nextElements =
+            typeof updater === "function"
+              ? (updater as (prev: DesignElement[]) => DesignElement[])(page.elements)
+              : updater
+          return { ...page, elements: nextElements }
+        })
+      )
+    },
+    [activePageId]
+  )
 
   const selectedData = elements.find((el) => el.id === selectedElement)
+  const totalElements = pages.reduce(
+    (sum, page) => sum + page.elements.length,
+    0
+  )
   const pxPerMm = dpi / 25.4
-  const pxToMm = (px: number) => px / pxPerMm
-  const mmToPx = (mm: number) => mm * pxPerMm
+  const pxToMm = useCallback((px: number) => px / pxPerMm, [pxPerMm])
+  const mmToPx = useCallback((mm: number) => mm * pxPerMm, [pxPerMm])
   const toMmInput = (px: number) => Number(pxToMm(px).toFixed(2))
   const parseMmToPx = (
     value: string,
@@ -286,6 +363,32 @@ export function DesignEditor({
       }
       return next
     })
+  }
+  const addPage = () => {
+    const nextIndex = pages.length + 1
+    const newPage: DesignPage = {
+      id: crypto.randomUUID(),
+      name: `Strana ${nextIndex}`,
+      elements: [],
+    }
+    setPages((prev) => [...prev, newPage])
+    setActivePageId(newPage.id)
+    clearSelection()
+  }
+  const removeCurrentPage = () => {
+    if (pages.length <= 1 || !currentPage) return
+    const currentIndex = pages.findIndex((page) => page.id === currentPage.id)
+    const fallbackPage =
+      pages[currentIndex - 1] ?? pages[currentIndex + 1] ?? pages[0]
+    setPages((prev) => prev.filter((page) => page.id !== currentPage.id))
+    if (fallbackPage) {
+      setActivePageId(fallbackPage.id)
+    }
+    clearSelection()
+  }
+  const switchPage = (pageId: string) => {
+    setActivePageId(pageId)
+    clearSelection()
   }
 
   // ───── Draw canvas ─────
@@ -478,7 +581,7 @@ export function DesignEditor({
       return el
     })
     if (changed) setElements(updated)
-  }, [elements])
+  }, [elements, setElements])
 
   useEffect(() => {
     drawCanvas()
@@ -693,7 +796,22 @@ export function DesignEditor({
       templates.find((t) => t.id === templateId) ??
       builtInTemplates.find((t) => t.id === templateId)
     if (tpl) {
-      setElements(tpl.elements)
+      const normalizedPages =
+        tpl.pages && tpl.pages.length > 0
+          ? tpl.pages.map((page, index) => ({
+              id: page.id || `page-${index + 1}`,
+              name: page.name?.trim() || `Strana ${index + 1}`,
+              elements: page.elements ?? [],
+            }))
+          : [
+              {
+                id: "page-1",
+                name: "Strana 1",
+                elements: tpl.elements ?? [],
+              },
+            ]
+      setPages(normalizedPages)
+      setActivePageId(normalizedPages[0]?.id ?? "page-1")
       clearSelection()
       setShowTemplates(false)
     }
@@ -701,8 +819,7 @@ export function DesignEditor({
 
   // ───── Resize handle hit-test ─────
   const HANDLE_SIZE = 8
-  const HANDLE_NAMES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const
-  type ResizeDir = typeof HANDLE_NAMES[number]
+  type ResizeDir = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w"
 
   const getHandleAtPoint = (x: number, y: number, el: DesignElement): ResizeDir | null => {
     const hHalf = HANDLE_SIZE / 2 + 2 // extra tolerance
@@ -882,78 +999,86 @@ export function DesignEditor({
     return thumbCanvas.toDataURL("image/png", 0.85)
   }, [width, height])
 
+  const renderExportImageForElements = useCallback(
+    async (pageElements: DesignElement[]): Promise<string | undefined> => {
+      const exportCanvas = document.createElement("canvas")
+      exportCanvas.width = width
+      exportCanvas.height = height
+      const ctx = exportCanvas.getContext("2d")
+      if (!ctx) return undefined
+
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, width, height)
+
+      for (const el of pageElements) {
+        if (el.visible === false) continue
+        ctx.save()
+        const hasStroke = el.strokeColor && el.strokeWidth && el.strokeWidth > 0
+        if (el.type === "text") {
+          if (el.backgroundColor) {
+            ctx.fillStyle = el.backgroundColor
+            if (el.borderRadius) {
+              roundedRectPath(ctx, el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4, el.borderRadius)
+              ctx.fill()
+            } else {
+              ctx.fillRect(el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4)
+            }
+          }
+          const style = el.fontStyle === "italic" ? "italic" : ""
+          const weight = el.fontWeight === "bold" ? "bold" : ""
+          ctx.font = `${style} ${weight} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
+          ctx.fillStyle = el.color || "#000000"
+          ctx.textAlign = (el.textAlign as CanvasTextAlign) || "left"
+          const textX =
+            el.textAlign === "center"
+              ? el.x + el.width / 2
+              : el.textAlign === "right"
+                ? el.x + el.width
+                : el.x
+          if (hasStroke) {
+            ctx.strokeStyle = el.strokeColor!
+            ctx.lineWidth = el.strokeWidth!
+            ctx.lineJoin = "round"
+            ctx.strokeText(el.content || "", textX, el.y + (el.fontSize || 16))
+          }
+          ctx.fillText(el.content || "", textX, el.y + (el.fontSize || 16))
+        } else if (el.type === "shape") {
+          ctx.fillStyle = el.backgroundColor || "#cccccc"
+          if (hasStroke) {
+            ctx.strokeStyle = el.strokeColor!
+            ctx.lineWidth = el.strokeWidth!
+          }
+          if (el.shapeType === "circle") {
+            ctx.beginPath()
+            ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
+            ctx.fill()
+            if (hasStroke) ctx.stroke()
+          } else if (el.borderRadius) {
+            drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius, !!hasStroke)
+          } else {
+            ctx.fillRect(el.x, el.y, el.width, el.height)
+            if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
+          }
+        } else if (el.type === "image" && el.imageUrl) {
+          const img = await loadImageForExport(el.imageUrl)
+          if (img) {
+            ctx.drawImage(img, el.x, el.y, el.width, el.height)
+          }
+        }
+        ctx.restore()
+      }
+
+      return exportCanvas.toDataURL("image/png", 1.0)
+    },
+    [width, height, bgColor, loadImageForExport]
+  )
+
   // ───── Generate PDF blob ─────
   const generatePdfBlob = useCallback(async (): Promise<Blob | undefined> => {
     const widthMm = (width / dpi) * 25.4
     const heightMm = (height / dpi) * 25.4
     const orientation = widthMm > heightMm ? "landscape" as const : "portrait" as const
-
-    const exportCanvas = document.createElement("canvas")
-    exportCanvas.width = width
-    exportCanvas.height = height
-    const ctx = exportCanvas.getContext("2d")
-    if (!ctx) return undefined
-
-    ctx.fillStyle = bgColor
-    ctx.fillRect(0, 0, width, height)
-
-    for (const el of elements) {
-      if (el.visible === false) continue
-      ctx.save()
-      const hasStroke = el.strokeColor && el.strokeWidth && el.strokeWidth > 0
-      if (el.type === "text") {
-        if (el.backgroundColor) {
-          ctx.fillStyle = el.backgroundColor
-          if (el.borderRadius) {
-            roundedRectPath(ctx, el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4, el.borderRadius)
-            ctx.fill()
-          } else {
-            ctx.fillRect(el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4)
-          }
-        }
-        const style = el.fontStyle === "italic" ? "italic" : ""
-        const weight = el.fontWeight === "bold" ? "bold" : ""
-        ctx.font = `${style} ${weight} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
-        ctx.fillStyle = el.color || "#000000"
-        ctx.textAlign = (el.textAlign as CanvasTextAlign) || "left"
-        const textX =
-          el.textAlign === "center"
-            ? el.x + el.width / 2
-            : el.textAlign === "right"
-              ? el.x + el.width
-              : el.x
-        if (hasStroke) {
-          ctx.strokeStyle = el.strokeColor!
-          ctx.lineWidth = el.strokeWidth!
-          ctx.lineJoin = "round"
-          ctx.strokeText(el.content || "", textX, el.y + (el.fontSize || 16))
-        }
-        ctx.fillText(el.content || "", textX, el.y + (el.fontSize || 16))
-      } else if (el.type === "shape") {
-        ctx.fillStyle = el.backgroundColor || "#cccccc"
-        if (hasStroke) {
-          ctx.strokeStyle = el.strokeColor!
-          ctx.lineWidth = el.strokeWidth!
-        }
-        if (el.shapeType === "circle") {
-          ctx.beginPath()
-          ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
-          ctx.fill()
-          if (hasStroke) ctx.stroke()
-        } else if (el.borderRadius) {
-          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius, !!hasStroke)
-        } else {
-          ctx.fillRect(el.x, el.y, el.width, el.height)
-          if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
-        }
-      } else if (el.type === "image" && el.imageUrl) {
-        const img = await loadImageForExport(el.imageUrl)
-        if (img) {
-          ctx.drawImage(img, el.x, el.y, el.width, el.height)
-        }
-      }
-      ctx.restore()
-    }
+    const pagesToExport = pages.length > 0 ? pages : [{ id: "page-1", name: "Strana 1", elements }]
 
     const pdf = new jsPDF({ orientation, unit: "mm", format: [widthMm, heightMm], compress: true })
     pdf.setProperties({
@@ -961,8 +1086,16 @@ export function DesignEditor({
       creator: "PrintExpert Design Studio",
       keywords: `DPI:${dpi}, Profile:${colorProfile}${canvasProfileId ? `, CanvasProfile:${canvasProfileId}` : ""}`,
     })
-    const imgData = exportCanvas.toDataURL("image/png", 1.0)
-    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST")
+
+    for (let index = 0; index < pagesToExport.length; index += 1) {
+      const page = pagesToExport[index]
+      const imgData = await renderExportImageForElements(page.elements)
+      if (!imgData) continue
+      if (index > 0) {
+        pdf.addPage([widthMm, heightMm], orientation)
+      }
+      pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST")
+    }
 
     pdf.addPage([widthMm, heightMm], orientation)
     pdf.setFontSize(8)
@@ -971,6 +1104,7 @@ export function DesignEditor({
       [
         `PrintExpert Design Studio`,
         `Produkt: ${productLabel || "-"}`,
+        `Počet strán: ${pagesToExport.length}`,
         `Rozmer (full): ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
         `Trim: ${resolvedTrimWidthMm.toFixed(1)} × ${resolvedTrimHeightMm.toFixed(1)} mm`,
         `Bleed T/R/B/L: ${bleedTopMm}/${bleedRightMm}/${bleedBottomMm}/${bleedLeftMm} mm`,
@@ -987,10 +1121,10 @@ export function DesignEditor({
 
     return pdf.output("blob")
   }, [
+    pages,
     elements,
     width,
     height,
-    bgColor,
     productLabel,
     dpi,
     colorProfile,
@@ -1005,97 +1139,24 @@ export function DesignEditor({
     safeRightMm,
     safeBottomMm,
     safeLeftMm,
-    loadImageForExport,
+    renderExportImageForElements,
   ])
 
   // ───── Use in order handler ─────
   const handleUseInOrder = useCallback(async () => {
     if (!onSave) return
     const thumbnail = generateThumbnail()
-    const pdfBlob = elements.length > 0 ? await generatePdfBlob() : undefined
-    onSave(elements, thumbnail, pdfBlob)
-  }, [onSave, elements, generateThumbnail, generatePdfBlob])
+    const flattenedElements = pages.flatMap((page) => page.elements)
+    const pdfBlob = flattenedElements.length > 0 ? await generatePdfBlob() : undefined
+    onSave(flattenedElements, thumbnail, pdfBlob, pages)
+  }, [onSave, pages, generateThumbnail, generatePdfBlob])
 
   // ───── Download PDF ─────
   const handleDownloadPdf = useCallback(async () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    // Physical dimensions: pixels / DPI * 25.4 = mm
     const widthMm = (width / dpi) * 25.4
     const heightMm = (height / dpi) * 25.4
     const orientation = widthMm > heightMm ? "landscape" as const : "portrait" as const
-
-    // High-res export canvas (use the configured DPI)
-    const exportCanvas = document.createElement("canvas")
-    exportCanvas.width = width
-    exportCanvas.height = height
-    const ctx = exportCanvas.getContext("2d")
-    if (!ctx) return
-
-    // Draw background
-    ctx.fillStyle = bgColor
-    ctx.fillRect(0, 0, width, height)
-
-    // Draw each visible element
-    for (const el of elements) {
-      if (el.visible === false) continue
-      ctx.save()
-      const hasStroke = el.strokeColor && el.strokeWidth && el.strokeWidth > 0
-
-      if (el.type === "text") {
-        if (el.backgroundColor) {
-          ctx.fillStyle = el.backgroundColor
-          if (el.borderRadius) {
-            roundedRectPath(ctx, el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4, el.borderRadius)
-            ctx.fill()
-          } else {
-            ctx.fillRect(el.x - 2, el.y + (el.fontSize || 16) - (el.fontSize || 16) - 2, el.width + 4, el.height + 4)
-          }
-        }
-        const style = el.fontStyle === "italic" ? "italic" : ""
-        const weight = el.fontWeight === "bold" ? "bold" : ""
-        ctx.font = `${style} ${weight} ${el.fontSize || 16}px ${el.fontFamily || "Arial"}`
-        ctx.fillStyle = el.color || "#000000"
-        ctx.textAlign = (el.textAlign as CanvasTextAlign) || "left"
-        const textX =
-          el.textAlign === "center"
-            ? el.x + el.width / 2
-            : el.textAlign === "right"
-              ? el.x + el.width
-              : el.x
-        if (hasStroke) {
-          ctx.strokeStyle = el.strokeColor!
-          ctx.lineWidth = el.strokeWidth!
-          ctx.lineJoin = "round"
-          ctx.strokeText(el.content || "", textX, el.y + (el.fontSize || 16))
-        }
-        ctx.fillText(el.content || "", textX, el.y + (el.fontSize || 16))
-      } else if (el.type === "shape") {
-        ctx.fillStyle = el.backgroundColor || "#cccccc"
-        if (hasStroke) {
-          ctx.strokeStyle = el.strokeColor!
-          ctx.lineWidth = el.strokeWidth!
-        }
-        if (el.shapeType === "circle") {
-          ctx.beginPath()
-          ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
-          ctx.fill()
-          if (hasStroke) ctx.stroke()
-        } else if (el.borderRadius) {
-          drawRoundedRect(ctx, el.x, el.y, el.width, el.height, el.borderRadius, !!hasStroke)
-        } else {
-          ctx.fillRect(el.x, el.y, el.width, el.height)
-          if (hasStroke) ctx.strokeRect(el.x, el.y, el.width, el.height)
-        }
-      } else if (el.type === "image" && el.imageUrl) {
-        const img = await loadImageForExport(el.imageUrl)
-        if (img) {
-          ctx.drawImage(img, el.x, el.y, el.width, el.height)
-        }
-      }
-      ctx.restore()
-    }
+    const pagesToExport = pages.length > 0 ? pages : [{ id: "page-1", name: "Strana 1", elements }]
 
     // Create PDF with physical size
     const pdf = new jsPDF({
@@ -1112,9 +1173,15 @@ export function DesignEditor({
       keywords: `DPI:${dpi}, Profile:${colorProfile}${canvasProfileId ? `, CanvasProfile:${canvasProfileId}` : ""}`,
     })
 
-    // Place canvas image covering the full page
-    const imgData = exportCanvas.toDataURL("image/png", 1.0)
-    pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST")
+    for (let index = 0; index < pagesToExport.length; index += 1) {
+      const page = pagesToExport[index]
+      const imgData = await renderExportImageForElements(page.elements)
+      if (!imgData) continue
+      if (index > 0) {
+        pdf.addPage([widthMm, heightMm], orientation)
+      }
+      pdf.addImage(imgData, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST")
+    }
 
     // Add production info as invisible metadata text on second page
     pdf.addPage([widthMm, heightMm], orientation)
@@ -1124,6 +1191,7 @@ export function DesignEditor({
       [
         `PrintExpert Design Studio`,
         `Produkt: ${productLabel || "-"}`,
+        `Počet strán: ${pagesToExport.length}`,
         `Rozmer (full): ${widthMm.toFixed(1)} × ${heightMm.toFixed(1)} mm`,
         `Trim: ${resolvedTrimWidthMm.toFixed(1)} × ${resolvedTrimHeightMm.toFixed(1)} mm`,
         `Bleed T/R/B/L: ${bleedTopMm}/${bleedRightMm}/${bleedBottomMm}/${bleedLeftMm} mm`,
@@ -1140,10 +1208,10 @@ export function DesignEditor({
 
     pdf.save(`design-${productLabel || "export"}.pdf`)
   }, [
+    pages,
     elements,
     width,
     height,
-    bgColor,
     productLabel,
     dpi,
     colorProfile,
@@ -1158,7 +1226,7 @@ export function DesignEditor({
     safeRightMm,
     safeBottomMm,
     safeLeftMm,
-    loadImageForExport,
+    renderExportImageForElements,
   ])
 
   // ───── Built-in templates ─────
@@ -1266,6 +1334,8 @@ export function DesignEditor({
           <span>{width} × {height} px</span>
           <span className="text-muted-foreground">•</span>
           <span>{dpi} DPI • {colorProfile}</span>
+          <span className="text-muted-foreground">•</span>
+          <span>Strán: {pages.length}</span>
         </div>
         {onClose && (
           <button
@@ -1352,6 +1422,33 @@ export function DesignEditor({
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1">
+            <span className="text-xs text-muted-foreground">Strana</span>
+            <select
+              value={activePageId}
+              onChange={(event) => switchPage(event.target.value)}
+              className="h-7 rounded border border-border bg-transparent px-2 text-xs"
+            >
+              {pages.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {page.name}
+                </option>
+              ))}
+            </select>
+            <Button variant="outline" size="sm" onClick={addPage} className="h-7 px-2 text-xs">
+              + Strana
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={removeCurrentPage}
+              disabled={pages.length <= 1}
+              className="h-7 px-2 text-xs"
+            >
+              Odstrániť
+            </Button>
+          </div>
+
           <button
             onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
             className="rounded-lg border border-border p-2 transition-all hover:bg-muted"
@@ -1380,7 +1477,7 @@ export function DesignEditor({
           <Button
             size="sm"
             onClick={handleUseInOrder}
-            disabled={elements.length === 0}
+            disabled={totalElements === 0}
             className="bg-linear-to-r from-purple-600 to-pink-600 text-white shadow-md hover:from-purple-700 hover:to-pink-700 disabled:opacity-50"
           >
             <ShoppingCart className="mr-1.5 h-4 w-4" />
@@ -1898,7 +1995,17 @@ export function DesignEditor({
               </button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-              {allTemplates.map((tpl) => (
+              {allTemplates.map((tpl) => {
+                const pageCount = tpl.pages?.length ?? 1
+                const elementCount =
+                  tpl.pages && tpl.pages.length > 0
+                    ? tpl.pages.reduce(
+                        (sum, page) =>
+                          sum + (Array.isArray(page.elements) ? page.elements.length : 0),
+                        0
+                      )
+                    : tpl.elements.length
+                return (
                 <button
                   key={tpl.id}
                   onClick={() => loadTemplate(tpl.id)}
@@ -1911,10 +2018,11 @@ export function DesignEditor({
                     </div>
                   </div>
                   <div className="border-t border-border bg-white p-2 text-center text-sm font-medium group-hover:bg-muted/30">
-                    Použiť šablónu
+                    {pageCount} str. • {elementCount} el.
                   </div>
                 </button>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

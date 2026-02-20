@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getCsrfHeader } from "@/lib/csrf"
+import { extractTemplatePages, getTemplateElementCount } from "@/lib/design-studio"
 
 type Template = {
   id: string
@@ -67,6 +68,8 @@ type DesignCanvasProfilesManagerProps = {
 }
 
 const MAX_SVG_BYTES = 5 * 1024 * 1024
+const MIN_TEMPLATE_PAGES = 1
+const MAX_TEMPLATE_PAGES = 24
 
 const defaultDraftValues = {
   trimWidthMm: 90,
@@ -106,6 +109,30 @@ const parseColor = (value: string | null | undefined, fallback: string) => {
 }
 
 const mmToPx = (mm: number, dpi: number) => (mm * dpi) / 25.4
+
+const stripSvgExtension = (fileName: string) =>
+  fileName.replace(/\.svg$/i, "").trim() || "SVG šablóna"
+
+const clampTemplatePageCount = (value: number) =>
+  Math.min(MAX_TEMPLATE_PAGES, Math.max(MIN_TEMPLATE_PAGES, Math.round(value)))
+
+const createEmptyTemplatePages = (count: number) => {
+  const safeCount = clampTemplatePageCount(count)
+  return Array.from({ length: safeCount }, (_, index) => ({
+    id: crypto.randomUUID(),
+    name: `Strana ${index + 1}`,
+    elements: [] as unknown[],
+  }))
+}
+
+const buildTemplateElementsPayload = (
+  pages: Array<{ id: string; name: string; elements: unknown[] }>
+) => ({
+  pages,
+  elements: pages.flatMap((page) =>
+    Array.isArray(page.elements) ? page.elements : []
+  ),
+})
 
 const profileCanvasPixelSize = (profile: DraftProfile) => {
   const fullWidthMm = profile.trimWidthMm + profile.bleedLeftMm + profile.bleedRightMm
@@ -338,6 +365,9 @@ export function DesignCanvasProfilesManager({
   const [newProfileName, setNewProfileName] = useState("")
   const [newProfileSizeKey, setNewProfileSizeKey] = useState("")
   const [newTemplateNames, setNewTemplateNames] = useState<Record<string, string>>({})
+  const [newTemplatePageCounts, setNewTemplatePageCounts] = useState<
+    Record<string, number>
+  >({})
 
   const sizeByKey = useMemo(
     () =>
@@ -484,6 +514,10 @@ export function DesignCanvasProfilesManager({
   const createEmptyTemplate = (profile: DraftProfile) => {
     const value = (newTemplateNames[profile.id] ?? "").trim()
     if (!value) return
+    const pageCount = clampTemplatePageCount(
+      newTemplatePageCounts[profile.id] ?? MIN_TEMPLATE_PAGES
+    )
+    const pages = createEmptyTemplatePages(pageCount)
 
     startTransition(async () => {
       const response = await fetch("/api/design-templates", {
@@ -493,7 +527,7 @@ export function DesignCanvasProfilesManager({
           productId,
           canvasProfileId: profile.id,
           name: value,
-          elements: [],
+          elements: buildTemplateElementsPayload(pages),
           isDefault: profile.templates.length === 0,
         }),
       })
@@ -511,7 +545,15 @@ export function DesignCanvasProfilesManager({
         )
       )
       setNewTemplateNames((prev) => ({ ...prev, [profile.id]: "" }))
-      setStatusMessage("Prázdna šablóna bola vytvorená.")
+      setNewTemplatePageCounts((prev) => ({
+        ...prev,
+        [profile.id]: MIN_TEMPLATE_PAGES,
+      }))
+      setStatusMessage(
+        `Prázdna šablóna bola vytvorená (${pageCount} ${
+          pageCount === 1 ? "strana" : pageCount < 5 ? "strany" : "strán"
+        }).`
+      )
     })
   }
 
@@ -569,18 +611,42 @@ export function DesignCanvasProfilesManager({
     })
   }
 
-  const importSvgTemplate = async (profile: DraftProfile, file: File) => {
-    if (!file.name.toLowerCase().endsWith(".svg")) {
-      setStatusMessage("Podporovaný je iba SVG súbor.")
-      return
+  const importSvgTemplate = async (profile: DraftProfile, files: File[]) => {
+    if (files.length === 0) return
+    for (const file of files) {
+      if (!file.name.toLowerCase().endsWith(".svg")) {
+        setStatusMessage("Podporovaný je iba SVG súbor.")
+        return
+      }
+      if (file.size > MAX_SVG_BYTES) {
+        setStatusMessage(`SVG súbor ${file.name} je príliš veľký (max. 5 MB).`)
+        return
+      }
     }
-    if (file.size > MAX_SVG_BYTES) {
-      setStatusMessage("SVG súbor je príliš veľký (max. 5 MB).")
-      return
-    }
-    const rawText = await file.text()
-    const parsed = parseSvgToElements(rawText, profile)
-    const templateName = file.name.replace(/\.svg$/i, "").trim() || "SVG šablóna"
+
+    const parsedPages = await Promise.all(
+      files.map(async (file, index) => {
+        const rawText = await file.text()
+        const parsed = parseSvgToElements(rawText, profile)
+        return {
+          id: crypto.randomUUID(),
+          name: stripSvgExtension(file.name) || `Strana ${index + 1}`,
+          elements: parsed.elements,
+          imported: parsed.imported,
+          skipped: parsed.skipped,
+          fallbackUsed: parsed.fallbackUsed,
+        }
+      })
+    )
+
+    const templateName =
+      parsedPages.length === 1
+        ? parsedPages[0]?.name || "SVG šablóna"
+        : `${parsedPages[0]?.name || "SVG šablóna"} +${parsedPages.length - 1}`
+    const payloadElements = buildTemplateElementsPayload(parsedPages)
+    const importedCount = parsedPages.reduce((sum, page) => sum + page.imported, 0)
+    const skippedCount = parsedPages.reduce((sum, page) => sum + page.skipped, 0)
+    const usedFallback = parsedPages.some((page) => page.fallbackUsed)
 
     startTransition(async () => {
       const response = await fetch("/api/design-templates", {
@@ -590,7 +656,7 @@ export function DesignCanvasProfilesManager({
           productId,
           canvasProfileId: profile.id,
           name: templateName,
-          elements: parsed.elements,
+          elements: payloadElements,
           isDefault: profile.templates.length === 0,
         }),
       })
@@ -608,9 +674,11 @@ export function DesignCanvasProfilesManager({
         )
       )
 
-      const fallbackNote = parsed.fallbackUsed ? " (použitý fallback obrázok)" : ""
+      const fallbackNote = usedFallback ? " (použitý fallback obrázok)" : ""
       setStatusMessage(
-        `SVG import: ${parsed.imported} elementov, preskočené ${parsed.skipped}${fallbackNote}.`
+        `SVG import: ${parsedPages.length} ${
+          parsedPages.length === 1 ? "strana" : parsedPages.length < 5 ? "strany" : "strán"
+        }, ${importedCount} elementov, preskočené ${skippedCount}${fallbackNote}.`
       )
     })
   }
@@ -860,15 +928,18 @@ export function DesignCanvasProfilesManager({
                   </p>
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
                     <Upload className="h-4 w-4" />
-                    Import SVG
+                    Import SVG (1+)
                     <input
                       type="file"
+                      multiple
                       accept=".svg,image/svg+xml"
                       className="hidden"
                       onChange={(event) => {
-                        const file = event.target.files?.[0]
-                        if (file) {
-                          void importSvgTemplate(profile, file)
+                        const files = event.target.files
+                          ? Array.from(event.target.files)
+                          : []
+                        if (files.length > 0) {
+                          void importSvgTemplate(profile, files)
                         }
                         event.target.value = ""
                       }}
@@ -887,9 +958,14 @@ export function DesignCanvasProfilesManager({
                         <div>
                           <p className="text-sm font-medium">{template.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {Array.isArray(template.elements)
-                              ? `${template.elements.length} elementov`
-                              : "Šablóna"}
+                            {(() => {
+                              const pages = extractTemplatePages(template.elements)
+                              const pageCount = pages.length > 0 ? pages.length : 1
+                              const elementCount = getTemplateElementCount(template.elements)
+                              return `${pageCount} ${
+                                pageCount === 1 ? "strana" : pageCount < 5 ? "strany" : "strán"
+                              } • ${elementCount} elementov`
+                            })()}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -919,8 +995,8 @@ export function DesignCanvasProfilesManager({
                   </div>
                 )}
 
-                <div className="flex items-end gap-2">
-                  <div className="flex-1 space-y-1">
+                <div className="grid gap-2 md:grid-cols-[1fr_120px_auto] md:items-end">
+                  <div className="space-y-1">
                     <Label htmlFor={`new-template-${profile.id}`}>Nová prázdna šablóna</Label>
                     <Input
                       id={`new-template-${profile.id}`}
@@ -932,6 +1008,26 @@ export function DesignCanvasProfilesManager({
                         }))
                       }
                       placeholder="Názov šablóny..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`new-template-pages-${profile.id}`}>Strán</Label>
+                    <Input
+                      id={`new-template-pages-${profile.id}`}
+                      type="number"
+                      min={MIN_TEMPLATE_PAGES}
+                      max={MAX_TEMPLATE_PAGES}
+                      step={1}
+                      value={newTemplatePageCounts[profile.id] ?? MIN_TEMPLATE_PAGES}
+                      onChange={(event) => {
+                        const parsed = Number(event.target.value)
+                        setNewTemplatePageCounts((prev) => ({
+                          ...prev,
+                          [profile.id]: Number.isFinite(parsed)
+                            ? clampTemplatePageCount(parsed)
+                            : MIN_TEMPLATE_PAGES,
+                        }))
+                      }}
                     />
                   </div>
                   <Button

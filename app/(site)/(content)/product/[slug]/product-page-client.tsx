@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button"
 import {
   DesignEditor,
   type DesignElement,
+  type DesignPage as EditorDesignPage,
   type DesignTemplate as EditorDesignTemplate,
 } from "@/components/print/design-editor"
 import { LoginDialog } from "@/components/auth/login-dialog"
@@ -52,7 +53,9 @@ import {
 import { getCsrfHeader } from "@/lib/csrf"
 import { calculateShipmentDate } from "@/lib/shipment-date"
 import {
+  extractDesignPages,
   extractDesignElements,
+  extractTemplatePages,
   getDesignElementCount,
   normalizeDesignDataV2,
   type DesignDataV2,
@@ -212,6 +215,13 @@ const getInitialSizeKey = (data: WpConfiguratorData | null) => {
   return selected ? `${sizeMeta.aid}:${selected.value}` : null
 }
 
+const toEditorTemplatePages = (value: unknown): EditorDesignPage[] =>
+  extractTemplatePages(value).map((page, index) => ({
+    id: page.id || `page-${index + 1}`,
+    name: page.name || `Strana ${index + 1}`,
+    elements: Array.isArray(page.elements) ? (page.elements as DesignElement[]) : [],
+  }))
+
 const toEditorTemplates = (templates: DesignerRuntimeTemplate[]): EditorDesignTemplate[] =>
   templates
     .slice()
@@ -219,11 +229,21 @@ const toEditorTemplates = (templates: DesignerRuntimeTemplate[]): EditorDesignTe
       if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder
       return left.name.localeCompare(right.name)
     })
-    .map((template) => ({
-      id: template.id,
-      name: template.name,
-      elements: Array.isArray(template.elements) ? (template.elements as DesignElement[]) : [],
-    }))
+    .map((template) => {
+      const pages = toEditorTemplatePages(template.elements)
+      const elements =
+        pages.length > 0
+          ? pages.flatMap((page) => page.elements)
+          : Array.isArray(template.elements)
+            ? (template.elements as DesignElement[])
+            : []
+      return {
+        id: template.id,
+        name: template.name,
+        elements,
+        pages,
+      }
+    })
 
 function ProductShareButtons({
   productName,
@@ -1453,8 +1473,24 @@ export function ProductPageClient({
             templates={toEditorTemplates(activeDesignerProfile.templates)}
             productLabel={product.name}
             initialElements={extractDesignElements(designData) as DesignElement[]}
+            initialPages={extractDesignPages(designData) as EditorDesignPage[]}
             onClose={() => setShowDesigner(false)}
-            onSave={(elements, thumbnailDataUrl, pdfBlob) => {
+            onSave={(elements, thumbnailDataUrl, pdfBlob, pages) => {
+              const normalizedPages =
+                pages && pages.length > 0
+                  ? pages.map((page, index) => ({
+                      id: page.id || `page-${index + 1}`,
+                      name: page.name || `Strana ${index + 1}`,
+                      elements: page.elements ?? [],
+                    }))
+                  : [
+                      {
+                        id: "page-1",
+                        name: "Strana 1",
+                        elements,
+                      },
+                    ]
+              const flattenedElements = normalizedPages.flatMap((page) => page.elements)
               const payload: DesignDataV2 = {
                 canvasProfileId: activeDesignerProfile.id,
                 sizeKey: selectedSizeKey,
@@ -1475,7 +1511,8 @@ export function ProductPageClient({
                   left: activeDesignerProfile.safeLeftMm,
                 },
                 dpi: activeDesignerProfile.dpi,
-                elements,
+                elements: flattenedElements,
+                pages: normalizedPages,
               }
 
               setDesignData(payload)
@@ -1493,7 +1530,7 @@ export function ProductPageClient({
               }
 
               toast.success(
-                `Dizajn priložený k objednávke (${elements.length} ${elements.length === 1 ? "element" : "elementov"})`,
+                `Dizajn priložený k objednávke (${flattenedElements.length} ${flattenedElements.length === 1 ? "element" : "elementov"})`,
                 { description: "PDF dizajnu sa automaticky priloží k objednávke." }
               )
             }}
