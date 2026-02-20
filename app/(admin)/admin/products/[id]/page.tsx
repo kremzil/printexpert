@@ -202,6 +202,31 @@ async function AdminProductDetails({
     "0": "Vstup",
     "1": "Zoznam",
   }
+  const normalizedDesignCanvasProfiles = (product.designCanvasProfiles ?? []).map(
+    (profile) => ({
+      ...profile,
+      trimWidthMm: Number(profile.trimWidthMm),
+      trimHeightMm: Number(profile.trimHeightMm),
+      bleedTopMm: Number(profile.bleedTopMm),
+      bleedRightMm: Number(profile.bleedRightMm),
+      bleedBottomMm: Number(profile.bleedBottomMm),
+      bleedLeftMm: Number(profile.bleedLeftMm),
+      safeTopMm: Number(profile.safeTopMm),
+      safeRightMm: Number(profile.safeRightMm),
+      safeBottomMm: Number(profile.safeBottomMm),
+      safeLeftMm: Number(profile.safeLeftMm),
+      templates: (profile.templates ?? []).map((template) => ({
+        id: template.id,
+        productId: template.productId,
+        canvasProfileId: template.canvasProfileId,
+        name: template.name,
+        elements: template.elements as unknown,
+        thumbnailUrl: template.thumbnailUrl,
+        isDefault: template.isDefault,
+        sortOrder: template.sortOrder,
+      })),
+    })
+  )
   const { attributes, termTaxonomies, terms, termMeta } = attributeData
   const termById = new Map(terms.map((term) => [term.termId, term]))
   const termOrderByKey = new Map<string, number>()
@@ -483,7 +508,7 @@ async function AdminProductDetails({
           <CardContent className="py-6">
             <DesignCanvasProfilesManager
               productId={product.id}
-              profiles={product.designCanvasProfiles ?? []}
+              profiles={normalizedDesignCanvasProfiles}
               sizeOptions={designerSizeOptions}
             />
           </CardContent>
