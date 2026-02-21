@@ -104,6 +104,12 @@ const SEO_PAGES = {
     canonicalPath: "/dashboard",
     noindex: true,
   },
+  notFound: {
+    title: "Stránka sa nenašla",
+    description: "Hľadaná stránka neexistuje alebo bola presunutá.",
+    canonicalPath: "/404",
+    noindex: true,
+  },
 } as const satisfies Record<string, SeoPageDefinition>
 
 export type SeoPageKey = keyof typeof SEO_PAGES

@@ -598,7 +598,7 @@ const buildCalculatorDataFromPricingModels = async (
 ): Promise<CalculatorData | null> => {
   const prisma = getPrisma()
   const models = await prisma.pricingModel.findMany({
-    where: { productId, isActive: true },
+    where: { productId },
     include: {
       entries: true,
     },
@@ -933,4 +933,11 @@ export async function calculate(
         ? { audience: "b2b", vatRate }
         : { audience: "b2c", vatRate },
   }
+}
+
+export const __pricingInternals = {
+  calculateQuantity,
+  getMatrixPrice,
+  getMatrixPriceWithFallback,
+  calculateMatrixTotal,
 }

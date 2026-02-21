@@ -1,8 +1,23 @@
 import type { Instrumentation } from "next";
 
+import { validateServerEnv, validateClientEnv } from "@/lib/env";
 import { OBS_EVENT } from "@/lib/observability/events";
 import { logger } from "@/lib/observability/logger";
 import { hashIp, REQUEST_ID_HEADER } from "@/lib/request-utils";
+
+/* ── Validate env on server startup ── */
+try {
+  validateServerEnv();
+  validateClientEnv();
+} catch (err) {
+  // During `next build` DB/secrets may not be available — warn but don't crash
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    console.warn("[env] ⚠ Preskakujem validáciu env počas buildu:", (err as Error).message);
+  } else {
+    console.error((err as Error).message);
+    throw err;
+  }
+}
 
 function normalizeHeaderValue(value: string | string[] | undefined): string {
   if (!value) return "";

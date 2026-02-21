@@ -1,6 +1,22 @@
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { NotificationStatus, NotificationType, OrderStatus, Prisma } from "@/lib/generated/prisma";
+import {
+  emailLayout,
+  heading,
+  paragraph,
+  greeting,
+  signoff,
+  badge,
+  button,
+  divider,
+  infoTable,
+  orderItemsTable,
+  totalsBlock,
+  sectionTitle,
+  addressBlock,
+  BRAND,
+} from "@/lib/email/template";
 
 const statusLabels: Record<OrderStatus, string> = {
   PENDING: "Čaká sa",
@@ -8,6 +24,14 @@ const statusLabels: Record<OrderStatus, string> = {
   PROCESSING: "Spracováva sa",
   COMPLETED: "Dokončená",
   CANCELLED: "Zrušená",
+};
+
+const statusBadgeColors: Record<OrderStatus, { color: string; bg: string }> = {
+  PENDING: { color: "#92400E", bg: "#FEF3C7" },
+  CONFIRMED: { color: "#065F46", bg: "#D1FAE5" },
+  PROCESSING: { color: "#1E40AF", bg: "#DBEAFE" },
+  COMPLETED: { color: "#065F46", bg: "#D1FAE5" },
+  CANCELLED: { color: "#374151", bg: "#F3F4F6" },
 };
 
 let cachedTransport: nodemailer.Transporter | null = null;
@@ -164,34 +188,52 @@ export const NotificationService = {
     const shippingAddress = formatAddressLine(parseAddress(order.shippingAddress));
     const billingAddress = formatAddressLine(parseAddress(order.billingAddress));
     const customerPhone = order.customerPhone ?? "";
+
     const itemsText = order.items
       .map((item) => {
-        const lineTotal = Number(item.priceGross) * item.quantity;
-        return `- ${item.productName} × ${item.quantity} — ${formatMoney(lineTotal)}`;
+        return `- ${item.productName} × ${item.quantity} — ${formatMoney(item.priceGross)}`;
       })
       .join("\n");
-    const itemsHtml = order.items
-      .map((item) => {
-        const lineTotal = Number(item.priceGross) * item.quantity;
-        return `<li>${item.productName} × ${item.quantity} — ${formatMoney(lineTotal)}</li>`;
-      })
-      .join("");
-    const shippingText = shippingAddress
-      ? `\n\nAdresa doručenia:\n${shippingAddress}`
-      : "";
-    const shippingHtml = shippingAddress
-      ? `<p><strong>Adresa doručenia:</strong><br/>${shippingAddress}</p>`
-      : "";
-    const billingText = billingAddress
-      ? `\n\nFakturačná adresa:\n${billingAddress}`
-      : "";
-    const billingHtml = billingAddress
-      ? `<p><strong>Fakturačná adresa:</strong><br/>${billingAddress}</p>`
-      : "";
 
     const subject = `Potvrdenie objednávky #${order.orderNumber}`;
-    const text = `Dobrý deň ${order.customerName},\n\nvaša objednávka #${order.orderNumber} bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.\n\nÚdaje zákazníka:\nMeno: ${order.customerName}\nE-mail: ${order.customerEmail}${customerPhone ? `\nTelefón: ${customerPhone}` : ""}${billingText}${shippingText}\n\nPoložky objednávky:\n${itemsText}\n\nMedzisúčet: ${formatMoney(order.subtotal)}\nDPH: ${formatMoney(order.vatAmount)}\nCelkom: ${formatMoney(order.total)}\n\nĎakujeme za dôveru.\nPrint Expert`;
-    const html = `<p>Dobrý deň ${order.customerName},</p><p>vaša objednávka <strong>#${order.orderNumber}</strong> bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.</p><p><strong>Údaje zákazníka:</strong><br/>Meno: ${order.customerName}<br/>E-mail: ${order.customerEmail}${customerPhone ? `<br/>Telefón: ${customerPhone}` : ""}</p>${billingHtml}${shippingHtml}<p><strong>Položky objednávky:</strong></p><ul>${itemsHtml}</ul><p><strong>Medzisúčet:</strong> ${formatMoney(order.subtotal)}<br/><strong>DPH:</strong> ${formatMoney(order.vatAmount)}<br/><strong>Celkom:</strong> ${formatMoney(order.total)}</p><p>Ďakujeme za dôveru.<br/>Print Expert</p>`;
+
+    const text = `Dobrý deň ${order.customerName},\n\nvaša objednávka #${order.orderNumber} bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu.\n\nÚdaje zákazníka:\nMeno: ${order.customerName}\nE-mail: ${order.customerEmail}${customerPhone ? `\nTelefón: ${customerPhone}` : ""}\n\nPoložky objednávky:\n${itemsText}\n\nMedzisúčet: ${formatMoney(order.subtotal)}\nDPH: ${formatMoney(order.vatAmount)}\nCelkom: ${formatMoney(order.total)}\n\nĎakujeme za dôveru.\nPrint Expert`;
+
+    const itemsForTable = order.items.map((item) => ({
+      name: item.productName,
+      quantity: item.quantity,
+      total: formatMoney(item.priceGross),
+    }));
+
+    const customerInfoRows: [string, string][] = [
+      ["Meno:", order.customerName ?? ""],
+      ["E-mail:", order.customerEmail],
+    ];
+    if (customerPhone) customerInfoRows.push(["Telefón:", customerPhone]);
+
+    const html = emailLayout(
+      [
+        heading(`Objednávka #${order.orderNumber}`),
+        greeting(order.customerName ?? ""),
+        paragraph("Vaša objednávka bola úspešne vytvorená. Budeme vás informovať o ďalšom priebehu."),
+        button("Zobraziť objednávku", `${BRAND.url}/account/orders`),
+        divider(),
+        sectionTitle("Údaje zákazníka"),
+        infoTable(customerInfoRows),
+        addressBlock("Fakturačná adresa", billingAddress),
+        addressBlock("Adresa doručenia", shippingAddress),
+        divider(),
+        sectionTitle("Položky objednávky"),
+        orderItemsTable(itemsForTable),
+        totalsBlock([
+          ["Medzisúčet:", formatMoney(order.subtotal)],
+          ["DPH:", formatMoney(order.vatAmount)],
+          ["Celkom:", formatMoney(order.total), true],
+        ]),
+        signoff(),
+      ].join(""),
+      `Potvrdenie objednávky #${order.orderNumber}`
+    );
 
     return sendWithLog({
       type: NotificationType.ORDER_CREATED,
@@ -215,7 +257,25 @@ export const NotificationService = {
 
     const subject = `Zmena stavu objednávky #${order.orderNumber}`;
     const text = `Dobrý deň ${order.customerName},\n\nstatus vašej objednávky #${order.orderNumber} sa zmenil z "${statusLabels[from]}" na "${statusLabels[to]}".\n\nPrint Expert`;
-    const html = `<p>Dobrý deň ${order.customerName},</p><p>status vašej objednávky <strong>#${order.orderNumber}</strong> sa zmenil z "${statusLabels[from]}" na "${statusLabels[to]}".</p><p>Print Expert</p>`;
+
+    const toBadge = statusBadgeColors[to];
+    const html = emailLayout(
+      [
+        heading(`Objednávka #${order.orderNumber}`),
+        greeting(order.customerName ?? ""),
+        paragraph(`Status vašej objednávky sa zmenil:`),
+        `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+          <tr>
+            <td style="padding:4px 8px; font-size:14px; color:#6b7280;">${statusLabels[from]}</td>
+            <td style="padding:4px 8px; font-size:18px; color:#6b7280;">&rarr;</td>
+            <td style="padding:4px 0;">${badge(statusLabels[to], toBadge.color, toBadge.bg)}</td>
+          </tr>
+        </table>`,
+        button("Zobraziť objednávku", `${BRAND.url}/account/orders`),
+        signoff(),
+      ].join(""),
+      `Zmena stavu objednávky #${order.orderNumber}`
+    );
 
     return sendWithLog({
       type: NotificationType.ORDER_STATUS_CHANGED,
@@ -250,7 +310,18 @@ export const NotificationService = {
     const fileLabel = asset?.fileNameOriginal ? ` (${asset.fileNameOriginal})` : "";
     const subject = `Nahraná grafika k objednávke #${order.orderNumber}`;
     const text = `K objednávke #${order.orderNumber} bola nahraná grafika${fileLabel}.`;
-    const html = `<p>K objednávke <strong>#${order.orderNumber}</strong> bola nahraná grafika${fileLabel}.</p>`;
+
+    const html = emailLayout(
+      [
+        heading(`Nahraná grafika`),
+        paragraph(`K objednávke <strong>#${order.orderNumber}</strong> bola nahraná nová grafika.`),
+        asset?.fileNameOriginal
+          ? infoTable([["Súbor:", asset.fileNameOriginal]])
+          : "",
+        button("Zobraziť objednávku", `${BRAND.url}/admin/orders/${orderId}`),
+      ].join(""),
+      `Nová grafika k objednávke #${order.orderNumber}`
+    );
 
     return sendWithLog({
       type: NotificationType.ARTWORK_UPLOADED,
@@ -308,7 +379,17 @@ export async function sendInvoiceEmail(orderId: string): Promise<boolean> {
   const total = Number(order.total).toFixed(2);
   const subject = `Faktúra k objednávke #${order.orderNumber}`;
   const text = `Dobrý deň ${order.customerName},\n\nv prílohe posielame faktúru k objednávke #${order.orderNumber} v hodnote ${total} €.\n\nĎakujeme za dôveru.\nPrint Expert`;
-  const html = `<p>Dobrý deň ${order.customerName},</p><p>v prílohe posielame faktúru k objednávke <strong>#${order.orderNumber}</strong> v hodnote <strong>${total} €</strong>.</p><p>Ďakujeme za dôveru.<br/>Print Expert</p>`;
+
+  const html = emailLayout(
+    [
+      heading(`Faktúra k objednávke #${order.orderNumber}`),
+      greeting(order.customerName ?? ""),
+      paragraph(`V prílohe posielame faktúru k vašej objednávke v hodnote <strong>${total}&nbsp;€</strong>.`),
+      button("Zobraziť objednávku", `${BRAND.url}/account/orders`),
+      signoff(),
+    ].join(""),
+    `Faktúra k objednávke #${order.orderNumber}`
+  );
 
   try {
     const transport = getSmtpTransport();

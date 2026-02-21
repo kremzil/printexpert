@@ -413,10 +413,13 @@ logger.info({
 - ✅ DB-backed rate limiting для публичных действий и auth
 - ✅ Upload hardening: magic bytes + запрет SVG + санитизация имён файлов
 - ✅ Security headers: CSP, XFO, nosniff, HSTS (prod) и др.
+- ✅ Cookie consent баннер (GDPR) — `components/cookie-consent.tsx`
+- ✅ Валидация env переменных при старте (`lib/env.ts` + `instrumentation.ts`)
 
 **Остаётся перед production:**
-- ⚠️ Secrets management: `NEXTAUTH_SECRET`, SMTP, `DATABASE_URL` должны храниться как секреты окружения (не в репозитории).
+- ✅ Secrets management: `NEXTAUTH_SECRET`, SMTP, `DATABASE_URL` валидируются при старте через Zod (`lib/env.ts`); должны храниться как секреты окружения.
 - ✅ Structured logging / monitoring реализованы в коде и docker-compose.prod: pino JSON logs, requestId, события `5xx/auth/csrf/origin/rate_limit`, Loki/Promtail/Grafana + email alert rules.
+- ✅ Error boundaries и loading states для site и admin route groups.
 - ⚠️ Ручной security smoke test (и желательно pen test) перед запуском.
 - (Опционально) Redis/Upstash для rate limiting при высоком трафике.
 
@@ -425,7 +428,7 @@ logger.info({
 ## 📝 ПРИМЕЧАНИЯ
 
 - Аудит проведён: 25 января 2026
-- Последнее обновление отчёта: 9 февраля 2026 (актуализация документации)
+- Последнее обновление отчёта: 21 февраля 2026 (добавлены: cookie consent, env validation, error boundaries)
 - Миграция на NextAuth v5 завершена: 25 января 2026
 - Критические уязвимости устранены
 - Рекомендуется провести ручной penetration testing перед production deployment

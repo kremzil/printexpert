@@ -1,7 +1,25 @@
 # Статус проекта
 
 Дата: 2026-02-21
-Версия: 0.3.3
+Версия: 0.3.4
+
+## Тестирование (обновлено 21.02.2026)
+- Добавлен unit-тестовый контур на `Vitest`:
+  - конфиг: `vitest.config.ts`,
+  - скрипты: `npm run test`, `npm run test:watch`.
+- Добавлены unit-тесты на `pricing`:
+  - файл: `tests/unit/pricing.test.ts`,
+  - покрытие критичных участков: интерполяция и scaling брейкпоинтов, `calculateMatrixTotal`, ветки НДС в `calculate(...)`, fallback для `MATRIX`, ошибка при отсутствии продукта.
+- Добавлен E2E smoke-контур на `Playwright`:
+  - конфиг: `playwright.config.ts`,
+  - скрипт: `npm run test:e2e`,
+  - тесты: `tests/e2e/checkout.spec.ts`.
+- E2E smoke-сценарии:
+  - `/checkout` редиректит на `/cart` при пустой корзине,
+  - валидация обязательных полей checkout и переход к шагу «Platba» (если доступна БД и найден активный товар).
+- Текущее ограничение окружения:
+  - при недоступной БД/отсутствии активного товара второй checkout E2E корректно помечается как `skipped`.
+- Артефакты тестов добавлены в `.gitignore`: `/playwright-report`, `/test-results`.
 
 ## SEO и индексация (обновлено 21.02.2026)
 - Централизация SEO-конфигурации в `lib/seo.ts`:
@@ -278,6 +296,40 @@
 - HTML описаний очищается на сервере (whitelist тегов, ссылки только https).
 - Медиа‑теги очищаются на сервере, допускаются только `https://` и `/uploads/`.
 
+## Cookie consent (GDPR)
+- Баннер `components/cookie-consent.tsx` — клиентский компонент.
+- Появляется с задержкой 1.5 с, slide-in анимация снизу.
+- Кнопки «Súhlasím» / «Odmietnuť», ссылка на `/ochrana-osobnych-udajov`.
+- Состояние хранится в `localStorage("pe_cookie_consent")`.
+- Подключён в `app/(site)/layout.tsx` после `<SiteFooter />`.
+
+## Страницы ошибок и загрузки
+- `app/not-found.tsx` — корневой 404 (noindex, фирменный стиль, ссылки на главную/каталог).
+- `app/(site)/not-found.tsx` — 404 внутри site-layout (хедер/футер сохранены).
+- `app/(site)/error.tsx` — error boundary: отправляет ошибку на `/api/client-error`, кнопка «Skúsiť znova».
+- `app/(site)/loading.tsx` — skeleton loader (breadcrumb + заголовок + сетка 6 карточек).
+- `app/(admin)/error.tsx` — error boundary для админки.
+- `app/(admin)/loading.tsx` — skeleton loader (4 stat-карточки + таблица).
+- SEO: в `lib/seo.ts` добавлен `notFound` (`noindex: true`).
+
+## Валидация переменных окружения
+- Модуль `lib/env.ts` — Zod-схемы для серверных и клиентских env.
+- `validateServerEnv()` — обязательные: `DATABASE_URL` (url), `NEXTAUTH_SECRET` (≥16 символов). Опциональные: SMTP, Stripe, S3, DPD, observability.
+- `validateClientEnv()` — обязательные: `NEXT_PUBLIC_SITE_URL`.
+- Вызывается в `instrumentation.ts` при старте приложения.
+- Во время `NEXT_PHASE === "phase-production-build"` ошибки выводятся как warnings (не ломают сборку).
+
+## Email-шаблоны
+- Модуль `lib/email/template.ts` — zero-dependency inline-CSS email template system.
+- `emailLayout(content, preheader)` — responsive HTML-обёртка (600px, фирменный хедер/футер).
+- Компоненты: `heading`, `paragraph`, `greeting`, `signoff`, `badge`, `button`, `divider`, `infoTable`, `orderItemsTable`, `totalsBlock`, `sectionTitle`, `addressBlock`.
+- `lib/notifications.ts` рефакторирован: все 4 типа email используют шаблонную систему:
+  1. Order Created — приветствие, CTA, инфо-таблица клиента, адресá, таблица товаров, итоги.
+  2. Status Changed — визуальный "old → NEW" с цветными бейджами.
+  3. Artwork Uploaded — информация о файле, CTA для админа.
+  4. Invoice — итоговая сумма, CTA для скачивания.
+- Plaintext-версии сохранены для non-HTML клиентов.
+
 ## Деплой и сборка
 - `docker-compose.prod.yml` поднимает `db`, `web`, `loki`, `promtail`, `grafana`.
 - `Dockerfile` для production Next.js (standalone), `next.config.ts` с `output: "standalone"`.
@@ -285,6 +337,7 @@
 - ESLint игнорирует сгенерированные Prisma файлы и служебные скрипты.
 - Acceptance-критерий стабильности сборки: `npm run build` должен успешно завершаться при недоступной БД (например, с невалидным `DATABASE_URL`).
 - Для этого в `generateMetadata` на маршрутах `/product/[slug]` и `/kolekcie/[slug]` добавлен fail-safe fallback; build-этап отделён от runtime-проверок БД (health/migrations выполняются после деплоя).
+- Валидация env переменных при старте (`lib/env.ts` + `instrumentation.ts`) — приложение не запускается без критических секретов.
 
 ## Решения
 - Однократный перенос данных из WP и переход на нормализованную схему пока **отложен**.
@@ -392,8 +445,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Все Decimal поля сериализуются в number для Client Components
 
 ### Уведомления
-- `NotificationService` отправляет письма: order created, status changed, artwork uploaded.
+- `NotificationService` отправляет письма: order created, status changed, artwork uploaded, invoice.
 - Идемпотентность обеспечена таблицей `NotificationLog` (уникальный ключ по событию/заказу/получателю).
+- Все письма используют фирменную шаблонную систему `lib/email/template.ts` (inline CSS, responsive layout).
 
 ### API Routes:
 - `GET /api/cart` — получение корзины

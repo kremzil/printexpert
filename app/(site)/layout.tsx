@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 
+import { CookieConsent } from "@/components/cookie-consent"
 import { PageTransition } from "@/components/page-transition"
 import { ModeOverlayPortal } from "@/components/print/mode-overlay-provider"
 import { SiteHeader } from "@/components/site-header"
@@ -49,6 +50,7 @@ export default function SiteLayout({
       </main>
       <SiteFooter />
     </div>
+    <CookieConsent />
     </>
   )
 }

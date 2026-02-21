@@ -49,6 +49,23 @@ npm run health
 {"ok": true}
 ```
 
+### 1.5 Тесты (unit + e2e)
+Unit-тесты (Vitest):
+```bash
+npm run test
+```
+
+E2E smoke (Playwright):
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Примечания по E2E:
+- Для локального запуска нужен доступный `DATABASE_URL`, если требуется сценарий с наполнением корзины.
+- Тест checkout с заполнением формы автоматически пропускается (`skipped`), если не удалось найти активный товар (например, при недоступной БД).
+- В `playwright.config.ts` есть fallback для `NEXTAUTH_SECRET` и `NEXT_PUBLIC_SITE_URL`, чтобы dev-сервер стартовал в тестовом окружении.
+
 ---
 
 ## 2) Переменные окружения
@@ -265,6 +282,13 @@ npm run prisma:generate
 npm run prisma:migrate:dev
 npm run db:seed
 npm run prisma:studio
+```
+
+Testing:
+```bash
+npm run test
+npm run test:watch
+npm run test:e2e
 ```
 
 ---
