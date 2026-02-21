@@ -1,7 +1,25 @@
 # Статус проекта
 
-Дата: 2026-02-20
+Дата: 2026-02-21
 Версия: 0.3.3
+
+## SEO и индексация (обновлено 21.02.2026)
+- Централизация SEO-конфигурации в `lib/seo.ts`:
+  - `ROOT_METADATA` для глобальных `metadataBase/title/openGraph/twitter/robots`.
+  - `SEO_PAGES` + `buildStaticPageMetadata(...)` для статических страниц.
+  - `NOINDEX_ROBOTS` для служебных зон.
+- Подключены page-level metadata на ключевых страницах витрины и legal.
+- Динамическая мета работает для:
+  - `/product/[slug]` (включая OG/Twitter параметры шаринга),
+  - `/kategorie/[slug]`,
+  - `/kolekcie/[slug]`,
+  - `/catalog` (canonical и переход на SEO URL категории).
+- Включены SEO endpoints:
+  - `/robots.txt` (`app/robots.ts`),
+  - `/sitemap.xml` (`app/sitemap.ts`, включая товары/категории/коллекции),
+  - `/llms.txt` (`app/llms.txt/route.ts`, автогенерация из актуального контента).
+- Для `auth/account/checkout/admin/cart/dashboard` применён `noindex`.
+- Подробная карта SEO-настроек: `docs/SEO.md`.
 
 ## База данных и Prisma
 - PostgreSQL 16 для dev через `docker-compose.yml` (контейнер `shop-db`).

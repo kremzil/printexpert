@@ -6,6 +6,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { buildStaticPageMetadata } from "@/lib/seo"
+
+export const metadata = buildStaticPageMetadata("doprava")
 
 export default function DopravaPage() {
   return (

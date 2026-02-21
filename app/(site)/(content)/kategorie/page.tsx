@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCategories, getCategoryProductCounts } from "@/lib/catalog"
+import { buildStaticPageMetadata } from "@/lib/seo"
+
+export const metadata = buildStaticPageMetadata("kategorie")
 
 export default async function CategoriesPage() {
   const [categories, productCountByCategoryId] = await Promise.all([
@@ -78,7 +81,7 @@ export default async function CategoriesPage() {
                 {groups.map((item) => (
                   <Link
                     key={item.slug}
-                    href={`/catalog?cat=${item.slug}`}
+                    href={`/kategorie/${item.slug}`}
                     className="group"
                   >
                     <Card className="h-full overflow-hidden py-0 transition-colors group-hover:border-primary/30">

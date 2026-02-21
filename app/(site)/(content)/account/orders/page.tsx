@@ -2,11 +2,9 @@ import { Suspense } from "react";
 import { getUserOrders } from "@/lib/orders";
 import { OrdersList } from "@/components/cart/orders-list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buildStaticPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Moje objednávky",
-  description: "História objednávok",
-};
+export const metadata = buildStaticPageMetadata("accountOrders");
 
 async function OrdersContent() {
   const orders = await getUserOrders();

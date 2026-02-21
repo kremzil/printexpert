@@ -7,6 +7,7 @@ import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getRelatedProducts, getTopProductIds } from "@/lib/catalog"
 import { getProductCalculatorData } from "@/lib/pricing"
+import { SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
 type ProductSearchParams = {
   mode?: string
@@ -24,7 +25,7 @@ type ProductPageProps = {
   searchParams?: Promise<ProductSearchParams>
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
+const siteUrl = SITE_URL
 const emptySearchParams: ProductSearchParams = {}
 const toPlainText = (value?: string | null) =>
   value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : null
@@ -82,7 +83,7 @@ export async function generateMetadata({
   const descriptionSource = product?.excerpt || product?.description || null
   const fallbackDescription =
     toPlainText(descriptionSource) ?? "Produkty na mieru od PrintExpert."
-  const fallbackTitle = product?.name ? `${product.name} | PrintExpert` : "Produkt | PrintExpert"
+  const fallbackTitle = product?.name ?? "Produkt"
   const shareTitle = sanitizeMetadataText(resolvedSearchParams.st, 120)
   const shareDescription = sanitizeMetadataText(resolvedSearchParams.sd, 180)
   const shareConfiguration = sanitizeMetadataText(resolvedSearchParams.sc, 220)
@@ -201,64 +202,144 @@ async function ProductDetails({
     })
   const descriptionHtml = product.description ?? null
   const excerptHtml = product.excerpt ?? null
+
+  const productUrl = `${SITE_URL}/product/${product.slug}`
+  const categoryUrl = product.category?.slug
+    ? `${SITE_URL}/kategorie/${product.category.slug}`
+    : null
+  const productImages = (product.images ?? [])
+    .map((image) => resolveAbsoluteUrl(image.url) ?? new URL(image.url, siteUrl).toString())
+    .filter(Boolean)
+  const productDescriptionText = toPlainText(product.excerpt ?? product.description ?? null)
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: productDescriptionText ?? undefined,
+    image: productImages.length > 0 ? productImages : undefined,
+    sku: product.id,
+    brand: {
+      "@type": "Brand",
+      name: SITE_NAME,
+    },
+    url: productUrl,
+    offers: product.priceFrom
+      ? {
+          "@type": "Offer",
+          priceCurrency: "EUR",
+          price: Number(product.priceFrom),
+          availability: "https://schema.org/InStock",
+          url: productUrl,
+        }
+      : undefined,
+  }
+
+  const breadcrumbItems = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Domov",
+      item: SITE_URL,
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Kategórie",
+      item: `${SITE_URL}/kategorie`,
+    },
+    ...(categoryUrl
+      ? [
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: product.category?.name ?? "Kategória",
+            item: categoryUrl,
+          },
+        ]
+      : []),
+    {
+      "@type": "ListItem",
+      position: categoryUrl ? 4 : 3,
+      name: product.name,
+      item: productUrl,
+    },
+  ]
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems,
+  }
+
   return (
-    <ProductPageClient
-      mode={mode}
-      productId={product.id}
-      calculatorData={calculatorData}
-      relatedProducts={relatedProducts}
-      product={{
-        slug: product.slug,
-        name: product.name,
-        priceFrom: product.priceFrom ?? null,
-        priceAfterDiscountFrom: product.priceAfterDiscountFrom ?? null,
-        excerptHtml,
-        descriptionHtml,
-        images: product.images ?? [],
-        isTopProduct,
-      }}
-      designerConfig={
-        product.designerEnabled
-          ? {
-              enabled: true,
-              profiles: (product.designCanvasProfiles ?? [])
-                .filter((profile) => profile.isActive)
-                .map((profile) => ({
-                  id: profile.id,
-                  productId: profile.productId,
-                  name: profile.name,
-                  sizeAid: profile.sizeAid ?? null,
-                  sizeTermId: profile.sizeTermId ?? null,
-                  sizeLabel: profile.sizeLabel ?? null,
-                  trimWidthMm: Number(profile.trimWidthMm),
-                  trimHeightMm: Number(profile.trimHeightMm),
-                  dpi: profile.dpi ?? 300,
-                  bgColor: profile.bgColor ?? "#ffffff",
-                  colorProfile: profile.colorProfile ?? "CMYK",
-                  bleedTopMm: Number(profile.bleedTopMm),
-                  bleedRightMm: Number(profile.bleedRightMm),
-                  bleedBottomMm: Number(profile.bleedBottomMm),
-                  bleedLeftMm: Number(profile.bleedLeftMm),
-                  safeTopMm: Number(profile.safeTopMm),
-                  safeRightMm: Number(profile.safeRightMm),
-                  safeBottomMm: Number(profile.safeBottomMm),
-                  safeLeftMm: Number(profile.safeLeftMm),
-                  sortOrder: profile.sortOrder,
-                  isActive: profile.isActive,
-                  templates: (profile.templates ?? []).map((template) => ({
-                    id: template.id,
-                    name: template.name,
-                    elements: template.elements,
-                    isDefault: template.isDefault,
-                    sortOrder: template.sortOrder,
-                    thumbnailUrl: template.thumbnailUrl,
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
+      />
+      <ProductPageClient
+        mode={mode}
+        productId={product.id}
+        calculatorData={calculatorData}
+        relatedProducts={relatedProducts}
+        product={{
+          slug: product.slug,
+          name: product.name,
+          priceFrom: product.priceFrom ?? null,
+          priceAfterDiscountFrom: product.priceAfterDiscountFrom ?? null,
+          excerptHtml,
+          descriptionHtml,
+          images: product.images ?? [],
+          isTopProduct,
+        }}
+        designerConfig={
+          product.designerEnabled
+            ? {
+                enabled: true,
+                profiles: (product.designCanvasProfiles ?? [])
+                  .filter((profile) => profile.isActive)
+                  .map((profile) => ({
+                    id: profile.id,
+                    productId: profile.productId,
+                    name: profile.name,
+                    sizeAid: profile.sizeAid ?? null,
+                    sizeTermId: profile.sizeTermId ?? null,
+                    sizeLabel: profile.sizeLabel ?? null,
+                    trimWidthMm: Number(profile.trimWidthMm),
+                    trimHeightMm: Number(profile.trimHeightMm),
+                    dpi: profile.dpi ?? 300,
+                    bgColor: profile.bgColor ?? "#ffffff",
+                    colorProfile: profile.colorProfile ?? "CMYK",
+                    bleedTopMm: Number(profile.bleedTopMm),
+                    bleedRightMm: Number(profile.bleedRightMm),
+                    bleedBottomMm: Number(profile.bleedBottomMm),
+                    bleedLeftMm: Number(profile.bleedLeftMm),
+                    safeTopMm: Number(profile.safeTopMm),
+                    safeRightMm: Number(profile.safeRightMm),
+                    safeBottomMm: Number(profile.safeBottomMm),
+                    safeLeftMm: Number(profile.safeLeftMm),
+                    sortOrder: profile.sortOrder,
+                    isActive: profile.isActive,
+                    templates: (profile.templates ?? []).map((template) => ({
+                      id: template.id,
+                      name: template.name,
+                      elements: template.elements,
+                      isDefault: template.isDefault,
+                      sortOrder: template.sortOrder,
+                      thumbnailUrl: template.thumbnailUrl,
+                    })),
                   })),
-                })),
-            }
-          : null
-      }
-      isLoggedIn={!!session?.user}
-    />
+              }
+            : null
+        }
+        isLoggedIn={!!session?.user}
+      />
+    </>
   )
 }
 

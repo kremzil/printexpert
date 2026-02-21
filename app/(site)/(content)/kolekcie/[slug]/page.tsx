@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { getCollectionBySlug, getCollectionProducts } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
+import { SITE_URL, toJsonLd } from "@/lib/seo"
 
 type CollectionPageProps = {
   params: Promise<{
@@ -21,7 +22,7 @@ type CollectionPageProps = {
   }>
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://printexpert.sk"
+const siteUrl = SITE_URL
 
 export async function generateMetadata({
   params,
@@ -37,7 +38,7 @@ export async function generateMetadata({
 
   if (!collection) {
     return {
-      title: "Kolekcia | PrintExpert",
+      title: "Kolekcia",
       alternates: {
         canonical: new URL(`/kolekcie/${slug}`, siteUrl),
       },
@@ -45,7 +46,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: `${collection.name} | PrintExpert`,
+    title: collection.name,
     description:
       collection.description ??
       "Vybraná kolekcia tlačových produktov od PrintExpert.",
@@ -70,8 +71,31 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
     audienceContext.audience
   )
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Domov",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: collection.name,
+        item: `${SITE_URL}/kolekcie/${collection.slug}`,
+      },
+    ],
+  }
+
   return (
     <section className="space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
+      />
       <div className="space-y-2">
         <Breadcrumb className="w-fit text-xs">
           <BreadcrumbList>

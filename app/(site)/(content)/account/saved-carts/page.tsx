@@ -6,11 +6,9 @@ import { getPrisma } from "@/lib/prisma"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { SavedCartActions } from "@/components/account/saved-cart-actions"
 import { Card } from "@/components/ui/card"
+import { buildStaticPageMetadata } from "@/lib/seo"
 
-export const metadata = {
-  title: "Uložené košíky",
-  description: "Uložené košíky pre B2B zákazníkov",
-}
+export const metadata = buildStaticPageMetadata("accountSavedCarts")
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("sk-SK", {

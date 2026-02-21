@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import localFont from "next/font/local"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
+import { ROOT_METADATA, SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
+
 import "./globals.css"
 
 const workSans = localFont({
@@ -78,19 +80,49 @@ const geistMono = localFont({
   adjustFontFallback: false,
 })
 
-export const metadata: Metadata = {
-  title: "PrintExpert",
-  description: "Tlačové služby a produkty",
-}
+export const metadata: Metadata = ROOT_METADATA
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/printexpert-logo.png`,
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        telephone: "+421-917-545-003",
+        email: "info@printexpert.sk",
+        availableLanguage: ["sk"],
+      },
+    ],
+  }
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: SITE_URL,
+    inLanguage: "sk-SK",
+  }
+
   return (
     <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
       <body className="antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: toJsonLd(websiteJsonLd) }}
+        />
         {children}
         <SpeedInsights />
       </body>

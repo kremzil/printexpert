@@ -175,7 +175,7 @@ async function AudienceNavigation({
                         </p>
                       </div>
                       <Link 
-                        href={`/catalog?cat=${category.slug}`}
+                        href={`/kategorie/${category.slug}`}
                         className="text-sm font-medium text-primary hover:underline hover:underline-offset-4 flex items-center gap-1"
                       >
                         Všetky {category.name.toLowerCase()}
@@ -197,7 +197,7 @@ async function AudienceNavigation({
                             {hasSubcategories ? (
                               <NavigationMenuLink asChild>
                                 <Link 
-                                  href={`/catalog?cat=${section.slug}`}
+                                  href={`/kategorie/${section.slug}`}
                                   className="block rounded-md p-2 text-sm font-semibold leading-none text-foreground/90 no-underline outline-none transition-colors hover:bg-accent hover:text-primary focus:bg-accent focus:text-primary"
                                 >
                                   {section.name}
@@ -335,7 +335,7 @@ async function MobileMenu({
                   <CollapsibleContent className="pt-2">
                     <div className="mb-1 px-3">
                       <Link
-                        href={`/catalog?cat=${category.slug}`}
+                        href={`/kategorie/${category.slug}`}
                         className="text-xs font-medium text-primary hover:underline"
                       >
                         Všetky {category.name.toLowerCase()} →
@@ -346,7 +346,7 @@ async function MobileMenu({
                         {children.map((child) => (
                           <Link
                             key={child.id}
-                            href={`/catalog?cat=${child.slug}`}
+                            href={`/kategorie/${child.slug}`}
                             className="rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                           >
                             {child.name}

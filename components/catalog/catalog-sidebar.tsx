@@ -69,7 +69,7 @@ export function CatalogSidebar({ categories }: CatalogSidebarProps) {
                       (isRootActive || isChildActive) && "font-semibold"
                     )}
                   >
-                    <Link href={`/catalog?cat=${root.slug}`}>
+                    <Link href={`/kategorie/${root.slug}`}>
                       {root.name}
                     </Link>
                   </Button>
@@ -86,7 +86,7 @@ export function CatalogSidebar({ categories }: CatalogSidebarProps) {
                                 size="sm"
                                 className="w-full justify-start h-8 font-normal"
                             >
-                                <Link href={`/catalog?cat=${child.slug}`}>
+                                <Link href={`/kategorie/${child.slug}`}>
                                 {child.name}
                                 </Link>
                             </Button>

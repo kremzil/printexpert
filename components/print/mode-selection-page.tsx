@@ -17,7 +17,6 @@ import {
 import { ModeSelectionCard } from "@/components/print/mode-selection-card"
 import { Button } from "@/components/ui/button"
 import type { CustomerMode } from "@/components/print/types"
-import { AUDIENCE_QUERY_PARAM } from "@/lib/audience-shared"
 import { showModeOverlay } from "@/lib/mode-overlay-store"
 import { getCsrfHeader } from "@/lib/csrf"
 
@@ -62,7 +61,7 @@ export function ModeSelectionPage() {
 
         if (response.ok) {
           startTransition(() => {
-            router.replace(`/?${AUDIENCE_QUERY_PARAM}=${mode}`, { scroll: false })
+            router.replace("/", { scroll: false })
             router.refresh()
           })
         }

@@ -9,11 +9,9 @@ import { resolveAudienceContext } from "@/lib/audience-context";
 import { ChevronLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { getPrisma } from "@/lib/prisma";
+import { buildStaticPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Pokladňa",
-  description: "Dokončenie objednávky",
-};
+export const metadata = buildStaticPageMetadata("checkout");
 
 async function CheckoutContent({ mode }: { mode: "b2b" | "b2c" }) {
   const cookieStore = await cookies();

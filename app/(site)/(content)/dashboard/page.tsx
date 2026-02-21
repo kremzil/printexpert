@@ -7,8 +7,11 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { buildStaticPageMetadata } from "@/lib/seo"
 
 import data from "./data.json"
+
+export const metadata = buildStaticPageMetadata("dashboard")
 
 export default function Page() {
   return (

@@ -116,6 +116,19 @@ export function CatalogClient({
     [buildSearchParams, router]
   )
 
+  const buildCategoryHref = useCallback(
+    (slug: string | null) => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete("cat")
+      params.delete("mode")
+      params.delete("page")
+      const query = params.toString()
+      const basePath = slug ? `/kategorie/${slug}` : "/catalog"
+      return query ? `${basePath}?${query}` : basePath
+    },
+    [searchParams]
+  )
+
   useEffect(() => {
     const handle = setTimeout(() => {
       const current = searchParams.get("q") ?? ""
@@ -130,10 +143,7 @@ export function CatalogClient({
 
   const handleCategorySelect = (slug: string | null) => {
     setShowMobileCategories(false)
-    pushSearchParams({
-      cat: slug,
-      page: null,
-    })
+    router.push(buildCategoryHref(slug))
   }
 
   const handleSortChange = (value: SortOption) => {
@@ -219,7 +229,7 @@ export function CatalogClient({
                     type="button"
                     onClick={() => {
                       setSearchQuery("")
-                      pushSearchParams({ q: null, cat: null, page: null })
+                      router.push("/catalog")
                     }}
                     className="rounded-lg border-2 border-border px-6 py-2 font-semibold transition-all hover:bg-muted"
                   >

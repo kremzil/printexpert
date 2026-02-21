@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { ReactNode } from "react"
 import { AccountMenu } from "@/components/account/account-menu"
 import { AccountSidebar } from "@/components/account/account-sidebar"
@@ -7,6 +8,11 @@ import { auth } from "@/auth"
 import { getPrisma } from "@/lib/prisma"
 import { mergeGuestCart } from "@/lib/cart"
 import { cookies } from "next/headers"
+import { NOINDEX_ROBOTS } from "@/lib/seo"
+
+export const metadata: Metadata = {
+  robots: NOINDEX_ROBOTS,
+}
 
 export default async function AccountLayout({
   children,

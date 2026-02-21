@@ -1,82 +1,70 @@
 import type { Metadata } from "next"
-import { redirect } from "next/navigation"
+import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import { CatalogClient } from "@/app/(site)/(content)/catalog/catalog-client"
 import {
   getCategories,
   getCatalogProducts,
+  getCategoryBySlug,
   getCategoryProductCounts,
   getTopProductIds,
   type CatalogSort,
 } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
+import { SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
-type CatalogPageProps = {
+type CategoryPageProps = {
+  params: Promise<{
+    slug: string
+  }>
   searchParams?: Promise<{
-    cat?: string
     q?: string
     sort?: string
     page?: string
   }>
 }
 
-const buildCategoryPath = (
-  categorySlug: string,
-  searchParams: {
-    q?: string
-    sort?: string
-    page?: string
-  }
-) => {
-  const params = new URLSearchParams()
-
-  if (searchParams.q) {
-    params.set("q", searchParams.q)
-  }
-
-  if (searchParams.sort) {
-    params.set("sort", searchParams.sort)
-  }
-
-  if (searchParams.page && searchParams.page !== "1") {
-    params.set("page", searchParams.page)
-  }
-
-  const query = params.toString()
-  const basePath = `/kategorie/${encodeURIComponent(categorySlug)}`
-  return query ? `${basePath}?${query}` : basePath
-}
+const emptyCategorySearchParams: {
+  q?: string
+  sort?: string
+  page?: string
+} = {}
 
 export async function generateMetadata({
-  searchParams,
-}: CatalogPageProps): Promise<Metadata> {
-  const resolvedSearchParams = searchParams ? await searchParams : {}
-  const categorySlug = resolvedSearchParams.cat?.trim()
+  params,
+}: CategoryPageProps): Promise<Metadata> {
+  const { slug } = await params
+  const category = await getCategoryBySlug(slug)
+
+  if (!category) {
+    return {
+      title: "Kategória",
+      alternates: {
+        canonical: `/kategorie/${slug}`,
+      },
+    }
+  }
 
   return {
+    title: category.name,
+    description:
+      category.description ??
+      `Produkty v kategórii ${category.name} od ${SITE_NAME}.`,
     alternates: {
-      canonical: categorySlug
-        ? `/kategorie/${categorySlug}`
-        : "/catalog",
+      canonical: `/kategorie/${category.slug}`,
+    },
+    openGraph: {
+      title: `${category.name} | ${SITE_NAME}`,
+      description:
+        category.description ??
+        `Prehľad produktov v kategórii ${category.name}.`,
+      url: `/kategorie/${category.slug}`,
     },
   }
 }
 
-export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const resolvedSearchParams = searchParams ? await searchParams : {}
-  const categorySlug = resolvedSearchParams.cat?.trim()
-
-  if (categorySlug) {
-    redirect(
-      buildCategoryPath(categorySlug, {
-        q: resolvedSearchParams.q,
-        sort: resolvedSearchParams.sort,
-        page: resolvedSearchParams.page,
-      })
-    )
-  }
-
+export default function CategoryPage({ params, searchParams }: CategoryPageProps) {
   return (
     <Suspense
       fallback={
@@ -87,25 +75,30 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             <div className="h-4 w-2/3 rounded bg-muted" />
           </div>
           <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-            Načítavame katalóg…
+            Načítavame kategóriu…
           </div>
         </section>
       }
     >
-      <CatalogContent searchParamsPromise={Promise.resolve(resolvedSearchParams)} />
+      <CategoryContent paramsPromise={params} searchParamsPromise={searchParams} />
     </Suspense>
   )
 }
 
-async function CatalogContent({
+async function CategoryContent({
+  paramsPromise,
   searchParamsPromise,
 }: {
-  searchParamsPromise?: CatalogPageProps["searchParams"]
+  paramsPromise: CategoryPageProps["params"]
+  searchParamsPromise?: CategoryPageProps["searchParams"]
 }) {
-  const resolvedSearchParams = searchParamsPromise
-    ? await searchParamsPromise
-    : {}
-  const categorySlug = resolvedSearchParams?.cat ?? null
+  const [{ slug }, resolvedSearchParams] = await Promise.all([
+    paramsPromise,
+    searchParamsPromise
+      ? searchParamsPromise
+      : Promise.resolve(emptyCategorySearchParams),
+  ])
+
   const searchQuery = resolvedSearchParams?.q ?? ""
   const sortParam = resolvedSearchParams?.sort
   const sortBy: CatalogSort = ["relevance", "popular", "price-asc", "price-desc", "name"].includes(
@@ -124,7 +117,8 @@ async function CatalogContent({
   })
   const shouldFilterByAudience = audienceContext.source !== "default"
   const catalogAudience = shouldFilterByAudience ? audienceContext.audience : null
-  const mode = audienceContext?.audience === "b2b" ? "b2b" : "b2c"
+  const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
+
   const visibleCategories = shouldFilterByAudience
     ? categories.filter((category) =>
         mode === "b2b" ? category.showInB2b !== false : category.showInB2c !== false
@@ -140,15 +134,16 @@ async function CatalogContent({
     map.set(category.parentId, list)
     return map
   }, new Map<string, typeof visibleCategories>())
-  const selectedCategory = categorySlug
-    ? categoryBySlug.get(categorySlug)
-    : null
-  const selectedCategoryIds = selectedCategory
-    ? [
-        selectedCategory.id,
-        ...(childrenByParentId.get(selectedCategory.id) ?? []).map((item) => item.id),
-      ]
-    : null
+
+  const selectedCategory = categoryBySlug.get(slug)
+  if (!selectedCategory) {
+    notFound()
+  }
+
+  const selectedCategoryIds = [
+    selectedCategory.id,
+    ...(childrenByParentId.get(selectedCategory.id) ?? []).map((item) => item.id),
+  ]
 
   const [catalogData, productCountByCategoryId, topProductIds] = await Promise.all([
     getCatalogProducts({
@@ -186,17 +181,48 @@ async function CatalogContent({
     isTopProduct: topProductIdSet.has(product.id),
   }))
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Domov",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Kategórie",
+        item: `${SITE_URL}/kategorie`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: selectedCategory.name,
+        item: `${SITE_URL}/kategorie/${selectedCategory.slug}`,
+      },
+    ],
+  }
+
   return (
-    <CatalogClient
-      mode={mode}
-      categories={catalogCategories}
-      products={catalogProducts}
-      totalResults={catalogData.total}
-      page={catalogData.page}
-      pageSize={catalogData.pageSize}
-      searchQuery={searchQuery}
-      sortBy={sortBy}
-      selectedCategory={categorySlug}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
+      />
+      <CatalogClient
+        mode={mode}
+        categories={catalogCategories}
+        products={catalogProducts}
+        totalResults={catalogData.total}
+        page={catalogData.page}
+        pageSize={catalogData.pageSize}
+        searchQuery={searchQuery}
+        sortBy={sortBy}
+        selectedCategory={slug}
+      />
+    </>
   )
 }

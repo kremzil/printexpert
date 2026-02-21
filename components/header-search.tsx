@@ -245,7 +245,7 @@ export function HeaderSearch({
                           key={category.id}
                           type="button"
                           onClick={() => {
-                            router.push(`/catalog?cat=${category.slug}`)
+                            router.push(`/kategorie/${category.slug}`)
                             setIsOpen(false)
                           }}
                           className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition hover:bg-muted"

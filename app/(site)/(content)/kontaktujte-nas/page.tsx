@@ -25,10 +25,13 @@ import {
   Phone,
   Users,
 } from "lucide-react"
+import { buildStaticPageMetadata, toJsonLd } from "@/lib/seo"
 
 type ContactPageProps = {
   searchParams?: Promise<{ mode?: string }>
 }
+
+export const metadata = buildStaticPageMetadata("kontakt")
 
 const team = [
   {
@@ -188,8 +191,25 @@ async function ContactPageContent({ searchParams }: ContactPageProps) {
           },
         ]
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  }
+
   return (
     <div className="space-y-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(faqJsonLd) }}
+      />
       <section className="text-center">
         <Breadcrumb className="mx-auto w-fit text-xs">
           <BreadcrumbList>

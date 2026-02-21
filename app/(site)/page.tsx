@@ -1,10 +1,12 @@
 import { Suspense } from "react"
 
 import { resolveAudienceContext } from "@/lib/audience-context"
-import { ModeSelectionPage } from "@/components/print/mode-selection-page"
 import { Homepage } from "@/components/print/homepage"
 import { getCategories, getHomepageCollections, getProducts, getTopProducts } from "@/lib/catalog"
 import { buildHomepageModel } from "@/lib/homepage-model"
+import { buildStaticPageMetadata } from "@/lib/seo"
+
+export const metadata = buildStaticPageMetadata("home")
 
 type HomePageProps = {
   searchParams?: Promise<{
@@ -23,12 +25,7 @@ async function HomeContent({
   const audienceContext = await resolveAudienceContext({
     searchParams: resolvedSearchParams,
   })
-  const isFirstVisit = audienceContext.source === "default"
   const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
-
-  if (isFirstVisit) {
-    return <ModeSelectionPage />
-  }
 
   const [categories, products, topProducts, collections] = await Promise.all([
     getCategories(),

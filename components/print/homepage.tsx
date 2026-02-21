@@ -583,7 +583,7 @@ function CategoryCard({
 }) {
   return (
     <Link
-      href={`/catalog?cat=${category.slug}`}
+      href={`/kategorie/${category.slug}`}
       className="group relative block h-100 overflow-hidden rounded-xl border border-border text-left transition-all hover:border-muted-foreground hover:shadow-lg"
     >
       <Image

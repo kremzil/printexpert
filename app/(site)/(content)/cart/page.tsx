@@ -7,6 +7,7 @@ import { resolveAudienceContext } from "@/lib/audience-context";
 import { EmptyCart } from "@/components/print/empty-cart";
 import { getShopVatRate } from "@/lib/shop-settings";
 import { getProductCalculatorData } from "@/lib/pricing";
+import { buildStaticPageMetadata } from "@/lib/seo";
 
 const parseNumber = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === "") return null;
@@ -32,10 +33,7 @@ const getNumbersEntry = (
   return numbersArray[mtid] ?? null;
 };
 
-export const metadata = {
-  title: "Košík",
-  description: "Nákupný košík",
-};
+export const metadata = buildStaticPageMetadata("cart");
 
 async function CartItems() {
   const audienceContext = await resolveAudienceContext({});
