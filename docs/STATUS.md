@@ -17,8 +17,9 @@
 - Включены SEO endpoints:
   - `/robots.txt` (`app/robots.ts`),
   - `/sitemap.xml` (`app/sitemap.ts`, включая товары/категории/коллекции),
-  - `/llms.txt` (`app/llms.txt/route.ts`, автогенерация из актуального контента).
+  - `/llms.txt` (`app/llms.txt/route.ts`, генерация из публичного контента: whitelist статических публичных страниц + активные категории/коллекции/товары; ответ кэшируется через `Cache-Control` и использует data-cache `unstable_cache` в `lib/catalog.ts`).
 - Для `auth/account/checkout/admin/cart/dashboard` применён `noindex`.
+- Для товаров, скрытых для текущей аудитории, страница `/product/[slug]` может быть доступна по прямому URL; сейчас `robots/canonical` остаются стандартными (авто-`noindex` для этого кейса не включён).
 - Подробная карта SEO-настроек: `docs/SEO.md`.
 
 ## База данных и Prisma
@@ -62,7 +63,9 @@
   Надбавка применяется в UI-предпросмотре и подтверждается серверным пересчётом.
 - На странице товара добавлено `Display Shipment date` с меткой `U Vás na adrese`:
   - исключаются выходные (сб/вс)
-  - после `13:00` старт со следующего рабочего дня
+  - cutoff: `13:00:00` локального времени (`Europe/Bratislava`); `13:00:00` включительно остаётся текущий день, перенос начинается с `13:01`
+  - пятница после cutoff (начиная с `13:01`) переносится на понедельник
+  - государственные праздники сейчас не учитываются (учитываются только сб/вс)
   - таймзона `Europe/Bratislava`
   - к сроку производства добавляется `+1` день доставки
 - **Design Studio** — встроенный canvas-редактор дизайна на странице товара:
@@ -108,7 +111,7 @@
 - WYSIWYG редактор (Tiptap) для детального описания с сохранением HTML и серверной очисткой.
 - Встроенный редактор заголовка/slug в карточке товара без постоянных инпутов.
 - WYSIWYG редактор для краткого описания.
-- Вставка медиа (URL + загрузка файлов) в редактор, сохранение в `/public/uploads`.
+- Вставка медиа (URL + загрузка файлов) в редакторы/коллекции, сохранение в `/public/uploads` только для публичного контента (описания и изображения коллекций); upload whitelist ограничен изображениями/видео (без произвольных типов файлов), ссылки в HTML допускаются только `https://` и `/uploads/`; клиентские файлы заказов и инвойсы хранятся через `OrderAsset` в S3.
 - Матрицы цен из WP-таблиц:
   - Создание матрицы на основе выбранных свойств и значений.
   - Добавление новых матриц через Dialog: вкладки для нескольких свойств, выбор значений, тип и breakpoints.
@@ -214,10 +217,10 @@
   - `invalidateCalculator(productId)` — только калькулятор одного товара.
   - `invalidateCategories()` — категории + зависимые списки + навигация.
   - `invalidateAllCatalog()` — полный сброс (для импорта, ручной кнопки).
-- `updateProductDetails` при смене `categoryId`, `isActive`, `showInB2b` или `showInB2c` дополнительно вызывает `invalidateCategories()` + `revalidatePath("/kategorie")` + `revalidatePath("/catalog")` — страховка от устаревшего Full Route Cache.
 - Ручная регенерация для навигации/категорий доступна в `/admin/settings`.
-- Важно: нельзя вызывать `cookies()` или другие динамические источники данных внутри функций, помеченных `"use cache"`. Паттерн: резолвить `AudienceContext` вне кэшируемых функций (в page/route), и передавать `audience` как аргумент в `getProducts` или использовать проверку видимости на уровне страницы.
-- `getProducts` принимает опциональный `audience` и учитывает `showInB2b`/`showInB2c` при выборке; страница товара выполняет дополнительную проверку и возвращает 404 для товара, скрытого для текущей аудитории.
+- `updateProductDetails` при смене `categoryId`, `isActive`, `showInB2b` или `showInB2c` дополнительно вызывает `invalidateCategories()` + `revalidatePath("/kategorie")` + `revalidatePath("/catalog")` — страховка для клиентского Router Cache/префетченных страниц при смене видимости и категорий.
+- Важно: `AudienceContext` использует динамические источники (`searchParams`, `cookies()`), поэтому он резолвится в page/route, а в `unstable_cache` передаётся уже готовый `audience`.
+- `getProducts` и связанные листинги учитывают `showInB2b`/`showInB2c`; текущая реализация `/product/[slug]` прямой URL не блокирует по audience (visibility = скрытие из списков, не access-control).
 
 ## AudienceContext (B2B/B2C)
 - Добавлен единый серверный резолвер с приоритетами `query → account (stub) → cookie → default`.
@@ -332,8 +335,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 - Настроены `remotePatterns` для внешних доменов (unsplash)
 
 ### Статическая генерация
-- Добавлен `generateStaticParams` для `/product/[slug]` — все активные товары
-- Уменьшение TTFB за счёт ISR
+- Добавлен `generateStaticParams` для `/product/[slug]` — known routes по всем активным товарам.
+- `/product/[slug]` остаётся dynamic route из-за `AudienceContext` (`searchParams` + `cookies()`), поэтому Full Route ISR не является источником ускорения TTFB.
+- TTFB снижен за счёт data-cache (`unstable_cache`) и гранулярных cache-тегов; `generateStaticParams` используется для покрытия известных slug.
 
 ### Каталог
 - Серверная пагинация/поиск/сортировка сокращают payload и ускоряют гидратацию
