@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import localFont from "next/font/local"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from '@vercel/analytics/next';
 
 import { ROOT_METADATA, SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
@@ -125,6 +126,7 @@ export default function RootLayout({
         />
         {children}
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   )
