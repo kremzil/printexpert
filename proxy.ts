@@ -137,6 +137,7 @@ export async function proxy(request: NextRequest) {
   const isOnAdmin = nextUrl.pathname.startsWith('/admin')
   const isOnAccount = nextUrl.pathname.startsWith('/account')
   const isOnAuth = nextUrl.pathname.startsWith('/auth')
+  const isOnAuthResetPassword = nextUrl.pathname.startsWith('/auth/reset-password')
   
   // Защита админки
   if (isOnAdmin) {
@@ -154,7 +155,7 @@ export async function proxy(request: NextRequest) {
   }
   
   // Редирект залогиненных с /auth
-  if (isOnAuth && isLoggedIn) {
+  if (isOnAuth && isLoggedIn && !isOnAuthResetPassword) {
     return withRequestMeta(NextResponse.redirect(new URL('/account', nextUrl)))
   }
 

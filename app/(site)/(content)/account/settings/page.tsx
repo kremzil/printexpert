@@ -33,6 +33,7 @@ async function ProfileContent() {
         name: true,
         email: true,
         image: true,
+        passwordHash: true,
       },
     }),
     prisma.companyProfile.findUnique({
@@ -117,6 +118,7 @@ async function ProfileContent() {
           icDph: companyProfile?.icDph ?? "",
           position: "",
         }}
+        hasPassword={Boolean(user.passwordHash)}
         onSave={handleSaveProfile}
       />
     </div>

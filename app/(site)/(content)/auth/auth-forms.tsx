@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Loader2, Mail, Lock, ArrowRight } from "lucide-react"
+import { Loader2, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react"
 
 import { ModeButton as Button } from "@/components/print/mode-button"
 import {
@@ -167,6 +167,7 @@ function PasswordLoginForm({
   const router = useRouter()
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -262,12 +263,24 @@ function PasswordLoginForm({
                     <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="••••••••"
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         disabled={status === "loading"}
-                        className="pl-9"
+                        className="pl-9 pr-10"
                         {...field}
                     />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
+                        aria-label={showPassword ? "Skryť heslo" : "Zobraziť heslo"}
+                    >
+                        {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                        ) : (
+                            <Eye className="h-4 w-4" />
+                        )}
+                    </button>
                 </div>
                 </FormControl>
                 <FormMessage />

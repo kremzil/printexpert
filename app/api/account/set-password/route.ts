@@ -3,10 +3,11 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { auth } from "@/auth"
-import { hashPassword } from "@/lib/auth"
+import { hashPassword, verifyPassword } from "@/lib/auth"
 import { getPrisma } from "@/lib/prisma"
 
 const schema = z.object({
+  currentPassword: z.string().optional(),
   password: z.string().min(8, "Heslo musí mať aspoň 8 znakov."),
   confirmPassword: z.string().min(8),
 })
@@ -30,6 +31,33 @@ const POSTHandler = async (request: Request) => {
     }
 
     const prisma = getPrisma()
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { passwordHash: true },
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    if (user.passwordHash) {
+      const currentPassword = parsed.data.currentPassword?.trim() ?? ""
+      if (!currentPassword) {
+        return NextResponse.json({ error: "Zadajte aktuálne heslo." }, { status: 400 })
+      }
+
+      const isCurrentPasswordValid = await verifyPassword(
+        currentPassword,
+        user.passwordHash
+      )
+      if (!isCurrentPasswordValid) {
+        return NextResponse.json(
+          { error: "Aktuálne heslo nie je správne." },
+          { status: 400 }
+        )
+      }
+    }
+
     const passwordHash = await hashPassword(parsed.data.password)
 
     await prisma.user.update({

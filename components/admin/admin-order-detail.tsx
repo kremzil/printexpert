@@ -1216,7 +1216,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
             }
             className="space-y-4"
           >
-            <TabsList className="grid w-full grid-cols-3 gap-2 md:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-3 gap-2 md:grid-cols-6 items-baseline border rounded-full border-zinc-300">
               <TabsTrigger value="items">Položky</TabsTrigger>
               <TabsTrigger value="customer">Klient</TabsTrigger>
               <TabsTrigger value="shipping">Fakturácia / doprava</TabsTrigger>

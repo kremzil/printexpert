@@ -25,7 +25,7 @@ export function LoginDialog({ trigger }: { trigger: ReactNode }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
-        size="lg"
+        size="default"
         aria-label="Prihlásenie"
         className="max-h-[90vh] overflow-y-auto"
       >
