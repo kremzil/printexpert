@@ -18,6 +18,22 @@ interface Address {
   icDph?: string;
 }
 
+export interface InvoiceLineOverride {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+}
+
+export interface InvoiceGenerationOverrides {
+  invoicePrefix?: string;
+  invoiceNumber?: string;
+  issueDate?: string;
+  taxDate?: string;
+  dueDate?: string;
+  items?: InvoiceLineOverride[];
+}
+
 function mapPaymentMethod(order: { paymentMethod?: string | null; paymentProvider?: string | null }) {
   if (order.paymentMethod === "COD") return "Dobierka";
   if (order.paymentMethod === "BANK_TRANSFER") return "Bankový prevod";
@@ -38,6 +54,22 @@ function parseAddress(address: unknown): Address | null {
   return address as Address;
 }
 
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function parseDateInput(value: string | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function mapShippingLineName(order: { deliveryMethod?: string | null }) {
+  if (order.deliveryMethod === "DPD_PICKUP") return "Doprava - DPD Pickup point";
+  if (order.deliveryMethod === "DPD_COURIER") return "Doprava - DPD kuriér";
+  return "Doprava";
+}
+
 function formatAddressLine(addr: Address | null): string {
   if (!addr) return "";
   const parts = [addr.street, addr.postalCode, addr.city].filter(Boolean);
@@ -53,9 +85,9 @@ function formatAddressCity(addr: Address | null): string {
 /**
  * Generate next invoice number and increment counter
  */
-async function getNextInvoiceNumber(): Promise<string> {
+async function getNextInvoiceNumber(prefixOverride?: string): Promise<string> {
   const settings = await getPdfSettings();
-  const prefix = settings.invoicePrefix || "";
+  const prefix = (prefixOverride ?? settings.invoicePrefix) || "";
   const number = settings.invoiceNextNumber || 1;
   
   // Increment the counter
@@ -80,7 +112,10 @@ async function getNextInvoiceNumber(): Promise<string> {
 /**
  * Generate invoice PDF for an order
  */
-export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
+export async function generateInvoicePdf(
+  orderId: string,
+  overrides?: InvoiceGenerationOverrides
+): Promise<Buffer> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -99,11 +134,114 @@ export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
   const settings = await getPdfSettings();
   
   // Generate invoice number if not exists
-  const invoiceNumber = await getNextInvoiceNumber();
+  const customInvoiceNumber = overrides?.invoiceNumber?.trim();
+  const customInvoicePrefix = overrides?.invoicePrefix?.trim();
+  const invoiceNumber =
+    customInvoiceNumber && customInvoiceNumber.length > 0
+      ? customInvoiceNumber
+      : await getNextInvoiceNumber(customInvoicePrefix && customInvoicePrefix.length > 0 ? customInvoicePrefix : undefined);
   
   // Parse addresses
   const billingAddr = parseAddress(order.billingAddress);
   const shippingAddr = parseAddress(order.shippingAddress);
+
+  const baseProductItems: InvoiceItem[] = order.items.map((item): InvoiceItem => {
+    const netPrice = Number(item.priceNet);
+    const vatAmount = Number(item.priceVat);
+    const grossPrice = Number(item.priceGross);
+    const quantity = item.quantity;
+    const unitPrice = netPrice / quantity;
+    const vatRate = netPrice > 0 ? vatAmount / netPrice : 0.23;
+
+    return {
+      name: item.productName,
+      quantity,
+      unitPrice,
+      netPrice,
+      vatRate,
+      vatAmount,
+      grossPrice,
+    };
+  });
+
+  const overriddenItems: InvoiceItem[] =
+    Array.isArray(overrides?.items) && overrides.items.length > 0
+      ? overrides.items.map((line) => {
+          const quantity = Number.isFinite(line.quantity) && line.quantity > 0 ? line.quantity : 1;
+          const unitPrice = Number.isFinite(line.unitPrice) && line.unitPrice >= 0 ? line.unitPrice : 0;
+          const normalizedVatRate = Number.isFinite(line.vatRate) && line.vatRate >= 0 ? line.vatRate : 0.2;
+          const netPrice = roundMoney(unitPrice * quantity);
+          const vatAmount = roundMoney(netPrice * normalizedVatRate);
+          const grossPrice = roundMoney(netPrice + vatAmount);
+
+          return {
+            name: line.name,
+            quantity,
+            unitPrice,
+            netPrice,
+            vatRate: normalizedVatRate,
+            vatAmount,
+            grossPrice,
+          };
+        })
+      : [];
+
+  const productItems = overriddenItems.length > 0 ? overriddenItems : baseProductItems;
+
+  const baseProductNetTotal = baseProductItems.reduce((sum, item) => sum + item.netPrice, 0);
+  const baseProductVatTotal = baseProductItems.reduce((sum, item) => sum + item.vatAmount, 0);
+  const baseProductGrossTotal = baseProductItems.reduce((sum, item) => sum + item.grossPrice, 0);
+
+  const orderSubtotal = Number(order.subtotal);
+  const orderVatAmount = Number(order.vatAmount);
+  const orderTotal = Number(order.total);
+
+  const shippingNet = roundMoney(orderSubtotal - baseProductNetTotal);
+  const shippingVat = roundMoney(orderVatAmount - baseProductVatTotal);
+  const shippingGross = roundMoney(orderTotal - baseProductGrossTotal);
+
+  const includeShippingLine = order.deliveryMethod !== "PERSONAL_PICKUP";
+  const shippingVatRate =
+    shippingNet > 0
+      ? shippingVat / shippingNet
+      : orderSubtotal > 0
+        ? orderVatAmount / orderSubtotal
+        : 0.23;
+
+  const items: InvoiceItem[] = includeShippingLine
+    ? [
+        ...productItems,
+        {
+          name: mapShippingLineName(order),
+          quantity: 1,
+          unitPrice: shippingNet,
+          netPrice: shippingNet,
+          vatRate: shippingVatRate,
+          vatAmount: shippingVat,
+          grossPrice: shippingGross,
+        },
+      ]
+    : productItems;
+
+  const totalsFromItems = items.reduce(
+    (acc, item) => {
+      acc.subtotal += item.netPrice;
+      acc.vatAmount += item.vatAmount;
+      acc.total += item.grossPrice;
+      return acc;
+    },
+    { subtotal: 0, vatAmount: 0, total: 0 }
+  );
+
+  const subtotal = roundMoney(totalsFromItems.subtotal);
+  const vatAmount = roundMoney(totalsFromItems.vatAmount);
+  const total = roundMoney(totalsFromItems.total);
+
+  const issueDate = parseDateInput(overrides?.issueDate) ?? new Date();
+  const taxDate = parseDateInput(overrides?.taxDate) ?? issueDate;
+  const dueDate =
+    parseDateInput(overrides?.dueDate) ??
+    new Date(issueDate.getTime() + (settings.paymentDueDays || 14) * 24 * 60 * 60 * 1000);
 
   // Build invoice data
   const invoiceData: InvoiceData = {
@@ -135,38 +273,19 @@ export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
       invoiceNumber,
       orderNumber: order.orderNumber,
       orderDate: order.createdAt,
-      issueDate: new Date(),
-      taxDate: new Date(),
-      dueDate: new Date(Date.now() + (settings.paymentDueDays || 14) * 24 * 60 * 60 * 1000),
+      issueDate,
+      taxDate,
+      dueDate,
       paymentMethod: mapPaymentMethod(order),
       deliveryMethod: mapDeliveryMethod(order),
       variableSymbol: invoiceNumber.replace(/\s/g, ""),
     },
-    items: order.items.map((item): InvoiceItem => {
-      const netPrice = Number(item.priceNet);
-      const vatAmount = Number(item.priceVat);
-      const grossPrice = Number(item.priceGross);
-      const quantity = item.quantity;
-      const unitPrice = netPrice / quantity;
-      const vatRate = netPrice > 0 ? vatAmount / netPrice : 0.23;
-
-      return {
-        name: item.productName,
-        quantity,
-        unitPrice,
-        netPrice,
-        vatRate,
-        vatAmount,
-        grossPrice,
-      };
-    }),
+    items,
     totals: {
-      subtotal: Number(order.subtotal),
-      vatRate: Number(order.subtotal) > 0 
-        ? Number(order.vatAmount) / Number(order.subtotal) 
-        : 0.23,
-      vatAmount: Number(order.vatAmount),
-      total: Number(order.total),
+      subtotal,
+      vatRate: subtotal > 0 ? vatAmount / subtotal : 0.23,
+      vatAmount,
+      total,
     },
     settings: {
       logoUrl: settings.logoUrl || undefined,
@@ -185,8 +304,11 @@ export async function generateInvoicePdf(orderId: string): Promise<Buffer> {
 /**
  * Generate invoice and save as order asset
  */
-export async function generateAndSaveInvoice(orderId: string): Promise<string> {
-  const pdfBuffer = await generateInvoicePdf(orderId);
+export async function generateAndSaveInvoice(
+  orderId: string,
+  overrides?: InvoiceGenerationOverrides
+): Promise<string> {
+  const pdfBuffer = await generateInvoicePdf(orderId, overrides);
   
   // Get order for invoice number
   const order = await prisma.order.findUnique({

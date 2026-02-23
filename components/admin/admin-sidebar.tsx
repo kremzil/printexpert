@@ -137,11 +137,6 @@ export function AdminSidebar({ collapsed = false, onNavigate, onToggleCollapse }
         <div className="space-y-4">
           {GROUPS.map((group) => (
             <section key={group.id}>
-              {!collapsed ? (
-                <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.title}
-                </div>
-              ) : null}
               <div className="space-y-1">
                 {group.items.map((item) => {
                   const hasChildren = (item.children?.length ?? 0) > 0;
@@ -231,4 +226,3 @@ export function AdminSidebar({ collapsed = false, onNavigate, onToggleCollapse }
     </div>
   );
 }
-

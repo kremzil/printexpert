@@ -71,8 +71,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-muted/20">
-      <aside className={`hidden border-r bg-white lg:block ${sidebarCollapsed ? "w-20" : "w-72"}`}>
+    <div className="flex min-h-screen bg-zinc-200 dark:bg-muted/20">
+      <aside
+        className={`hidden h-screen shrink-0 self-start border-r bg-white lg:sticky lg:top-0 lg:block ${sidebarCollapsed ? "w-20" : "w-72"}`}
+      >
         <AdminSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}

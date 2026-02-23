@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { AdminButton } from "@/components/admin/admin-button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
 import { FormSubmitButton } from "@/components/admin/form-submit-button";
 import { ConfirmDeleteForm } from "@/components/admin/confirm-delete-form";
 import { createUserByAdmin, deleteUserByAdmin } from "./actions";
@@ -275,6 +276,9 @@ async function UsersContent({
                       </td>
                       <td className="px-3 py-3 text-right">
                         <div className="inline-flex items-center gap-2">
+                          <AdminButton asChild size="sm" variant="outline">
+                            <Link href={`/admin/users/${user.id}`}>Detail</Link>
+                          </AdminButton>
                           <UserRoleToggle
                             userId={user.id}
                             currentRole={user.role}

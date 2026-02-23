@@ -1,4 +1,5 @@
 export { generateInvoicePdf, generateAndSaveInvoice } from "./generate-invoice";
+export type { InvoiceGenerationOverrides, InvoiceLineOverride } from "./generate-invoice";
 export { generateQuotePdf } from "./generate-quote";
 export { getPdfSettings, updatePdfSettings } from "./settings";
 export type {

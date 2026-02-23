@@ -323,6 +323,9 @@ function buildAddress(addressRow, prefix) {
   const firstName = addressRow[`${prefix}_first_name`] || null
   const lastName = addressRow[`${prefix}_last_name`] || null
   const company = addressRow[`${prefix}_company`] || null
+  const ico = prefix === "billing" ? addressRow.billing_ico || null : null
+  const dic = prefix === "billing" ? addressRow.billing_dic || null : null
+  const icDph = prefix === "billing" ? addressRow.billing_icdph || null : null
   const address1 = addressRow[`${prefix}_address_1`] || null
   const address2 = addressRow[`${prefix}_address_2`] || null
   const city = addressRow[`${prefix}_city`] || null
@@ -331,7 +334,7 @@ function buildAddress(addressRow, prefix) {
   const state = addressRow[`${prefix}_state`] || null
 
   const hasAnyValue = Boolean(
-    firstName || lastName || company || address1 || address2 || city || postcode || country || state
+    firstName || lastName || company || ico || dic || icDph || address1 || address2 || city || postcode || country || state
   )
   if (!hasAnyValue) return null
 
@@ -339,6 +342,9 @@ function buildAddress(addressRow, prefix) {
     firstName,
     lastName,
     company,
+    ico,
+    dic,
+    icDph,
     address1,
     address2,
     city,
@@ -540,6 +546,11 @@ async function main() {
       skippedInvalidProductId: 0,
       withSelectedOptions: 0,
     },
+    companyProfiles: {
+      candidates: 0,
+      upserted: 0,
+      skippedNoCompanyName: 0,
+    },
     mapping: {
       productWpIdsSeen: 0,
       productWpIdsRemapped: 0,
@@ -550,6 +561,7 @@ async function main() {
 
   try {
     const wpUserById = new Map()
+    const companyProfileCandidatesByUserId = new Map()
     const knownEmails = new Set()
 
     if (wpUsers.length > 0) {
@@ -712,6 +724,10 @@ async function main() {
         wpUserById.get(order.wp_user_id) ||
         (billingEmail ? existingUserByEmail.get(billingEmail.toLowerCase()) : null) ||
         null
+      const billingCompanyName = address?.billing_company || null
+      const billingIco = address?.billing_ico || null
+      const billingDic = address?.billing_dic || null
+      const billingIcDph = address?.billing_icdph || null
 
       const orderPayload = {
         orderNumber: `WP-${wpOrderId}`,
@@ -741,6 +757,24 @@ async function main() {
 
       if (linkedUserId) {
         stats.orders.linkedUser += 1
+
+        const hasCompanySignal = Boolean(
+          billingCompanyName || billingIco || billingDic || billingIcDph
+        )
+        if (hasCompanySignal) {
+          stats.companyProfiles.candidates += 1
+          const currentCandidate = companyProfileCandidatesByUserId.get(linkedUserId)
+          const nextTimestamp = orderUpdatedAt.getTime()
+          if (!currentCandidate || currentCandidate.sortTime <= nextTimestamp) {
+            companyProfileCandidatesByUserId.set(linkedUserId, {
+              sortTime: nextTimestamp,
+              companyName: (billingCompanyName || customerName || "").trim() || null,
+              ico: billingIco,
+              dic: billingDic,
+              icDph: billingIcDph,
+            })
+          }
+        }
       }
 
       const mappedItems = []
@@ -875,6 +909,34 @@ async function main() {
 
       stats.orders.upserted += 1
       stats.orderItems.inserted += mappedItems.length
+    }
+
+    if (args.apply) {
+      for (const [userId, candidate] of companyProfileCandidatesByUserId.entries()) {
+        if (!candidate.companyName) {
+          stats.companyProfiles.skippedNoCompanyName += 1
+          continue
+        }
+
+        await prisma.companyProfile.upsert({
+          where: { userId },
+          create: {
+            userId,
+            companyName: candidate.companyName,
+            ico: candidate.ico,
+            dic: candidate.dic,
+            icDph: candidate.icDph,
+          },
+          update: {
+            companyName: candidate.companyName,
+            ico: candidate.ico,
+            dic: candidate.dic,
+            icDph: candidate.icDph,
+          },
+        })
+
+        stats.companyProfiles.upserted += 1
+      }
     }
   } finally {
     await prisma.$disconnect()

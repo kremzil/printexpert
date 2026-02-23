@@ -11,6 +11,13 @@ const GETHandler = async (request: NextRequest) => {
 
   const { searchParams } = new URL(request.url)
   const audience = searchParams.get("audience")
+  const compact = searchParams.get("compact") === "1"
+  const query = (searchParams.get("q") ?? "").trim()
+  const rawLimit = Number(searchParams.get("limit") ?? (compact ? "120" : "0"))
+  const limit =
+    Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.max(Math.round(rawLimit), 1), 300)
+      : undefined
   const audienceFilter =
     audience === "b2b"
       ? { showInB2b: true }
@@ -18,17 +25,36 @@ const GETHandler = async (request: NextRequest) => {
         ? { showInB2c: true }
         : null
 
-  const products = await prisma.product.findMany({
-    where: audienceFilter
-      ? {
+  const where = audienceFilter
+    ? {
+        isActive: true,
+        ...audienceFilter,
+        category: {
           isActive: true,
           ...audienceFilter,
-          category: {
-            isActive: true,
-            ...audienceFilter,
-          },
-        }
-      : undefined,
+        },
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query, mode: "insensitive" as const } },
+                { slug: { contains: query, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
+      }
+    : {
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query, mode: "insensitive" as const } },
+                { slug: { contains: query, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
+      }
+
+  const products = await prisma.product.findMany({
+    where,
     select: {
       id: true,
       name: true,
@@ -39,18 +65,23 @@ const GETHandler = async (request: NextRequest) => {
           name: true,
         },
       },
-      images: {
-        take: 1,
-        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
-        select: {
-          url: true,
-          alt: true,
-        },
-      },
+      ...(compact
+        ? {}
+        : {
+            images: {
+              take: 1,
+              orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+              select: {
+                url: true,
+                alt: true,
+              },
+            },
+          }),
     },
     orderBy: {
       name: "asc",
     },
+    ...(limit ? { take: limit } : {}),
   })
 
   return NextResponse.json(products)
