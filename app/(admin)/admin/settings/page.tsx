@@ -7,6 +7,7 @@ import { getShopSettings } from "@/lib/shop-settings"
 import {
   revalidateCatalogCache,
   updateDpdSettings,
+  updateDpdShippingPrice,
   updatePaymentMethods,
   updateShopVatRate,
 } from "./actions"
@@ -36,7 +37,7 @@ export default async function AdminSettingsPage() {
             <TabsList>
               <TabsTrigger value="vat">DPH</TabsTrigger>
               <TabsTrigger value="pdf">PDF / Faktúry</TabsTrigger>
-              <TabsTrigger value="dpd">DPD</TabsTrigger>
+              <TabsTrigger value="dpd">Doprava DPD</TabsTrigger>
               <TabsTrigger value="payment">Metódy platby</TabsTrigger>
               <TabsTrigger value="notifications">Notifikácie</TabsTrigger>
             </TabsList>
@@ -108,6 +109,55 @@ export default async function AdminSettingsPage() {
               <PdfSettingsForm />
             </TabsContent>
             <TabsContent value="dpd">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cenník dopravy</CardTitle>
+                  <CardDescription>
+                    Samostatné nastavenie ceny doručenia pre DPD kuriéra v košíku a checkoute.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form action={updateDpdShippingPrice} className="space-y-4">
+                    <div className="space-y-2 md:max-w-sm">
+                      <Label htmlFor="courierPrice">Cena dopravy (DPD kuriér, EUR)</Label>
+                      <Input
+                        id="courierPrice"
+                        name="courierPrice"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        defaultValue={settings.dpdSettings.courierPrice}
+                      />
+                      <Label htmlFor="courierFreeFrom">Doprava zdarma od (EUR)</Label>
+                      <Input
+                        id="courierFreeFrom"
+                        name="courierFreeFrom"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        defaultValue={settings.dpdSettings.courierFreeFrom}
+                      />
+                      <label className="mt-2 flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          name="pickupPointEnabled"
+                          value="1"
+                          defaultChecked={settings.dpdSettings.pickupPointEnabled}
+                        />
+                        Povoliť DPD Pickup point
+                      </label>
+                      <p className="text-xs text-muted-foreground">
+                        Pri DPD kuriérovi sa doprava účtuje pod nastaveným limitom zdarma.
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <FormSubmitButton size="sm">Uložiť cenu dopravy</FormSubmitButton>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle>DPD nastavenia exportu</CardTitle>

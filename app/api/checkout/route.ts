@@ -61,14 +61,19 @@ const postHandler = async (req: NextRequest) => {
       );
     }
 
+    const settings = await getShopSettings();
+    if (deliveryMethod === "DPD_PICKUP" && !settings.dpdSettings.pickupPointEnabled) {
+      return NextResponse.json(
+        { error: "DPD Pickup point je momentálne nedostupný." },
+        { status: 400 }
+      );
+    }
     if (deliveryMethod === "DPD_PICKUP" && !pickupPoint?.parcelShopId) {
       return NextResponse.json(
         { error: "Vyberte odberné miesto DPD." },
         { status: 400 }
       );
     }
-
-    const settings = await getShopSettings();
     if (paymentMethod === "COD") {
       if (deliveryMethod === "PERSONAL_PICKUP") {
         return NextResponse.json(

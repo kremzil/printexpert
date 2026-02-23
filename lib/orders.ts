@@ -6,6 +6,11 @@ import { calculate } from "@/lib/pricing";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { getCart } from "@/lib/cart";
 import { Prisma } from "@/lib/generated/prisma";
+import { getShopSettings } from "@/lib/shop-settings";
+import {
+  calculateDpdCourierShippingGross,
+  splitGrossByVat,
+} from "@/lib/delivery-pricing";
 import type { CheckoutData, OrderData } from "@/types/order";
 
 /**
@@ -76,6 +81,7 @@ export async function createOrder(
   let subtotal = new Prisma.Decimal(0);
   let vatAmount = new Prisma.Decimal(0);
   let total = new Prisma.Decimal(0);
+  const deliveryMethod = checkoutData.deliveryMethod ?? "DPD_COURIER";
 
   for (const item of cart.items) {
     // Серверный пересчёт цены
@@ -124,6 +130,21 @@ export async function createOrder(
     });
   }
 
+  const settings = await getShopSettings();
+  const shippingGross = calculateDpdCourierShippingGross({
+    deliveryMethod,
+    productsSubtotal: Number(subtotal.toString()),
+    courierPrice: settings.dpdSettings.courierPrice,
+    freeShippingFrom: settings.dpdSettings.courierFreeFrom,
+  });
+  const shipping = splitGrossByVat(shippingGross, settings.vatRate);
+
+  if (shipping.gross > 0) {
+    subtotal = subtotal.add(new Prisma.Decimal(shipping.net.toFixed(2)));
+    vatAmount = vatAmount.add(new Prisma.Decimal(shipping.vat.toFixed(2)));
+    total = total.add(new Prisma.Decimal(shipping.gross.toFixed(2)));
+  }
+
   const { order, itemMappings } = await prisma.$transaction(async (tx) => {
     const createdOrder = await tx.order.create({
       data: {
@@ -137,7 +158,7 @@ export async function createOrder(
         customerName: checkoutData.customerName,
         customerEmail: checkoutData.customerEmail,
         customerPhone: checkoutData.customerPhone || null,
-        deliveryMethod: checkoutData.deliveryMethod ?? "DPD_COURIER",
+        deliveryMethod,
         paymentMethod: checkoutData.paymentMethod ?? "STRIPE",
         dpdProduct: checkoutData.dpdProduct ?? null,
         pickupPoint: checkoutData.pickupPoint

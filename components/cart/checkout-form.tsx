@@ -26,6 +26,13 @@ import { CheckoutSteps } from "@/components/print/checkout-steps";
 import { AddressForm } from "@/components/print/address-form";
 import { OrderReview } from "@/components/print/order-review";
 import { getCsrfHeader } from "@/lib/csrf";
+import {
+  calculateDpdCourierShippingGross,
+  normalizeFreeShippingFrom,
+  normalizeCourierPrice,
+  normalizeVatRate,
+  splitGrossByVat,
+} from "@/lib/delivery-pricing";
 import type { PaymentMethod } from "@/components/print/payment-method-selector";
 
 interface CheckoutFormProps {
@@ -94,24 +101,9 @@ type CheckoutAddressStorage = {
 };
 
 declare global {
-  type DpdPudoPlace = {
-    id: string;
-    name: string;
-    street: string;
-    houseno: string;
-    zip: string;
-    city: string;
-    countryCode: string;
-  };
-
   interface Window {
     __pendingOrderUpload?: PendingOrderUpload;
     __pendingDesignPdf?: { file: File; cartItemId?: string };
-    DpdPudo?: {
-      Widget: new (options: Record<string, unknown>) => {
-        open: () => Promise<DpdPudoPlace>;
-      };
-    };
   }
 }
 
@@ -258,13 +250,11 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
   const [deliveryMethod, setDeliveryMethod] = useState<"DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP">("DPD_COURIER");
   const [pickupPoint, setPickupPoint] = useState<CheckoutAddressStorage["selectedPickupPoint"]>(null);
+  const [pickupPointEnabled, setPickupPointEnabled] = useState(true);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>(["bank", "stripe", "cod"]);
-  const [dpdWidgetConfig, setDpdWidgetConfig] = useState<{ enabled: boolean; apiKey: string; language: string }>({
-    enabled: false,
-    apiKey: "",
-    language: "sk",
-  });
-  const [isOpeningPickupWidget, setIsOpeningPickupWidget] = useState(false);
+  const [dpdCourierPrice, setDpdCourierPrice] = useState(4.99);
+  const [dpdCourierFreeFrom, setDpdCourierFreeFrom] = useState(100);
+  const [shopVatRate, setShopVatRate] = useState(0.2);
   const isPreparingRef = useRef(false);
   const initialBilling = buildBillingData(initialBillingData);
   const defaultSavedAddress =
@@ -304,6 +294,15 @@ export function CheckoutForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [invalidBillingFields, setInvalidBillingFields] = useState<Set<string>>(new Set());
   const [invalidDeliveryFields, setInvalidDeliveryFields] = useState<Set<string>>(new Set());
+  const shippingCost = calculateDpdCourierShippingGross({
+    deliveryMethod,
+    productsSubtotal: cart.totals.subtotal,
+    courierPrice: normalizeCourierPrice(dpdCourierPrice),
+    freeShippingFrom: normalizeFreeShippingFrom(dpdCourierFreeFrom),
+  });
+  const shippingVatAmount = splitGrossByVat(shippingCost, normalizeVatRate(shopVatRate)).vat;
+  const orderVatWithShipping = cart.totals.vatAmount + shippingVatAmount;
+  const orderTotalWithShipping = cart.totals.total + shippingCost;
 
   useEffect(() => {
     let active = true;
@@ -327,11 +326,15 @@ export function CheckoutForm({
           }
         }
         if (active) {
-          setDpdWidgetConfig({
-            enabled: Boolean(data?.dpdWidget?.enabled),
-            apiKey: String(data?.dpdWidget?.apiKey ?? ""),
-            language: String(data?.dpdWidget?.language ?? "sk"),
-          });
+          const rawVatRate = Number(data?.vatRate ?? 0.2);
+          const rawCourierPrice = Number(data?.dpdShipping?.courierPrice ?? 4.99);
+          const rawCourierFreeFrom = Number(data?.dpdShipping?.courierFreeFrom ?? 100);
+          setPickupPointEnabled(
+            String(data?.dpdShipping?.pickupPointEnabled ?? "true") !== "false"
+          );
+          setShopVatRate(normalizeVatRate(rawVatRate));
+          setDpdCourierPrice(normalizeCourierPrice(rawCourierPrice));
+          setDpdCourierFreeFrom(normalizeFreeShippingFrom(rawCourierFreeFrom));
         }
       } catch {
         // keep defaults
@@ -342,85 +345,12 @@ export function CheckoutForm({
     };
   }, [deliveryMethod, paymentMethod]);
 
-  const ensureDpdWidgetLibrary = useCallback(async () => {
-    if (window.DpdPudo?.Widget) return;
-    await new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector(
-        'script[data-dpd-widget="1"]'
-      ) as HTMLScriptElement | null;
-      if (existing) {
-        existing.addEventListener("load", () => resolve(), { once: true });
-        existing.addEventListener("error", () => reject(new Error("Widget script load failed")), {
-          once: true,
-        });
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://pus-maps.dpd.sk/lib/library.js";
-      script.async = true;
-      script.dataset.dpdWidget = "1";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Widget script load failed"));
-      document.body.appendChild(script);
-    });
-  }, []);
-
-  const handleOpenPickupWidget = useCallback(async () => {
-    if (!dpdWidgetConfig.enabled) {
-      setError("Widget odberných miest nie je povolený v nastaveniach.");
-      return;
+  useEffect(() => {
+    if (!pickupPointEnabled && deliveryMethod === "DPD_PICKUP") {
+      setDeliveryMethod("DPD_COURIER");
+      setPickupPoint(null);
     }
-    if (!dpdWidgetConfig.apiKey) {
-      setError("Chýba API kľúč mapy DPD.");
-      return;
-    }
-
-    setIsOpeningPickupWidget(true);
-    setError(null);
-    try {
-      await ensureDpdWidgetLibrary();
-      if (!window.DpdPudo?.Widget) {
-        throw new Error("Widget sa nepodarilo inicializovať.");
-      }
-
-      const widget = new window.DpdPudo.Widget({
-        apiKey: dpdWidgetConfig.apiKey,
-        language: dpdWidgetConfig.language || "sk",
-        allowedCountries: ["sk"],
-        allowedPudoTypes: ["shop", "locker"],
-        requiredServices: paymentMethod === "cod" ? ["cod"] : [],
-        selectedPudoId: pickupPoint?.parcelShopId ?? "",
-      });
-
-      const pudo = await widget.open();
-      setPickupPoint({
-        parcelShopId: pudo.id,
-        name: pudo.name,
-        street: [pudo.street, pudo.houseno].filter(Boolean).join(" "),
-        city: pudo.city,
-        zip: pudo.zip,
-        country: (pudo.countryCode || "sk").toUpperCase(),
-      });
-    } catch (widgetError) {
-      const message =
-        widgetError instanceof Error ? widgetError.message : String(widgetError);
-      if (message === "closed_by_user") {
-        return;
-      }
-      if (message === "invalid_api_key") {
-        setError("DPD API kľúč mapy nie je platný.");
-        return;
-      }
-      if (message === "missing_api_key") {
-        setError("Chýba API kľúč mapy DPD.");
-        return;
-      }
-      setError("Nepodarilo sa otvoriť mapu odberných miest DPD.");
-    } finally {
-      setIsOpeningPickupWidget(false);
-    }
-  }, [dpdWidgetConfig, ensureDpdWidgetLibrary, paymentMethod, pickupPoint?.parcelShopId]);
+  }, [pickupPointEnabled, deliveryMethod]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("sk-SK", {
@@ -524,6 +454,7 @@ export function CheckoutForm({
         setSelectedDeliveryAddressId(parsed.selectedDeliveryAddressId);
       }
       if (
+        parsed?.selectedDeliveryMethod === "DPD_COURIER" ||
         parsed?.selectedDeliveryMethod === "DPD_PICKUP" ||
         parsed?.selectedDeliveryMethod === "PERSONAL_PICKUP"
       ) {
@@ -1030,81 +961,35 @@ export function CheckoutForm({
 
             <Card className="p-6">
               <h3 className="mb-4 text-lg font-semibold">Spôsob doručenia</h3>
-              <div className="grid gap-3 md:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => setDeliveryMethod("PERSONAL_PICKUP")}
-                  className={`rounded-lg border p-4 text-left ${deliveryMethod === "PERSONAL_PICKUP" ? "border-primary bg-primary/5" : "border-border"}`}
-                >
-                  <div className="font-medium">Osobný odber</div>
-                  <div className="text-sm text-muted-foreground">Rozvojová 2, Košice</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryMethod("DPD_COURIER")}
-                  className={`rounded-lg border p-4 text-left ${deliveryMethod === "DPD_COURIER" ? "border-primary bg-primary/5" : "border-border"}`}
-                >
-                  <div className="font-medium">DPD kuriér</div>
-                  <div className="text-sm text-muted-foreground">Doručenie na adresu</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryMethod("DPD_PICKUP")}
-                  className={`rounded-lg border p-4 text-left ${deliveryMethod === "DPD_PICKUP" ? "border-primary bg-primary/5" : "border-border"}`}
-                >
-                  <div className="font-medium">DPD Pickup point</div>
-                  <div className="text-sm text-muted-foreground">Odberné miesto / box</div>
-                </button>
-              </div>
-              {deliveryMethod === "DPD_PICKUP" && (
-                <div className="mt-4 rounded-md border p-4 space-y-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <ModeButton
-                      mode={mode}
-                      variant="outline"
-                      size="sm"
-                      type="button"
-                      onClick={handleOpenPickupWidget}
-                      disabled={isOpeningPickupWidget}
-                    >
-                      {isOpeningPickupWidget ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Otváram mapu...
-                        </>
-                      ) : pickupPoint?.parcelShopId ? (
-                        "Zmeniť odberné miesto"
-                      ) : (
-                        "Vybrať odberné miesto na mape"
-                      )}
-                    </ModeButton>
-                    {!dpdWidgetConfig.enabled && (
-                      <span className="text-xs text-muted-foreground">
-                        Widget mapy je vypnutý v nastaveniach DPD.
-                      </span>
-                    )}
-                  </div>
-                  {pickupPoint?.parcelShopId ? (
-                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                      <div className="font-medium">{pickupPoint.name || "Odberné miesto DPD"}</div>
-                      <div className="text-muted-foreground">
-                        {pickupPoint.street}
-                        <br />
-                        {pickupPoint.zip} {pickupPoint.city}
-                        <br />
-                        {pickupPoint.country}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        PUS ID: {pickupPoint.parcelShopId}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Zatiaľ nie je vybrané odberné miesto.
-                    </p>
-                  )}
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+                <div className="font-medium">
+                  {deliveryMethod === "PERSONAL_PICKUP"
+                    ? "Osobný odber - Rozvojová 2, Košice"
+                    : deliveryMethod === "DPD_PICKUP"
+                      ? "DPD Pickup point"
+                      : "DPD kuriér"}
                 </div>
-              )}
+                {deliveryMethod === "DPD_PICKUP" && pickupPoint?.parcelShopId ? (
+                  <div className="mt-2 text-muted-foreground">
+                    {pickupPoint.name}
+                    <br />
+                    {pickupPoint.street}
+                    <br />
+                    {pickupPoint.zip} {pickupPoint.city}
+                  </div>
+                ) : null}
+                {deliveryMethod === "DPD_PICKUP" && !pickupPoint?.parcelShopId ? (
+                  <div className="mt-2 text-red-600">
+                    Vyberte odberné miesto v košíku.
+                  </div>
+                ) : null}
+                <a
+                  href="/cart"
+                  className="mt-3 inline-block text-sm font-medium text-primary hover:underline"
+                >
+                  Zmeniť spôsob doručenia v košíku
+                </a>
+              </div>
             </Card>
 
             {deliveryMethod !== "PERSONAL_PICKUP" && (
@@ -1187,7 +1072,7 @@ export function CheckoutForm({
                     ? `DPD Pickup/Pickup Station${pickupPoint?.name ? ` - ${pickupPoint.name}` : ""}`
                     : "DPD kuriér"
               }
-              shippingCost={0}
+              shippingCost={shippingCost}
               billingAddress={{
                 companyName: billingData.companyName,
                 name: customerName,
@@ -1355,16 +1240,24 @@ export function CheckoutForm({
                 <PriceDisplay price={cart.totals.subtotal} mode={mode} size="sm" />
               </div>
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Doprava:</span>
+                {shippingCost === 0 ? (
+                  <span className="font-medium text-green-600">Zdarma</span>
+                ) : (
+                  <PriceDisplay price={shippingCost} mode={mode} size="sm" />
+                )}
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">DPH:</span>
-                <span>{formatPrice(cart.totals.vatAmount)}</span>
+                <span>{formatPrice(orderVatWithShipping)}</span>
               </div>
               <div className="border-t border-border pt-2">
                 <div className="flex justify-between text-lg font-bold">
                   <span>Celkom:</span>
                   {mode === "b2c" ? (
-                    <PriceDisplay price={cart.totals.total} mode={mode} size="lg" />
+                    <PriceDisplay price={orderTotalWithShipping} mode={mode} size="lg" />
                   ) : (
-                    <span>{formatPrice(cart.totals.total)}</span>
+                    <span>{formatPrice(orderTotalWithShipping)}</span>
                   )}
                 </div>
               </div>

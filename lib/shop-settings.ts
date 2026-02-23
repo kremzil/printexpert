@@ -23,6 +23,9 @@ export type DpdSettings = {
   bankAccountId: string
   senderAddressId: string
   defaultProduct: number
+  courierPrice: number
+  courierFreeFrom: number
+  pickupPointEnabled: boolean
   notificationsEnabled: boolean
   notificationChannel: "email" | "sms"
   notificationRule: "1" | "904" | "902"
@@ -51,6 +54,9 @@ const FALLBACK_DPD_SETTINGS: DpdSettings = {
   bankAccountId: "",
   senderAddressId: "",
   defaultProduct: 1,
+  courierPrice: 4.99,
+  courierFreeFrom: 100,
+  pickupPointEnabled: true,
   notificationsEnabled: false,
   notificationChannel: "email",
   notificationRule: "1",

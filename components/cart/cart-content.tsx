@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import {
   FileCheck,
   Home,
   Info,
+  MapPin,
   MessageSquare,
   Minus,
   Plus,
@@ -39,6 +40,11 @@ import { Label } from "@/components/ui/label";
 import { ModeButton } from "@/components/print/mode-button";
 import { PriceDisplay } from "@/components/print/price-display";
 import { getCsrfHeader } from "@/lib/csrf";
+import {
+  calculateDpdCourierShippingGross,
+  normalizeFreeShippingFrom,
+  normalizeCourierPrice,
+} from "@/lib/delivery-pricing";
 import { getDesignElementCount } from "@/lib/design-studio";
 import type { CartData } from "@/types/cart";
 import type { CustomerMode } from "@/components/print/types";
@@ -47,6 +53,8 @@ interface CartContentProps {
   cart: CartData;
   mode: CustomerMode;
   vatRate: number;
+  dpdCourierPrice: number;
+  dpdCourierFreeFrom: number;
 }
 
 type PendingOrderUpload = {
@@ -54,9 +62,34 @@ type PendingOrderUpload = {
   cartItemId?: string;
 };
 
+type CartDeliveryMethod = "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP";
+type CartPickupPoint = {
+  parcelShopId: string;
+  name: string;
+  street: string;
+  city: string;
+  zip: string;
+  country: string;
+};
+
 declare global {
+  type DpdPudoPlace = {
+    id: string;
+    name: string;
+    street: string;
+    houseno: string;
+    zip: string;
+    city: string;
+    countryCode: string;
+  };
+
   interface Window {
     __pendingOrderUpload?: PendingOrderUpload;
+    DpdPudo?: {
+      Widget: new (options: Record<string, unknown>) => {
+        open: () => Promise<DpdPudoPlace>;
+      };
+    };
   }
 }
 
@@ -97,22 +130,62 @@ const getPrevPreset = (presets: number[], current: number) => {
   return current;
 };
 
-export function CartContent({ cart: initialCart, mode, vatRate }: CartContentProps) {
+export function CartContent({
+  cart: initialCart,
+  mode,
+  vatRate,
+  dpdCourierPrice,
+  dpdCourierFreeFrom,
+}: CartContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [pendingUpload, setPendingUpload] = useState<PendingOrderUpload | null>(null);
   const [note, setNote] = useState("");
-  const [selectedShipping, setSelectedShipping] = useState<"courier" | "pickup">("courier");
+  const [deliveryMethod, setDeliveryMethod] = useState<CartDeliveryMethod>("DPD_COURIER");
+  const [pickupPoint, setPickupPoint] = useState<CartPickupPoint | null>(null);
+  const [isOpeningPickupWidget, setIsOpeningPickupWidget] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [dpdWidgetConfig, setDpdWidgetConfig] = useState<{
+    enabled: boolean;
+    apiKey: string;
+    language: string;
+  }>({
+    enabled: false,
+    apiKey: "",
+    language: "sk",
+  });
+  const [pickupPointEnabled, setPickupPointEnabled] = useState(true);
+  const [hasHydratedDelivery, setHasHydratedDelivery] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const checkoutStorageKey = `checkout-address-v1:${mode}`;
   const isB2B = mode === "b2b";
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)";
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)";
   const subtotal = initialCart.totals.subtotal;
-  const shippingCost = selectedShipping === "pickup" || subtotal >= 100 ? 0 : 4.99;
+  const normalizedCourierFreeFrom = normalizeFreeShippingFrom(dpdCourierFreeFrom);
+  const normalizedCourierPrice = normalizeCourierPrice(dpdCourierPrice);
+  const courierShippingCost = calculateDpdCourierShippingGross({
+    deliveryMethod: "DPD_COURIER",
+    productsSubtotal: subtotal,
+    courierPrice: normalizedCourierPrice,
+    freeShippingFrom: normalizedCourierFreeFrom,
+  });
+  const pickupShippingCost = calculateDpdCourierShippingGross({
+    deliveryMethod: "DPD_PICKUP",
+    productsSubtotal: subtotal,
+    courierPrice: normalizedCourierPrice,
+    freeShippingFrom: normalizedCourierFreeFrom,
+  });
+  const shippingCost =
+    deliveryMethod === "PERSONAL_PICKUP"
+      ? 0
+      : deliveryMethod === "DPD_PICKUP"
+        ? pickupShippingCost
+        : courierShippingCost;
   const normalizeVatRate = Number.isFinite(vatRate) && vatRate > 0 ? vatRate : 0.2;
   const totalWithVAT = initialCart.totals.total + shippingCost;
   const vatAmount = initialCart.totals.vatAmount + shippingCost * normalizeVatRate;
@@ -133,6 +206,172 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
       setPendingUpload(window.__pendingOrderUpload ?? null);
     }
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/shop-settings", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!active) return;
+        setPickupPointEnabled(
+          String(data?.dpdShipping?.pickupPointEnabled ?? "true") !== "false"
+        );
+        setDpdWidgetConfig({
+          enabled: Boolean(data?.dpdWidget?.enabled),
+          apiKey: String(data?.dpdWidget?.apiKey ?? ""),
+          language: String(data?.dpdWidget?.language ?? "sk"),
+        });
+      } catch {
+        // keep defaults
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pickupPointEnabled && deliveryMethod === "DPD_PICKUP") {
+      setDeliveryMethod("DPD_COURIER");
+      setPickupPoint(null);
+    }
+  }, [pickupPointEnabled, deliveryMethod]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(checkoutStorageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored) as {
+          selectedDeliveryMethod?: CartDeliveryMethod;
+          selectedPickupPoint?: CartPickupPoint | null;
+        };
+        if (
+          parsed?.selectedDeliveryMethod === "DPD_COURIER" ||
+          parsed?.selectedDeliveryMethod === "DPD_PICKUP" ||
+          parsed?.selectedDeliveryMethod === "PERSONAL_PICKUP"
+        ) {
+          setDeliveryMethod(parsed.selectedDeliveryMethod);
+        }
+        if (parsed?.selectedPickupPoint?.parcelShopId) {
+          setPickupPoint(parsed.selectedPickupPoint);
+        }
+      }
+    } catch (storageError) {
+      console.warn("Cart delivery restore failed:", storageError);
+    } finally {
+      setHasHydratedDelivery(true);
+    }
+  }, [checkoutStorageKey]);
+
+  useEffect(() => {
+    if (!hasHydratedDelivery) return;
+    try {
+      const stored = localStorage.getItem(checkoutStorageKey);
+      const payload =
+        stored && stored.trim().length > 0
+          ? (JSON.parse(stored) as Record<string, unknown>)
+          : {};
+      const nextPayload = {
+        ...payload,
+        selectedDeliveryMethod: deliveryMethod,
+        selectedPickupPoint: deliveryMethod === "DPD_PICKUP" ? pickupPoint : null,
+      };
+      localStorage.setItem(checkoutStorageKey, JSON.stringify(nextPayload));
+    } catch (storageError) {
+      console.warn("Cart delivery persist failed:", storageError);
+    }
+  }, [checkoutStorageKey, deliveryMethod, hasHydratedDelivery, pickupPoint]);
+
+  const ensureDpdWidgetLibrary = useCallback(async () => {
+    if (window.DpdPudo?.Widget) return;
+    await new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector(
+        'script[data-dpd-widget="1"]'
+      ) as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Widget script load failed")), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://pus-maps.dpd.sk/lib/library.js";
+      script.async = true;
+      script.dataset.dpdWidget = "1";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Widget script load failed"));
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const handleOpenPickupWidget = useCallback(async () => {
+    if (!dpdWidgetConfig.enabled) {
+      setDeliveryError("Widget odberných miest nie je povolený v nastaveniach.");
+      return;
+    }
+    if (!dpdWidgetConfig.apiKey) {
+      setDeliveryError("Chýba API kľúč mapy DPD.");
+      return;
+    }
+
+    setIsOpeningPickupWidget(true);
+    setDeliveryError(null);
+    try {
+      await ensureDpdWidgetLibrary();
+      if (!window.DpdPudo?.Widget) {
+        throw new Error("Widget sa nepodarilo inicializovať.");
+      }
+
+      const widget = new window.DpdPudo.Widget({
+        apiKey: dpdWidgetConfig.apiKey,
+        language: dpdWidgetConfig.language || "sk",
+        allowedCountries: ["sk"],
+        allowedPudoTypes: ["shop", "locker"],
+        selectedPudoId: pickupPoint?.parcelShopId ?? "",
+      });
+
+      const pudo = await widget.open();
+      setPickupPoint({
+        parcelShopId: pudo.id,
+        name: pudo.name,
+        street: [pudo.street, pudo.houseno].filter(Boolean).join(" "),
+        city: pudo.city,
+        zip: pudo.zip,
+        country: (pudo.countryCode || "sk").toUpperCase(),
+      });
+      setDeliveryError(null);
+    } catch (widgetError) {
+      const message =
+        widgetError instanceof Error ? widgetError.message : String(widgetError);
+      if (message === "closed_by_user") {
+        return;
+      }
+      if (message === "invalid_api_key") {
+        setDeliveryError("DPD API kľúč mapy nie je platný.");
+        return;
+      }
+      if (message === "missing_api_key") {
+        setDeliveryError("Chýba API kľúč mapy DPD.");
+        return;
+      }
+      setDeliveryError("Nepodarilo sa otvoriť mapu odberných miest DPD.");
+    } finally {
+      setIsOpeningPickupWidget(false);
+    }
+  }, [dpdWidgetConfig, ensureDpdWidgetLibrary, pickupPoint?.parcelShopId]);
+
+  const handleProceedToCheckout = () => {
+    if (deliveryMethod === "DPD_PICKUP" && !pickupPoint?.parcelShopId) {
+      setDeliveryError("Vyberte odberné miesto DPD.");
+      return;
+    }
+    setDeliveryError(null);
+    router.push("/checkout");
+  };
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     setUpdatingItems((prev) => new Set(prev).add(itemId));
@@ -575,17 +814,20 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                 <div className="space-y-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedShipping("courier")}
+                    onClick={() => {
+                      setDeliveryMethod("DPD_COURIER");
+                      setDeliveryError(null);
+                    }}
                     className={`w-full rounded-[10px] border p-3 text-left transition-colors ${
-                      selectedShipping === "courier"
+                      deliveryMethod === "DPD_COURIER"
                         ? "shadow-sm"
                         : "border-black/10 hover:border-[#bfbfc9]"
                     }`}
                     style={{
                       borderColor:
-                        selectedShipping === "courier" ? modeColor : undefined,
+                        deliveryMethod === "DPD_COURIER" ? modeColor : undefined,
                       backgroundColor:
-                        selectedShipping === "courier" ? modeAccent : undefined,
+                        deliveryMethod === "DPD_COURIER" ? modeAccent : undefined,
                     }}
                   >
                     <div className="flex items-center justify-between">
@@ -594,31 +836,31 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                           className="h-5 w-5"
                           style={{
                             color:
-                              selectedShipping === "courier" ? modeColor : undefined,
+                              deliveryMethod === "DPD_COURIER" ? modeColor : undefined,
                           }}
                         />
                         <div>
                           <div className="text-[16px] leading-[24px] text-[#0a0a0a]">
-                            Kuriér
+                            DPD kuriér
                           </div>
                           <div className="text-[12px] leading-[16px] text-[#717182]">
-                            Doručenie do 1-2 dní
+                            Doručenie na adresu
                           </div>
                         </div>
                       </div>
-                      {shippingCost > 0 ? (
+                      {courierShippingCost > 0 ? (
                         isB2B ? (
                           <div className="text-right">
                             <div className="text-[18px] font-bold" style={{ color: modeColor }}>
-                              {formatPrice(getNetVat(shippingCost).net)}
+                              {formatPrice(getNetVat(courierShippingCost).net)}
                             </div>
                             <div className="text-[12px] leading-[16px] text-[#717182]">
-                              bez DPH (+ {formatPrice(getNetVat(shippingCost).vat)} DPH = {formatPrice(shippingCost)})
+                              bez DPH (+ {formatPrice(getNetVat(courierShippingCost).vat)} DPH = {formatPrice(courierShippingCost)})
                             </div>
                           </div>
                         ) : (
                           <div className="text-[18px] font-bold" style={{ color: modeColor }}>
-                            {formatPrice(shippingCost)}
+                            {formatPrice(courierShippingCost)}
                           </div>
                         )
                       ) : (
@@ -627,19 +869,84 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                     </div>
                   </button>
 
+                  {pickupPointEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeliveryMethod("DPD_PICKUP");
+                        setDeliveryError(null);
+                      }}
+                      className={`w-full rounded-[10px] border p-3 text-left transition-colors ${
+                        deliveryMethod === "DPD_PICKUP"
+                          ? "shadow-sm"
+                          : "border-black/10 hover:border-[#bfbfc9]"
+                      }`}
+                      style={{
+                        borderColor:
+                          deliveryMethod === "DPD_PICKUP" ? modeColor : undefined,
+                        backgroundColor:
+                          deliveryMethod === "DPD_PICKUP" ? modeAccent : undefined,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <MapPin
+                            className="h-5 w-5"
+                            style={{
+                              color:
+                                deliveryMethod === "DPD_PICKUP" ? modeColor : undefined,
+                            }}
+                          />
+                          <div>
+                            <div className="text-[16px] leading-[24px] text-[#0a0a0a]">
+                              DPD Pickup point
+                            </div>
+                            <div className="text-[12px] leading-[16px] text-[#717182]">
+                              Odberné miesto / box
+                            </div>
+                          </div>
+                        </div>
+                        {pickupShippingCost > 0 ? (
+                          isB2B ? (
+                            <div className="text-right">
+                              <div className="text-[18px] font-bold" style={{ color: modeColor }}>
+                                {formatPrice(getNetVat(pickupShippingCost).net)}
+                              </div>
+                              <div className="text-[12px] leading-[16px] text-[#717182]">
+                                bez DPH (+ {formatPrice(getNetVat(pickupShippingCost).vat)} DPH = {formatPrice(pickupShippingCost)})
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[18px] font-bold" style={{ color: modeColor }}>
+                              {formatPrice(pickupShippingCost)}
+                            </div>
+                          )
+                        ) : (
+                          <div className="text-[16px] leading-[24px] text-[#00a63e]">
+                            Zdarma
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ) : null}
+
                   <button
                     type="button"
-                    onClick={() => setSelectedShipping("pickup")}
+                    onClick={() => {
+                      setDeliveryMethod("PERSONAL_PICKUP");
+                      setPickupPoint(null);
+                      setDeliveryError(null);
+                    }}
                     className={`w-full rounded-[10px] border p-3 text-left transition-colors ${
-                      selectedShipping === "pickup"
+                      deliveryMethod === "PERSONAL_PICKUP"
                         ? "shadow-sm"
                         : "border-black/10 hover:border-[#bfbfc9]"
                     }`}
                     style={{
                       borderColor:
-                        selectedShipping === "pickup" ? modeColor : undefined,
+                        deliveryMethod === "PERSONAL_PICKUP" ? modeColor : undefined,
                       backgroundColor:
-                        selectedShipping === "pickup" ? modeAccent : undefined,
+                        deliveryMethod === "PERSONAL_PICKUP" ? modeAccent : undefined,
                     }}
                   >
                     <div className="flex items-center justify-between">
@@ -648,7 +955,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                           className="h-5 w-5"
                           style={{
                             color:
-                              selectedShipping === "pickup" ? modeColor : undefined,
+                              deliveryMethod === "PERSONAL_PICKUP" ? modeColor : undefined,
                           }}
                         />
                         <div>
@@ -656,7 +963,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                             Osobný odber
                           </div>
                           <div className="text-[12px] leading-[16px] text-[#717182]">
-                            Bratislava - zadarmo
+                            Košice, Rozvojová 2
                           </div>
                         </div>
                       </div>
@@ -666,6 +973,50 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                     </div>
                   </button>
                 </div>
+
+                {pickupPointEnabled && deliveryMethod === "DPD_PICKUP" ? (
+                  <div className="mt-3 space-y-3 rounded-[10px] border border-black/10 p-3">
+                    <ModeButton
+                      mode={mode}
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={handleOpenPickupWidget}
+                      disabled={isOpeningPickupWidget}
+                      className="w-full"
+                    >
+                      {isOpeningPickupWidget ? "Otváram mapu..." : pickupPoint ? "Zmeniť odberné miesto" : "Vybrať odberné miesto na mape"}
+                    </ModeButton>
+                    {!dpdWidgetConfig.enabled ? (
+                      <p className="text-xs text-muted-foreground">
+                        Widget mapy je vypnutý v nastaveniach DPD.
+                      </p>
+                    ) : null}
+                    {pickupPoint ? (
+                      <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                        <div className="font-medium">{pickupPoint.name || "Odberné miesto DPD"}</div>
+                        <div className="text-muted-foreground">
+                          {pickupPoint.street}
+                          <br />
+                          {pickupPoint.zip} {pickupPoint.city}
+                          <br />
+                          {pickupPoint.country}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          PUS ID: {pickupPoint.parcelShopId}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Zatiaľ nie je vybrané odberné miesto.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                {deliveryError ? (
+                  <p className="mt-3 text-sm text-red-600">{deliveryError}</p>
+                ) : null}
               </Card>
 
               <Card className="rounded-[10px] border-black/10 p-4">
@@ -693,7 +1044,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#717182]">Doprava:</span>
-                    {selectedShipping === "pickup" || shippingCost === 0 ? (
+                    {shippingCost === 0 ? (
                       <span className="font-medium text-green-600">Zdarma</span>
                     ) : isB2B ? (
                       <div className="text-right">
@@ -775,7 +1126,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                     mode={mode}
                     variant="primary"
                     size="md"
-                    onClick={() => router.push("/checkout")}
+                    onClick={handleProceedToCheckout}
                     className="h-[56px] w-full rounded-[10px] text-[18px] font-medium"
                     disabled={isPending}
                   >
@@ -786,7 +1137,7 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                       mode={mode}
                       variant="outline"
                       size="md"
-                      onClick={() => router.push("/checkout")}
+                      onClick={handleProceedToCheckout}
                       className="h-[48px] w-full rounded-[10px] text-[16px] font-medium"
                     >
                       <MessageSquare className="h-4 w-4" />
@@ -815,12 +1166,12 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
                 ) : null}
               </Card>
 
-              {mode === "b2c" && subtotal < 100 && selectedShipping === "courier" ? (
+              {mode === "b2c" && subtotal < normalizedCourierFreeFrom && deliveryMethod !== "PERSONAL_PICKUP" ? (
                 <div className="rounded-[10px] border-2 border-[#ffb86a] bg-[#fff7ed] px-[18px] pb-[2px] pt-[18px] text-center">
                   <div className="text-[14px] leading-[20px] text-[#7e2a0c]">
                     Pridajte ešte{" "}
                     <span className="mx-1 text-[18px] font-bold text-[#e74c3c]">
-                      {formatPrice(100 - subtotal)}
+                      {formatPrice(normalizedCourierFreeFrom - subtotal)}
                     </span>
                   </div>
                   <div className="text-[14px] leading-[20px] text-[#7e2a0c]">

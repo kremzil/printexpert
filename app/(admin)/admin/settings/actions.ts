@@ -47,6 +47,25 @@ export async function updateDpdSettings(formData: FormData) {
   await requireAdmin()
 
   const prisma = getPrisma()
+  const existingSettings = await prisma.shopSettings.findUnique({
+    where: { id: SETTINGS_ID },
+    select: { dpdSettings: true },
+  })
+  const existingDpdSettings =
+    (existingSettings?.dpdSettings as Record<string, unknown> | null) ?? {}
+  const existingCourierPriceRaw = Number(existingDpdSettings.courierPrice ?? "4.99")
+  const existingCourierPrice =
+    Number.isFinite(existingCourierPriceRaw) && existingCourierPriceRaw >= 0
+      ? existingCourierPriceRaw
+      : 4.99
+  const existingCourierFreeFromRaw = Number(existingDpdSettings.courierFreeFrom ?? "100")
+  const existingCourierFreeFrom =
+    Number.isFinite(existingCourierFreeFromRaw) && existingCourierFreeFromRaw >= 0
+      ? existingCourierFreeFromRaw
+      : 100
+  const existingPickupPointEnabled =
+    String(existingDpdSettings.pickupPointEnabled ?? "true") !== "false"
+
   await prisma.shopSettings.upsert({
     where: { id: SETTINGS_ID },
     create: {
@@ -58,6 +77,9 @@ export async function updateDpdSettings(formData: FormData) {
         bankAccountId: String(formData.get("bankAccountId") ?? "").trim(),
         senderAddressId: String(formData.get("senderAddressId") ?? "").trim(),
         defaultProduct: Number(formData.get("defaultProduct") ?? "1") || 1,
+        courierPrice: existingCourierPrice,
+        courierFreeFrom: existingCourierFreeFrom,
+        pickupPointEnabled: existingPickupPointEnabled,
         notificationsEnabled: String(formData.get("notificationsEnabled") ?? "") === "1",
         notificationChannel:
           String(formData.get("notificationChannel") ?? "email") === "sms"
@@ -93,6 +115,9 @@ export async function updateDpdSettings(formData: FormData) {
         bankAccountId: String(formData.get("bankAccountId") ?? "").trim(),
         senderAddressId: String(formData.get("senderAddressId") ?? "").trim(),
         defaultProduct: Number(formData.get("defaultProduct") ?? "1") || 1,
+        courierPrice: existingCourierPrice,
+        courierFreeFrom: existingCourierFreeFrom,
+        pickupPointEnabled: existingPickupPointEnabled,
         notificationsEnabled: String(formData.get("notificationsEnabled") ?? "") === "1",
         notificationChannel:
           String(formData.get("notificationChannel") ?? "email") === "sms"
@@ -118,6 +143,54 @@ export async function updateDpdSettings(formData: FormData) {
           Number(formData.get("pickupDateOffsetDays") ?? "1") || 1,
         pickupTimeFrom: String(formData.get("pickupTimeFrom") ?? "0800").trim(),
         pickupTimeTo: String(formData.get("pickupTimeTo") ?? "1600").trim(),
+      },
+    },
+  })
+
+  revalidateTag(TAGS.SHOP_SETTINGS, "max")
+  revalidatePath("/admin/settings")
+}
+
+export async function updateDpdShippingPrice(formData: FormData) {
+  await requireAdmin()
+
+  const rawCourierPrice = Number(formData.get("courierPrice") ?? "4.99")
+  const courierPrice =
+    Number.isFinite(rawCourierPrice) && rawCourierPrice >= 0
+      ? rawCourierPrice
+      : 4.99
+  const rawCourierFreeFrom = Number(formData.get("courierFreeFrom") ?? "100")
+  const courierFreeFrom =
+    Number.isFinite(rawCourierFreeFrom) && rawCourierFreeFrom >= 0
+      ? rawCourierFreeFrom
+      : 100
+  const pickupPointEnabled = String(formData.get("pickupPointEnabled") ?? "") === "1"
+
+  const prisma = getPrisma()
+  const existingSettings = await prisma.shopSettings.findUnique({
+    where: { id: SETTINGS_ID },
+    select: { dpdSettings: true },
+  })
+  const existingDpdSettings =
+    (existingSettings?.dpdSettings as Record<string, unknown> | null) ?? {}
+
+  await prisma.shopSettings.upsert({
+    where: { id: SETTINGS_ID },
+    create: {
+      id: SETTINGS_ID,
+      dpdSettings: {
+        ...existingDpdSettings,
+        courierPrice,
+        courierFreeFrom,
+        pickupPointEnabled,
+      },
+    },
+    update: {
+      dpdSettings: {
+        ...existingDpdSettings,
+        courierPrice,
+        courierFreeFrom,
+        pickupPointEnabled,
       },
     },
   })

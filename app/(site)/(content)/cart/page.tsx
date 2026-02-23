@@ -5,7 +5,7 @@ import { CartContent } from "@/components/cart/cart-content";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAudienceContext } from "@/lib/audience-context";
 import { EmptyCart } from "@/components/print/empty-cart";
-import { getShopVatRate } from "@/lib/shop-settings";
+import { getShopSettings } from "@/lib/shop-settings";
 import { getProductCalculatorData } from "@/lib/pricing";
 import { buildStaticPageMetadata } from "@/lib/seo";
 
@@ -41,7 +41,10 @@ async function CartItems() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get("cart_session_id")?.value;
   const cart = await getCart(sessionId);
-  const vatRate = await getShopVatRate();
+  const shopSettings = await getShopSettings();
+  const vatRate = shopSettings.vatRate;
+  const dpdCourierPrice = shopSettings.dpdSettings.courierPrice;
+  const dpdCourierFreeFrom = shopSettings.dpdSettings.courierFreeFrom;
 
   if (!cart || cart.items.length === 0) {
     return <EmptyCart mode={mode} />;
@@ -91,7 +94,15 @@ async function CartItems() {
     ),
   };
 
-  return <CartContent cart={serializedCart} mode={mode} vatRate={vatRate} />;
+  return (
+    <CartContent
+      cart={serializedCart}
+      mode={mode}
+      vatRate={vatRate}
+      dpdCourierPrice={dpdCourierPrice}
+      dpdCourierFreeFrom={dpdCourierFreeFrom}
+    />
+  );
 }
 
 export default function CartPage() {

@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { calculate } from "@/lib/pricing";
 import type { Audience, AudienceContext } from "@/lib/audience-shared";
 import { Prisma } from "@/lib/generated/prisma";
+import { getShopSettings } from "@/lib/shop-settings";
+import {
+  calculateDpdCourierShippingGross,
+  splitGrossByVat,
+} from "@/lib/delivery-pricing";
 import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -134,6 +139,21 @@ const POSTHandler = async (req: NextRequest) => {
       subtotal = subtotal.add(itemNet);
       vatAmount = vatAmount.add(itemVat);
       total = total.add(itemGross);
+    }
+
+    const settings = await getShopSettings();
+    const shippingGross = calculateDpdCourierShippingGross({
+      deliveryMethod: order.deliveryMethod,
+      productsSubtotal: Number(subtotal.toString()),
+      courierPrice: settings.dpdSettings.courierPrice,
+      freeShippingFrom: settings.dpdSettings.courierFreeFrom,
+    });
+    const shipping = splitGrossByVat(shippingGross, settings.vatRate);
+
+    if (shipping.gross > 0) {
+      subtotal = subtotal.add(new Prisma.Decimal(shipping.net.toFixed(2)));
+      vatAmount = vatAmount.add(new Prisma.Decimal(shipping.vat.toFixed(2)));
+      total = total.add(new Prisma.Decimal(shipping.gross.toFixed(2)));
     }
 
     const totalNumber = Number(total.toString());
