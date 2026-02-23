@@ -855,13 +855,13 @@ export function CheckoutForm({
           throw new Error(syncError.error ?? "Nepodarilo sa aktualizovať spôsob platby.");
         }
         await clearCartAfterCheckout();
-        window.location.href = `/account/orders/${orderId}?success=true`;
+        window.location.href = `/checkout/success?orderId=${orderId}`;
         return;
       }
       const { orderId: createdOrderId, uploadFailed } = await createOrderAndUpload();
       const uploadParam = uploadFailed ? "&upload=failed" : "";
       await clearCartAfterCheckout();
-      window.location.href = `/account/orders/${createdOrderId}?success=true${uploadParam}`;
+      window.location.href = `/checkout/success?orderId=${createdOrderId}${uploadParam}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Neznáma chyba");
       setIsSubmitting(false);

@@ -136,6 +136,22 @@ const postHandler = async (req: NextRequest) => {
         errorMessage: err.message,
       });
     });
+    NotificationService.sendAdminOrderCreated(order.id).catch((error) => {
+      const err =
+        error instanceof Error
+          ? error
+          : new Error("Unknown admin order created notification error");
+      logger.error({
+        event: OBS_EVENT.SERVER_UNHANDLED_ERROR,
+        requestId,
+        method: req.method,
+        path: new URL(req.url).pathname,
+        ipHash,
+        scope: "checkout.notification.order_created_admin",
+        errorName: err.name,
+        errorMessage: err.message,
+      });
+    });
 
     return NextResponse.json(order);
   } catch (error) {

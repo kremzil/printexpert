@@ -199,7 +199,7 @@ export function OrderSuccess({
       </Card>
 
       <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex">
           <ModeButton
             mode={mode}
             variant="primary"
@@ -211,15 +211,7 @@ export function OrderSuccess({
             Zobraziť moje objednávky
           </ModeButton>
 
-          <ModeButton
-            mode={mode}
-            variant="outline"
-            size="lg"
-            className="w-full"
-          >
-            <Download className="h-5 w-5" />
-            Stiahnuť potvrdenie
-          </ModeButton>
+
         </div>
 
         <ModeButton

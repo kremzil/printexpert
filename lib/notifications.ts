@@ -90,6 +90,26 @@ const formatMoney = (value: unknown) => {
   return `${amount.toFixed(2).replace(".", ",")} €`;
 };
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const deliveryMethodLabels: Record<string, string> = {
+  DPD_COURIER: "DPD kuriér",
+  DPD_PICKUP: "DPD Pickup point",
+  PERSONAL_PICKUP: "Osobný odber",
+};
+
+const paymentMethodLabels: Record<string, string> = {
+  STRIPE: "Kartou online",
+  BANK_TRANSFER: "Bankový prevod",
+  COD: "Dobierka",
+};
+
 async function createLog(type: NotificationType, orderId: string | null, toEmail: string) {
   try {
     return await prisma.notificationLog.create({
@@ -325,6 +345,180 @@ export const NotificationService = {
 
     return sendWithLog({
       type: NotificationType.ARTWORK_UPLOADED,
+      orderId,
+      toEmail,
+      subject,
+      text,
+      html,
+    });
+  },
+
+  async sendAdminOrderCreated(orderId: string) {
+    const toEmail = process.env.SMTP_TO ?? process.env.SMTP_FROM;
+    if (!toEmail) {
+      return false;
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        orderNumber: true,
+        audience: true,
+        customerName: true,
+        customerEmail: true,
+        customerPhone: true,
+        deliveryMethod: true,
+        paymentMethod: true,
+        billingAddress: true,
+        shippingAddress: true,
+        notes: true,
+        subtotal: true,
+        vatAmount: true,
+        total: true,
+        items: {
+          select: {
+            productName: true,
+            quantity: true,
+            priceGross: true,
+          },
+        },
+        assets: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            kind: true,
+            status: true,
+            fileNameOriginal: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      return false;
+    }
+
+    const orderUrl = `${BRAND.url}/admin/orders/${order.id}`;
+    const assetsListUrl = `${BRAND.url}/api/orders/${order.id}/assets`;
+    const deliveryMethodLabel = order.deliveryMethod
+      ? deliveryMethodLabels[order.deliveryMethod] ?? order.deliveryMethod
+      : "—";
+    const paymentMethodLabel = order.paymentMethod
+      ? paymentMethodLabels[order.paymentMethod] ?? order.paymentMethod
+      : "—";
+    const audienceLabel = order.audience.toUpperCase();
+
+    const itemsText = order.items
+      .map((item) => {
+        return `- ${item.productName} × ${item.quantity} — ${formatMoney(item.priceGross)}`;
+      })
+      .join("\n");
+
+    const itemsForTable = order.items.map((item) => ({
+      name: item.productName,
+      quantity: item.quantity,
+      total: formatMoney(item.priceGross),
+    }));
+
+    const billingAddress = formatAddressLine(parseAddress(order.billingAddress));
+    const shippingAddress = formatAddressLine(parseAddress(order.shippingAddress));
+
+    const fileAssets = order.assets.filter((asset) => asset.kind !== "INVOICE");
+    const fileLinks = fileAssets.map((asset) => ({
+      title: `${asset.fileNameOriginal} (${asset.kind}, ${asset.status})`,
+      url: `${BRAND.url}/api/assets/${asset.id}/download`,
+    }));
+
+    const filesText =
+      fileLinks.length > 0
+        ? fileLinks.map((file, index) => `${index + 1}. ${file.title}\n   ${file.url}`).join("\n")
+        : "Súbory zatiaľ neboli nahraté. Aktuálny stav nájdete v detaile objednávky.";
+
+    const notesText = order.notes?.trim() ? order.notes.trim() : "—";
+    const subject = `Nová objednávka #${order.orderNumber}`;
+
+    const text = [
+      `Bola vytvorená nová objednávka #${order.orderNumber}.`,
+      "",
+      `Režim: ${audienceLabel}`,
+      `Meno: ${order.customerName}`,
+      `E-mail: ${order.customerEmail}`,
+      order.customerPhone ? `Telefón: ${order.customerPhone}` : null,
+      `Doručenie: ${deliveryMethodLabel}`,
+      `Platba: ${paymentMethodLabel}`,
+      "",
+      "Položky objednávky:",
+      itemsText || "—",
+      "",
+      `Medzisúčet: ${formatMoney(order.subtotal)}`,
+      `DPH: ${formatMoney(order.vatAmount)}`,
+      `Celkom: ${formatMoney(order.total)}`,
+      "",
+      "Súbory:",
+      filesText,
+      `Zoznam súborov (API): ${assetsListUrl}`,
+      "",
+      `Poznámka: ${notesText}`,
+      "",
+      `Detail objednávky: ${orderUrl}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const filesHtml =
+      fileLinks.length > 0
+        ? `<ul style="margin:8px 0 0; padding-left:18px;">${fileLinks
+            .map(
+              (file) =>
+                `<li style="margin:6px 0;"><a href="${file.url}" style="color:#1d4ed8; text-decoration:underline;">${escapeHtml(file.title)}</a></li>`
+            )
+            .join("")}</ul>`
+        : paragraph("Súbory zatiaľ neboli nahraté. Aktuálny stav nájdete v detaile objednávky.");
+
+    const orderMetaRows: [string, string][] = [
+      ["Objednávka:", `#${order.orderNumber}`],
+      ["Režim:", audienceLabel],
+      ["Meno:", order.customerName ?? ""],
+      ["E-mail:", order.customerEmail],
+      ["Doručenie:", deliveryMethodLabel],
+      ["Platba:", paymentMethodLabel],
+    ];
+    if (order.customerPhone) {
+      orderMetaRows.push(["Telefón:", order.customerPhone]);
+    }
+
+    const html = emailLayout(
+      [
+        heading(`Nová objednávka #${order.orderNumber}`),
+        paragraph("V systéme bola vytvorená nová objednávka."),
+        button("Otvoriť detail objednávky", orderUrl),
+        divider(),
+        sectionTitle("Základné údaje"),
+        infoTable(orderMetaRows),
+        addressBlock("Fakturačná adresa", billingAddress),
+        addressBlock("Adresa doručenia", shippingAddress),
+        divider(),
+        sectionTitle("Položky objednávky"),
+        orderItemsTable(itemsForTable),
+        totalsBlock([
+          ["Medzisúčet:", formatMoney(order.subtotal)],
+          ["DPH:", formatMoney(order.vatAmount)],
+          ["Celkom:", formatMoney(order.total), true],
+        ]),
+        sectionTitle("Súbory"),
+        filesHtml,
+        paragraph(
+          `Aktuálny zoznam súborov: <a href="${assetsListUrl}" style="color:#1d4ed8; text-decoration:underline;">${assetsListUrl}</a>`
+        ),
+        sectionTitle("Poznámka"),
+        paragraph(escapeHtml(notesText).replace(/\n/g, "<br/>")),
+      ].join(""),
+      `Nová objednávka #${order.orderNumber}`
+    );
+
+    return sendWithLog({
+      type: NotificationType.ORDER_CREATED,
       orderId,
       toEmail,
       subject,

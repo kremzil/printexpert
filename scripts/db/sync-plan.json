@@ -1,0 +1,63 @@
+{
+  "defaults": {
+    "mode": "skip",
+    "onConflict": "prod_wins"
+  },
+  "protectedTables": ["Order*", "StripeEvent", "NotificationLog"],
+  "tables": [
+    {
+      "name": "Category",
+      "key": ["id"],
+      "mode": "upsert",
+      "onConflict": "local_wins"
+    },
+    {
+      "name": "Product",
+      "key": ["id"],
+      "mode": "upsert",
+      "onConflict": "local_wins"
+    },
+    {
+      "name": "ProductImage",
+      "key": ["id"],
+      "mode": "upsert",
+      "onConflict": "local_wins"
+    },
+    {
+      "name": "PricingModel",
+      "key": ["id"],
+      "mode": "upsert",
+      "onConflict": "local_wins"
+    },
+    {
+      "name": "PricingEntry",
+      "key": ["id"],
+      "mode": "upsert",
+      "onConflict": "local_wins"
+    },
+    {
+      "name": "ShopSettings",
+      "key": ["id"],
+      "mode": "upsert",
+      "onConflict": "local_wins"
+    },
+    {
+      "name": "Order",
+      "key": ["id"],
+      "mode": "skip",
+      "onConflict": "prod_wins"
+    },
+    {
+      "name": "OrderItem",
+      "key": ["id"],
+      "mode": "skip",
+      "onConflict": "prod_wins"
+    },
+    {
+      "name": "StripeEvent",
+      "key": ["id"],
+      "mode": "skip",
+      "onConflict": "prod_wins"
+    }
+  ]
+}
