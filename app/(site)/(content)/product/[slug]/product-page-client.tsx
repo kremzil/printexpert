@@ -405,6 +405,10 @@ function RealConfiguratorSection({
     minQuantity,
     minWidth,
     minHeight,
+    maxWidth,
+    maxHeight,
+    widthLimitMessage,
+    heightLimitMessage,
     dimUnit,
     hasAreaSizing,
     useQuantitySelect,
@@ -529,6 +533,7 @@ function RealConfiguratorSection({
                     <input
                       type="number"
                       min={minWidth}
+                      max={maxWidth ?? undefined}
                       value={width ?? ""}
                       onChange={(event) =>
                         setWidth(
@@ -537,12 +542,16 @@ function RealConfiguratorSection({
                       }
                       className="w-full rounded-md border px-3 py-2 text-sm"
                     />
+                    {widthLimitMessage ? (
+                      <p className="text-xs text-destructive">{widthLimitMessage}</p>
+                    ) : null}
                   </label>
                   <label className="space-y-2 text-sm font-medium">
                     Výška ({dimUnit})
                     <input
                       type="number"
                       min={minHeight}
+                      max={maxHeight ?? undefined}
                       value={height ?? ""}
                       onChange={(event) =>
                         setHeight(
@@ -551,6 +560,9 @@ function RealConfiguratorSection({
                       }
                       className="w-full rounded-md border px-3 py-2 text-sm"
                     />
+                    {heightLimitMessage ? (
+                      <p className="text-xs text-destructive">{heightLimitMessage}</p>
+                    ) : null}
                   </label>
                 </div>
               ) : null}

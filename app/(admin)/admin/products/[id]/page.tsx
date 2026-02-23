@@ -282,6 +282,41 @@ async function AdminProductDetails({
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim()
+  const effectiveAreaMinQuantity =
+    product.areaMinQuantity !== null && product.areaMinQuantity !== undefined
+      ? String(product.areaMinQuantity)
+      : calculatorData?.globals.min_quantity !== null &&
+          calculatorData?.globals.min_quantity !== undefined
+        ? String(calculatorData.globals.min_quantity)
+        : ""
+  const effectiveAreaMinWidth =
+    product.areaMinWidth !== null && product.areaMinWidth !== undefined
+      ? String(product.areaMinWidth)
+      : calculatorData?.globals.min_width !== null &&
+          calculatorData?.globals.min_width !== undefined
+        ? String(calculatorData.globals.min_width)
+        : ""
+  const effectiveAreaMaxWidth =
+    product.areaMaxWidth !== null && product.areaMaxWidth !== undefined
+      ? String(product.areaMaxWidth)
+      : calculatorData?.globals.max_width !== null &&
+          calculatorData?.globals.max_width !== undefined
+        ? String(calculatorData.globals.max_width)
+        : ""
+  const effectiveAreaMinHeight =
+    product.areaMinHeight !== null && product.areaMinHeight !== undefined
+      ? String(product.areaMinHeight)
+      : calculatorData?.globals.min_height !== null &&
+          calculatorData?.globals.min_height !== undefined
+        ? String(calculatorData.globals.min_height)
+        : ""
+  const effectiveAreaMaxHeight =
+    product.areaMaxHeight !== null && product.areaMaxHeight !== undefined
+      ? String(product.areaMaxHeight)
+      : calculatorData?.globals.max_height !== null &&
+          calculatorData?.globals.max_height !== undefined
+        ? String(calculatorData.globals.max_height)
+        : ""
 
   return (
     <section className="space-y-6">
@@ -550,6 +585,88 @@ async function AdminProductDetails({
             <Button type="submit" size="sm">
               Uložiť WP ID
             </Button>
+          </form>
+
+          <form
+            action={updateProductDetails.bind(null, { productId: product.id })}
+            className="space-y-3 rounded-lg border p-4"
+          >
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium">Limity rozmerov pre plošné produkty</h3>
+              <p className="text-xs text-muted-foreground">
+                Hodnoty sa použijú ako minimá/maximá pre šírku, výšku a minimálne množstvo.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+              <div className="space-y-2">
+                <Label htmlFor="areaMinQuantity">Min. množstvo</Label>
+                <Input
+                  id="areaMinQuantity"
+                  name="areaMinQuantity"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  defaultValue={effectiveAreaMinQuantity}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaMinWidth">Min. šírka (cm)</Label>
+                <Input
+                  id="areaMinWidth"
+                  name="areaMinWidth"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.1}
+                  defaultValue={effectiveAreaMinWidth}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaMaxWidth">Max. šírka (cm)</Label>
+                <Input
+                  id="areaMaxWidth"
+                  name="areaMaxWidth"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.1}
+                  defaultValue={effectiveAreaMaxWidth}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaMinHeight">Min. výška (cm)</Label>
+                <Input
+                  id="areaMinHeight"
+                  name="areaMinHeight"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.1}
+                  defaultValue={effectiveAreaMinHeight}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaMaxHeight">Max. výška (cm)</Label>
+                <Input
+                  id="areaMaxHeight"
+                  name="areaMaxHeight"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.1}
+                  defaultValue={effectiveAreaMaxHeight}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Prázdne pole znamená bez vlastného limitu.
+              </span>
+              <FormSubmitButton size="sm" variant="outline" pendingText="Ukladám limity...">
+                Uložiť limity
+              </FormSubmitButton>
+            </div>
           </form>
 
           {product.wpProductId ? (

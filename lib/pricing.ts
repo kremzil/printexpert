@@ -49,6 +49,13 @@ type CalculatorData = {
   matrices: Matrix[]
 }
 
+type AreaGlobalOverrides = Partial<
+  Pick<
+    PricingGlobals,
+    "min_quantity" | "min_width" | "min_height" | "max_width" | "max_height"
+  >
+>
+
 export type PriceCalculationParams = {
   quantity?: number
   width?: number | null
@@ -68,7 +75,6 @@ export type PriceResult = {
 
 const FALLBACK_DIM_UNIT = "cm"
 const FALLBACK_A_UNIT = 1
-
 const sizeKeywords = [
   "velkost",
   "rozmer",
@@ -117,6 +123,64 @@ const parseNumber = (value: string | number | null | undefined) => {
   }
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+const normalizeMaxBound = (value: number | null, min: number) =>
+  value !== null && value >= min ? value : null
+
+const clampToBounds = (value: number, min: number, max: number | null) => {
+  if (!Number.isFinite(value)) {
+    return min
+  }
+  const lowerBounded = value < min ? min : value
+  if (max !== null && lowerBounded > max) {
+    return max
+  }
+  return lowerBounded
+}
+
+const normalizeAreaOverrides = (
+  overrides: AreaGlobalOverrides | null | undefined
+): AreaGlobalOverrides => ({
+  min_quantity: parseNumber(overrides?.min_quantity),
+  min_width: parseNumber(overrides?.min_width),
+  min_height: parseNumber(overrides?.min_height),
+  max_width: parseNumber(overrides?.max_width),
+  max_height: parseNumber(overrides?.max_height),
+})
+
+const applyAreaGlobalOverrides = (
+  globals: PricingGlobals,
+  options: {
+    productOverrides?: AreaGlobalOverrides | null
+  }
+): PricingGlobals => {
+  const { productOverrides } = options
+  const normalizedProductOverrides = normalizeAreaOverrides(productOverrides)
+
+  return {
+    ...globals,
+    min_quantity:
+      globals.min_quantity ??
+      normalizedProductOverrides.min_quantity ??
+      null,
+    min_width:
+      globals.min_width ??
+      normalizedProductOverrides.min_width ??
+      null,
+    min_height:
+      globals.min_height ??
+      normalizedProductOverrides.min_height ??
+      null,
+    max_width:
+      globals.max_width ??
+      normalizedProductOverrides.max_width ??
+      null,
+    max_height:
+      globals.max_height ??
+      normalizedProductOverrides.max_height ??
+      null,
+  }
 }
 
 const resolveAreaUnit = (value: string | number | null | undefined) => {
@@ -347,10 +411,29 @@ const calculateMatrixTotal = (
   const minQuantity = parseNumber(data.globals.min_quantity) ?? 1
   const minWidth = parseNumber(data.globals.min_width) ?? 1
   const minHeight = parseNumber(data.globals.min_height) ?? 1
+  const maxWidth = normalizeMaxBound(parseNumber(data.globals.max_width), minWidth)
+  const maxHeight = normalizeMaxBound(parseNumber(data.globals.max_height), minHeight)
 
-  const quantity = params.quantity ?? minQuantity
-  const width = hasAreaSizing ? params.width ?? minWidth : null
-  const height = hasAreaSizing ? params.height ?? minHeight : null
+  const quantityInput =
+    typeof params.quantity === "number" && Number.isFinite(params.quantity)
+      ? params.quantity
+      : minQuantity
+  const widthInput =
+    typeof params.width === "number" && Number.isFinite(params.width)
+      ? params.width
+      : minWidth
+  const heightInput =
+    typeof params.height === "number" && Number.isFinite(params.height)
+      ? params.height
+      : minHeight
+
+  const quantity = quantityInput
+  const width = hasAreaSizing
+    ? clampToBounds(widthInput, minWidth, maxWidth)
+    : null
+  const height = hasAreaSizing
+    ? clampToBounds(heightInput, minHeight, maxHeight)
+    : null
 
   const selectionsByMatrix = params.selections ?? {}
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
@@ -594,7 +677,15 @@ const toStringArray = (value: unknown) => {
 }
 
 const buildCalculatorDataFromPricingModels = async (
-  productId: string
+  productId: string,
+  options?: {
+    wpProductId?: number | null
+    areaMinQuantity?: number | string | null
+    areaMinWidth?: number | string | null
+    areaMinHeight?: number | string | null
+    areaMaxWidth?: number | string | null
+    areaMaxHeight?: number | string | null
+  }
 ): Promise<CalculatorData | null> => {
   const prisma = getPrisma()
   const models = await prisma.pricingModel.findMany({
@@ -616,6 +707,57 @@ const buildCalculatorDataFromPricingModels = async (
 
   if (orderedModels.length === 0) {
     return null
+  }
+
+  let wpProductId = options?.wpProductId
+  let productAreaOverrides: AreaGlobalOverrides = {
+    min_quantity: options?.areaMinQuantity ?? null,
+    min_width: options?.areaMinWidth ?? null,
+    min_height: options?.areaMinHeight ?? null,
+    max_width: options?.areaMaxWidth ?? null,
+    max_height: options?.areaMaxHeight ?? null,
+  }
+
+  if (
+    wpProductId === undefined ||
+    Object.values(productAreaOverrides).every((value) => value === null || value === undefined)
+  ) {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        wpProductId: true,
+        areaMinQuantity: true,
+        areaMinWidth: true,
+        areaMinHeight: true,
+        areaMaxWidth: true,
+        areaMaxHeight: true,
+      },
+    })
+    wpProductId = wpProductId ?? product?.wpProductId ?? null
+    productAreaOverrides = {
+      min_quantity:
+        productAreaOverrides.min_quantity ?? product?.areaMinQuantity ?? null,
+      min_width:
+        productAreaOverrides.min_width ??
+        (product?.areaMinWidth !== null && product?.areaMinWidth !== undefined
+          ? product.areaMinWidth.toString()
+          : null),
+      min_height:
+        productAreaOverrides.min_height ??
+        (product?.areaMinHeight !== null && product?.areaMinHeight !== undefined
+          ? product.areaMinHeight.toString()
+          : null),
+      max_width:
+        productAreaOverrides.max_width ??
+        (product?.areaMaxWidth !== null && product?.areaMaxWidth !== undefined
+          ? product.areaMaxWidth.toString()
+          : null),
+      max_height:
+        productAreaOverrides.max_height ??
+        (product?.areaMaxHeight !== null && product?.areaMaxHeight !== undefined
+          ? product.areaMaxHeight.toString()
+          : null),
+    }
   }
 
   const getEntryAidsOrder = (model: (typeof orderedModels)[number]) => {
@@ -827,9 +969,8 @@ const buildCalculatorDataFromPricingModels = async (
     }
   })
 
-  return {
-    product_id: productId,
-    globals: {
+  const globals = applyAreaGlobalOverrides(
+    {
       dim_unit: null,
       a_unit: null,
       min_quantity: null,
@@ -841,6 +982,14 @@ const buildCalculatorDataFromPricingModels = async (
       smatrix,
       fmatrix,
     },
+    {
+      productOverrides: productAreaOverrides,
+    }
+  )
+
+  return {
+    product_id: productId,
+    globals,
     matrices,
   }
 }
@@ -872,6 +1021,11 @@ export async function calculate(
       priceFrom: true,
       priceAfterDiscountFrom: true,
       wpProductId: true,
+      areaMinQuantity: true,
+      areaMinWidth: true,
+      areaMinHeight: true,
+      areaMaxWidth: true,
+      areaMaxHeight: true,
     },
   })
 
@@ -895,7 +1049,26 @@ export async function calculate(
   if (product.priceType === "FIXED") {
     net = baseUnitNet === null ? null : baseUnitNet * safeQuantity
   } else {
-    const calculatorData = await buildCalculatorDataFromPricingModels(productId)
+    const calculatorData = await buildCalculatorDataFromPricingModels(productId, {
+      wpProductId: product.wpProductId,
+      areaMinQuantity: product.areaMinQuantity,
+      areaMinWidth:
+        product.areaMinWidth !== null && product.areaMinWidth !== undefined
+          ? product.areaMinWidth.toString()
+          : null,
+      areaMinHeight:
+        product.areaMinHeight !== null && product.areaMinHeight !== undefined
+          ? product.areaMinHeight.toString()
+          : null,
+      areaMaxWidth:
+        product.areaMaxWidth !== null && product.areaMaxWidth !== undefined
+          ? product.areaMaxWidth.toString()
+          : null,
+      areaMaxHeight:
+        product.areaMaxHeight !== null && product.areaMaxHeight !== undefined
+          ? product.areaMaxHeight.toString()
+          : null,
+    })
     if (calculatorData) {
       net = calculateMatrixTotal(calculatorData, params)
     } else {

@@ -88,6 +88,45 @@ function parseNumber(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function normalizeMaxBound(value: number | null, min: number) {
+  return value !== null && value >= min ? value : null
+}
+
+function clampToBounds(value: number, min: number, max: number | null) {
+  if (!Number.isFinite(value)) {
+    return min
+  }
+  const lowerBounded = value < min ? min : value
+  if (max !== null && lowerBounded > max) {
+    return max
+  }
+  return lowerBounded
+}
+
+function buildDimensionLimitMessage(params: {
+  axis: "width" | "height"
+  value: number
+  min: number
+  max: number | null
+  unit: string
+}) {
+  const { axis, value, min, max, unit } = params
+  if (!Number.isFinite(value)) {
+    return null
+  }
+  if (value < min) {
+    return axis === "width"
+      ? `Minimálna šírka tlače je ${min} ${unit}.`
+      : `Minimálna výška tlače je ${min} ${unit}.`
+  }
+  if (max !== null && value > max) {
+    return axis === "width"
+      ? `Maximálna šírka tlače je ${max} ${unit}.`
+      : `Maximálna výška tlače je ${max} ${unit}.`
+  }
+  return null
+}
+
 function resolveAreaUnit(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") {
     return null
@@ -312,6 +351,11 @@ export function useWpConfigurator({
   const minQuantity = parseNumber(data.globals.min_quantity) ?? 1
   const minWidth = parseNumber(data.globals.min_width) ?? 1
   const minHeight = parseNumber(data.globals.min_height) ?? 1
+  const maxWidth = normalizeMaxBound(parseNumber(data.globals.max_width), minWidth)
+  const maxHeight = normalizeMaxBound(
+    parseNumber(data.globals.max_height),
+    minHeight
+  )
   const baseMatrix =
     data.matrices.find((matrix) => matrix.kind === "simple") ?? data.matrices[0]
   const baseNumStyle = parseNumber(baseMatrix?.numStyle) ?? 0
@@ -356,16 +400,60 @@ export function useWpConfigurator({
 
   const [selections, setSelections] = useState(initialSelections)
   const [quantity, setQuantity] = useState(initialQuantity)
-  const [width, setWidth] = useState<number | null>(
+  const [width, setWidthState] = useState<number | null>(
     hasAreaSizing ? minWidth : null
   )
-  const [height, setHeight] = useState<number | null>(
+  const [height, setHeightState] = useState<number | null>(
     hasAreaSizing ? minHeight : null
   )
   const [productionSpeedId, setProductionSpeedId] =
     useState<ProductionSpeedId>("standard")
   const [serverError, setServerError] = useState<string | null>(null)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [widthLimitMessage, setWidthLimitMessage] = useState<string | null>(null)
+  const [heightLimitMessage, setHeightLimitMessage] = useState<string | null>(null)
+  const setWidth = useCallback(
+    (next: number | null) => {
+      const unit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
+      if (next === null) {
+        setWidthState(null)
+        setWidthLimitMessage(null)
+        return
+      }
+      setWidthLimitMessage(
+        buildDimensionLimitMessage({
+          axis: "width",
+          value: next,
+          min: minWidth,
+          max: maxWidth,
+          unit,
+        })
+      )
+      setWidthState(clampToBounds(next, minWidth, maxWidth))
+    },
+    [data.globals.dim_unit, maxWidth, minWidth]
+  )
+  const setHeight = useCallback(
+    (next: number | null) => {
+      const unit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
+      if (next === null) {
+        setHeightState(null)
+        setHeightLimitMessage(null)
+        return
+      }
+      setHeightLimitMessage(
+        buildDimensionLimitMessage({
+          axis: "height",
+          value: next,
+          min: minHeight,
+          max: maxHeight,
+          unit,
+        })
+      )
+      setHeightState(clampToBounds(next, minHeight, maxHeight))
+    },
+    [data.globals.dim_unit, maxHeight, minHeight]
+  )
 
   const dimUnit = data.globals.dim_unit ?? FALLBACK_DIM_UNIT
   const productionSpeedOptions = PRODUCTION_SPEED_OPTIONS
@@ -492,6 +580,12 @@ export function useWpConfigurator({
       const selectedQuantity = overrideQuantity ?? quantity
       const selectedWidth = overrideWidth ?? width
       const selectedHeight = overrideHeight ?? height
+      const normalizedWidth = hasAreaSizing
+        ? clampToBounds(selectedWidth ?? minWidth, minWidth, maxWidth)
+        : null
+      const normalizedHeight = hasAreaSizing
+        ? clampToBounds(selectedHeight ?? minHeight, minHeight, maxHeight)
+        : null
 
       return data.matrices.map((matrix) => {
       const ntp = parseNumber(matrix.ntp) ?? 0
@@ -504,8 +598,8 @@ export function useWpConfigurator({
         resolveAreaUnit(matrix.aUnit ?? data.globals.a_unit) ?? FALLBACK_A_UNIT
       const nmbVal = calculateQuantity(
         baseQuantity,
-        selectedWidth,
-        selectedHeight,
+        normalizedWidth,
+        normalizedHeight,
         ntp,
         dimUnit,
         matrixAUnit
@@ -595,8 +689,13 @@ export function useWpConfigurator({
     data.matrices,
     dimUnit,
     finishingHasSize,
+    hasAreaSizing,
     hiddenFinishingPair,
+    maxHeight,
+    maxWidth,
     minQuantity,
+    minHeight,
+    minWidth,
     quantity,
     selections,
     width,
@@ -673,6 +772,13 @@ export function useWpConfigurator({
     setServerError(null)
 
     try {
+      const safeWidth = hasAreaSizing
+        ? clampToBounds(width ?? minWidth, minWidth, maxWidth)
+        : null
+      const safeHeight = hasAreaSizing
+        ? clampToBounds(height ?? minHeight, minHeight, maxHeight)
+        : null
+
       const selectedAttributes: Record<string, string> = {}
 
       for (const matrix of visibleMatrices) {
@@ -699,8 +805,8 @@ export function useWpConfigurator({
           productId,
           params: {
             quantity,
-            width,
-            height,
+            width: safeWidth,
+            height: safeHeight,
             selections,
             productionSpeedPercent: selectedProductionSpeed.percent,
           },
@@ -733,8 +839,8 @@ export function useWpConfigurator({
         body: JSON.stringify({
           productId,
           quantity,
-          width,
-          height,
+          width: safeWidth,
+          height: safeHeight,
           selectedOptions: {
             ...selections,
             _attributes: selectedAttributes,
@@ -778,6 +884,10 @@ export function useWpConfigurator({
     minQuantity,
     minWidth,
     minHeight,
+    maxWidth,
+    maxHeight,
+    widthLimitMessage,
+    heightLimitMessage,
     dimUnit,
     hasAreaSizing,
     useQuantitySelect,

@@ -10,6 +10,10 @@ const serializeProduct = <
   T extends {
     priceFrom: { toString(): string } | null;
     priceAfterDiscountFrom?: { toString(): string } | null;
+    areaMinWidth?: { toString(): string } | null;
+    areaMinHeight?: { toString(): string } | null;
+    areaMaxWidth?: { toString(): string } | null;
+    areaMaxHeight?: { toString(): string } | null;
     vatRate: { toString(): string };
   },
 >(
@@ -19,6 +23,18 @@ const serializeProduct = <
   priceFrom: product.priceFrom ? product.priceFrom.toString() : null,
   priceAfterDiscountFrom: product.priceAfterDiscountFrom
     ? product.priceAfterDiscountFrom.toString()
+    : null,
+  areaMinWidth: product.areaMinWidth
+    ? product.areaMinWidth.toString()
+    : null,
+  areaMinHeight: product.areaMinHeight
+    ? product.areaMinHeight.toString()
+    : null,
+  areaMaxWidth: product.areaMaxWidth
+    ? product.areaMaxWidth.toString()
+    : null,
+  areaMaxHeight: product.areaMaxHeight
+    ? product.areaMaxHeight.toString()
     : null,
   vatRate: product.vatRate.toString(),
 });

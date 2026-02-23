@@ -879,6 +879,11 @@ export async function updateProductDetails(
       description: true,
       priceFrom: true,
       priceAfterDiscountFrom: true,
+      areaMinQuantity: true,
+      areaMinWidth: true,
+      areaMinHeight: true,
+      areaMaxWidth: true,
+      areaMaxHeight: true,
       isActive: true,
       showInB2b: true,
       showInB2c: true,
@@ -975,6 +980,84 @@ export async function updateProductDetails(
     ? (readField("designerColorProfile") || null)
     : existing.designerColorProfile
 
+  const parseNullableDecimal = (raw: string) => {
+    if (!raw) return { value: null as number | null, normalized: "" }
+    const normalized = raw.replace(",", ".")
+    const value = Number(normalized)
+    if (!Number.isFinite(value)) {
+      return { value: Number.NaN, normalized }
+    }
+    return { value, normalized }
+  }
+
+  const parseNullableInteger = (raw: string) => {
+    if (!raw) return { value: null as number | null, normalized: "" }
+    const normalized = raw.replace(",", ".")
+    const value = Number(normalized)
+    if (!Number.isInteger(value)) {
+      return { value: Number.NaN, normalized }
+    }
+    return { value, normalized: String(value) }
+  }
+
+  const areaMinQuantityRaw = hasField("areaMinQuantity")
+    ? readField("areaMinQuantity")
+    : existing.areaMinQuantity?.toString() ?? ""
+  const areaMinWidthRaw = hasField("areaMinWidth")
+    ? readField("areaMinWidth")
+    : existing.areaMinWidth?.toString() ?? ""
+  const areaMinHeightRaw = hasField("areaMinHeight")
+    ? readField("areaMinHeight")
+    : existing.areaMinHeight?.toString() ?? ""
+  const areaMaxWidthRaw = hasField("areaMaxWidth")
+    ? readField("areaMaxWidth")
+    : existing.areaMaxWidth?.toString() ?? ""
+  const areaMaxHeightRaw = hasField("areaMaxHeight")
+    ? readField("areaMaxHeight")
+    : existing.areaMaxHeight?.toString() ?? ""
+
+  const parsedAreaMinQuantity = parseNullableInteger(areaMinQuantityRaw)
+  const parsedAreaMinWidth = parseNullableDecimal(areaMinWidthRaw)
+  const parsedAreaMinHeight = parseNullableDecimal(areaMinHeightRaw)
+  const parsedAreaMaxWidth = parseNullableDecimal(areaMaxWidthRaw)
+  const parsedAreaMaxHeight = parseNullableDecimal(areaMaxHeightRaw)
+
+  if (
+    (areaMinQuantityRaw &&
+      (!Number.isFinite(parsedAreaMinQuantity.value) ||
+        (parsedAreaMinQuantity.value ?? 0) < 1)) ||
+    (areaMinWidthRaw &&
+      (!Number.isFinite(parsedAreaMinWidth.value) ||
+        (parsedAreaMinWidth.value ?? 0) <= 0)) ||
+    (areaMinHeightRaw &&
+      (!Number.isFinite(parsedAreaMinHeight.value) ||
+        (parsedAreaMinHeight.value ?? 0) <= 0)) ||
+    (areaMaxWidthRaw &&
+      (!Number.isFinite(parsedAreaMaxWidth.value) ||
+        (parsedAreaMaxWidth.value ?? 0) <= 0)) ||
+    (areaMaxHeightRaw &&
+      (!Number.isFinite(parsedAreaMaxHeight.value) ||
+        (parsedAreaMaxHeight.value ?? 0) <= 0))
+  ) {
+    return
+  }
+
+  if (
+    parsedAreaMinWidth.value !== null &&
+    parsedAreaMaxWidth.value !== null &&
+    parsedAreaMaxWidth.value < parsedAreaMinWidth.value
+  ) {
+    return
+  }
+
+  if (
+    parsedAreaMinHeight.value !== null &&
+    parsedAreaMaxHeight.value !== null &&
+    parsedAreaMaxHeight.value < parsedAreaMinHeight.value
+  ) {
+    return
+  }
+
   const updated = await prisma.product.update({
     where: { id: input.productId },
     data: {
@@ -986,6 +1069,22 @@ export async function updateProductDetails(
       priceFrom: normalizedPriceFrom ? normalizedPriceFrom : null,
       priceAfterDiscountFrom: normalizedPriceAfterDiscountFrom
         ? normalizedPriceAfterDiscountFrom
+        : null,
+      areaMinQuantity:
+        parsedAreaMinQuantity.value !== null
+          ? parsedAreaMinQuantity.value
+          : null,
+      areaMinWidth: parsedAreaMinWidth.normalized
+        ? parsedAreaMinWidth.normalized
+        : null,
+      areaMinHeight: parsedAreaMinHeight.normalized
+        ? parsedAreaMinHeight.normalized
+        : null,
+      areaMaxWidth: parsedAreaMaxWidth.normalized
+        ? parsedAreaMaxWidth.normalized
+        : null,
+      areaMaxHeight: parsedAreaMaxHeight.normalized
+        ? parsedAreaMaxHeight.normalized
         : null,
       isActive: nextIsActive,
       showInB2b: nextShowInB2b,
@@ -1000,6 +1099,7 @@ export async function updateProductDetails(
     select: { slug: true },
   })
 
+  invalidateCalculator(input.productId)
   invalidateProduct(existing.slug, input.productId)
   if (updated.slug !== existing.slug) {
     revalidateTag(productTag(updated.slug), "max")

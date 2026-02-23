@@ -141,6 +141,10 @@ function MatrixConfiguratorPanel({
     minQuantity,
     minWidth,
     minHeight,
+    maxWidth,
+    maxHeight,
+    widthLimitMessage,
+    heightLimitMessage,
     dimUnit,
     hasAreaSizing,
     useQuantitySelect,
@@ -205,22 +209,30 @@ function MatrixConfiguratorPanel({
             <Input
               type="number"
               min={minWidth}
+              max={maxWidth ?? undefined}
               value={width ?? ""}
               onChange={(event) =>
                 setWidth(event.target.value === "" ? null : Number(event.target.value))
               }
             />
+            {widthLimitMessage ? (
+              <p className="text-xs text-destructive">{widthLimitMessage}</p>
+            ) : null}
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium">Výška ({dimUnit})</span>
             <Input
               type="number"
               min={minHeight}
+              max={maxHeight ?? undefined}
               value={height ?? ""}
               onChange={(event) =>
                 setHeight(event.target.value === "" ? null : Number(event.target.value))
               }
             />
+            {heightLimitMessage ? (
+              <p className="text-xs text-destructive">{heightLimitMessage}</p>
+            ) : null}
           </label>
         </div>
       ) : null}
