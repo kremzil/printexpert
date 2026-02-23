@@ -19,6 +19,7 @@ interface OrderDetailProps {
 
 interface OrderAsset {
   id: string;
+  orderItemId: string | null;
   kind: "ARTWORK" | "PREVIEW" | "INVOICE" | "OTHER";
   status: "PENDING" | "UPLOADED" | "APPROVED" | "REJECTED";
   fileNameOriginal: string;
@@ -110,6 +111,9 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [selectedOrderItemId, setSelectedOrderItemId] = useState<string>(
+    order.items[0]?.id ?? ""
+  );
   const clearCartOnSuccessRef = useRef(false);
   const billingAddress = parseAddress(order.billingAddress);
   const shippingAddress = parseAddress(order.shippingAddress);
@@ -202,6 +206,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
         headers: { "Content-Type": "application/json", ...getCsrfHeader() },
         body: JSON.stringify({
           orderId: order.id,
+          orderItemId: selectedOrderItemId || null,
           kind: "ARTWORK",
           fileName: file.name,
           mimeType: file.type,
@@ -284,8 +289,8 @@ export function OrderDetail({ order }: OrderDetailProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {order.items.map((item, index) => (
-                  <div key={`${item.productId}-${index}`} className="flex justify-between border-b pb-4 last:border-0 last:pb-0">
+                {order.items.map((item) => (
+                  <div key={item.id} className="flex justify-between border-b pb-4 last:border-0 last:pb-0">
                     <div className="flex-1">
                       <p className="font-medium">{item.productName}</p>
                       {(item.width || item.height) && (
@@ -434,6 +439,24 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 <p>Povolené formáty: {allowedFormatsLabel}</p>
                 <p>Maximálna veľkosť: {formatBytes(uploadMaxBytes)}</p>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Priradiť k položke objednávky</label>
+                <select
+                  value={selectedOrderItemId}
+                  onChange={(event) => setSelectedOrderItemId(event.target.value)}
+                  disabled={isUploading || order.items.length === 0}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {order.items.length === 0 ? (
+                    <option value="">Bez položiek</option>
+                  ) : null}
+                  {order.items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.productName} ({item.quantity} ks)
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Input
                 type="file"
                 onChange={handleFileChange}
@@ -471,6 +494,18 @@ export function OrderDetail({ order }: OrderDetailProps) {
                           <p className="font-medium truncate">{asset.fileNameOriginal}</p>
                           <p className="text-xs text-muted-foreground">
                             {assetKindLabels[asset.kind]} · {formatBytes(asset.sizeBytes)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {(() => {
+                              if (!asset.orderItemId) {
+                                return "Bez väzby na položku";
+                              }
+                              const linkedItem = order.items.find((item) => item.id === asset.orderItemId);
+                              if (!linkedItem) {
+                                return "Položka nebola nájdená";
+                              }
+                              return `Položka: ${linkedItem.productName} (${linkedItem.quantity} ks)`;
+                            })()}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">

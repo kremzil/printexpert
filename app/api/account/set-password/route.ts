@@ -34,7 +34,10 @@ const POSTHandler = async (request: Request) => {
 
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { passwordHash },
+      data: {
+        passwordHash,
+        passwordMigrated: true,
+      },
     })
 
     return NextResponse.json({ ok: true })

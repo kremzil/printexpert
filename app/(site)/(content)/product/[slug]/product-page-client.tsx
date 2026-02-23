@@ -129,8 +129,8 @@ type ProductPageClientProps = {
 
 declare global {
   interface Window {
-    __pendingOrderUpload?: { file: File }
-    __pendingDesignPdf?: { file: File }
+    __pendingOrderUpload?: { file: File; cartItemId?: string }
+    __pendingDesignPdf?: { file: File; cartItemId?: string }
   }
 }
 
@@ -143,9 +143,6 @@ function StaticBadge() {
 }
 
 type ShareTarget = "facebook" | "x" | "linkedin" | "mail"
-
-const toPlainText = (value?: string | null) =>
-  value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : null
 
 const normalizeShareText = (value: string) => value.replace(/\s+/g, " ").trim()
 const clampShareText = (value: string, maxLength: number) =>
@@ -247,17 +244,11 @@ const toEditorTemplates = (templates: DesignerRuntimeTemplate[]): EditorDesignTe
 
 function ProductShareButtons({
   productName,
-  shortDescription,
   imageUrl,
-  quantity,
-  summaryItems,
   price,
 }: {
   productName: string
-  shortDescription?: string | null
   imageUrl?: string | null
-  quantity: number
-  summaryItems: Array<{ label: string; value: string }>
   price: number | null
 }) {
   const shareProduct = (target: ShareTarget) => {
@@ -269,19 +260,7 @@ function ProductShareButtons({
     const imageAbsoluteUrl = imageUrl
       ? new URL(imageUrl, window.location.origin).toString()
       : null
-    const descriptionText = normalizeShareText(toPlainText(shortDescription) ?? "")
     const shareTitle = clampShareText(normalizeShareText(productName), 120)
-    const shareDescription = descriptionText
-      ? clampShareText(descriptionText, 180)
-      : ""
-    const configurationText = [
-      `Množstvo: ${quantity} ks`,
-      ...summaryItems.map((item) => `${item.label}: ${item.value}`),
-    ].join("; ")
-    const shareConfiguration = clampShareText(
-      normalizeShareText(configurationText),
-      220
-    )
     const priceText =
       price === null
         ? "Cena: podľa konfigurácie"
@@ -291,13 +270,10 @@ function ProductShareButtons({
           }).format(price)}`
     const sharePrice = clampShareText(normalizeShareText(priceText), 80)
 
+    // Share payload is intentionally minimal: URL + title + image + final price text.
     pageUrl.searchParams.set("st", shareTitle)
-    if (shareDescription) {
-      pageUrl.searchParams.set("sd", shareDescription)
-    } else {
-      pageUrl.searchParams.delete("sd")
-    }
-    pageUrl.searchParams.set("sc", shareConfiguration)
+    pageUrl.searchParams.delete("sd")
+    pageUrl.searchParams.delete("sc")
     pageUrl.searchParams.set("sp", sharePrice)
     if (imageAbsoluteUrl) {
       pageUrl.searchParams.set("si", imageAbsoluteUrl)
@@ -307,8 +283,6 @@ function ProductShareButtons({
     const sharePageUrl = pageUrl.toString()
     const shareDetails = [
       `Názov: ${shareTitle}`,
-      shareDescription ? `Popis: ${shareDescription}` : null,
-      `Konfigurácia: ${shareConfiguration}`,
       sharePrice,
       imageAbsoluteUrl ? `Obrázok: ${imageAbsoluteUrl}` : null,
     ].filter((value): value is string => Boolean(value))
@@ -517,10 +491,7 @@ function RealConfiguratorSection({
         <div ref={topShareRef}>
           <ProductShareButtons
             productName={product.name}
-            shortDescription={product.excerptHtml}
             imageUrl={product.images[0]?.url ?? null}
-            quantity={quantity}
-            summaryItems={summaryItems}
             price={total}
           />
         </div>
@@ -750,10 +721,7 @@ function RealConfiguratorSection({
             isTopShareVisible ? null : (
               <ProductShareButtons
                 productName={product.name}
-                shortDescription={product.excerptHtml}
                 imageUrl={product.images[0]?.url ?? null}
-                quantity={quantity}
-                summaryItems={summaryItems}
                 price={total}
               />
             )
@@ -950,6 +918,23 @@ function SimpleConfiguratorSection({
       if (!cartResponse.ok) {
         throw new Error("Nepodarilo sa pridať do košíka")
       }
+      const cartItem = await cartResponse.json().catch(() => null)
+      const cartItemId =
+        cartItem && typeof cartItem.id === "string" ? cartItem.id : null
+      if (cartItemId) {
+        if (window.__pendingOrderUpload?.file) {
+          window.__pendingOrderUpload = {
+            ...window.__pendingOrderUpload,
+            cartItemId,
+          }
+        }
+        if (window.__pendingDesignPdf?.file) {
+          window.__pendingDesignPdf = {
+            ...window.__pendingDesignPdf,
+            cartItemId,
+          }
+        }
+      }
 
       window.dispatchEvent(new Event("cart-updated"))
       window.dispatchEvent(new Event(QUOTE_REQUEST_UPDATED_EVENT))
@@ -997,10 +982,7 @@ function SimpleConfiguratorSection({
         <div className="space-y-8 lg:col-span-2">
         <ProductShareButtons
           productName={product.name}
-          shortDescription={product.excerptHtml}
           imageUrl={product.images[0]?.url ?? null}
-          quantity={quantity}
-          summaryItems={summaryItems}
           price={total}
         />
         <ProductGallery images={product.images} productName={product.name} />

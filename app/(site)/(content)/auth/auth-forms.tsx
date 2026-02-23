@@ -183,11 +183,15 @@ function PasswordLoginForm({
       })
 
       if (result?.error) {
-        setErrorMessage(
-          result.error === "RateLimit"
-            ? "Príliš veľa pokusov. Skúste to neskôr."
-            : "Nesprávny e-mail alebo heslo."
-        )
+        if (result.error === "RateLimit") {
+          setErrorMessage("Príliš veľa pokusov. Skúste to neskôr.")
+        } else if (result.code === "password_migration_required") {
+          setErrorMessage(
+            "Po prechode na nový web je potrebné nastaviť nové heslo. Použite Magic Link."
+          )
+        } else {
+          setErrorMessage("Nesprávny e-mail alebo heslo.")
+        }
         setStatus("error")
         return
       }

@@ -49,6 +49,11 @@ function parseProductionSpeedPercent(selectedOptions: unknown): number {
   return Number.isFinite(percent) ? percent : 0;
 }
 
+type PreparedOrderItem = {
+  sourceCartItemId: string;
+  data: Prisma.OrderItemUncheckedCreateWithoutOrderInput;
+};
+
 /**
  * Создать заказ из корзины
  */
@@ -67,7 +72,7 @@ export async function createOrder(
   }
 
   // Пересчитываем все цены на сервере для финальной точности
-  const orderItems: Prisma.OrderItemUncheckedCreateWithoutOrderInput[] = [];
+  const preparedOrderItems: PreparedOrderItem[] = [];
   let subtotal = new Prisma.Decimal(0);
   let vatAmount = new Prisma.Decimal(0);
   let total = new Prisma.Decimal(0);
@@ -97,67 +102,105 @@ export async function createOrder(
     vatAmount = vatAmount.add(itemVat);
     total = total.add(itemGross);
 
-    orderItems.push({
-      productId: item.productId,
-      productName: item.product.name,
-      quantity: item.quantity,
-      width: item.width,
-      height: item.height,
-      selectedOptions: item.selectedOptions
-        ? (item.selectedOptions as unknown as Prisma.InputJsonValue)
-        : undefined,
-      priceNet: itemNet,
-      priceVat: itemVat,
-      priceGross: itemGross,
-      priceSnapshot: freshPrice as unknown as Prisma.InputJsonValue,
-      designData: item.designData
-        ? (item.designData as unknown as Prisma.InputJsonValue)
-        : undefined,
+    preparedOrderItems.push({
+      sourceCartItemId: item.id,
+      data: {
+        productId: item.productId,
+        productName: item.product.name,
+        quantity: item.quantity,
+        width: item.width,
+        height: item.height,
+        selectedOptions: item.selectedOptions
+          ? (item.selectedOptions as unknown as Prisma.InputJsonValue)
+          : undefined,
+        priceNet: itemNet,
+        priceVat: itemVat,
+        priceGross: itemGross,
+        priceSnapshot: freshPrice as unknown as Prisma.InputJsonValue,
+        designData: item.designData
+          ? (item.designData as unknown as Prisma.InputJsonValue)
+          : undefined,
+      },
     });
   }
 
-  // Создаём заказ
-  const order = await prisma.order.create({
-    data: {
-      orderNumber: generateOrderNumber(),
-      userId: userId || undefined,
-      audience: audienceContext.audience,
-      status: "PENDING",
-      subtotal,
-      vatAmount,
-      total,
-      customerName: checkoutData.customerName,
-      customerEmail: checkoutData.customerEmail,
-      customerPhone: checkoutData.customerPhone || null,
-      deliveryMethod: checkoutData.deliveryMethod ?? "DPD_COURIER",
-      paymentMethod: checkoutData.paymentMethod ?? "STRIPE",
-      dpdProduct: checkoutData.dpdProduct ?? null,
-      pickupPoint: checkoutData.pickupPoint
-        ? (checkoutData.pickupPoint as unknown as Prisma.InputJsonValue)
-        : undefined,
-      shippingAddress: checkoutData.shippingAddress
-        ? (checkoutData.shippingAddress as unknown as Prisma.InputJsonValue)
-        : undefined,
-      billingAddress: checkoutData.billingAddress
-        ? (checkoutData.billingAddress as unknown as Prisma.InputJsonValue)
-        : undefined,
-      codAmount:
-        checkoutData.paymentMethod === "COD" ? total : undefined,
-      codCurrency:
-        checkoutData.paymentMethod === "COD" ? "EUR" : undefined,
-      notes: checkoutData.notes || null,
-      items: {
-        create: orderItems,
+  const { order, itemMappings } = await prisma.$transaction(async (tx) => {
+    const createdOrder = await tx.order.create({
+      data: {
+        orderNumber: generateOrderNumber(),
+        userId: userId || undefined,
+        audience: audienceContext.audience,
+        status: "PENDING",
+        subtotal,
+        vatAmount,
+        total,
+        customerName: checkoutData.customerName,
+        customerEmail: checkoutData.customerEmail,
+        customerPhone: checkoutData.customerPhone || null,
+        deliveryMethod: checkoutData.deliveryMethod ?? "DPD_COURIER",
+        paymentMethod: checkoutData.paymentMethod ?? "STRIPE",
+        dpdProduct: checkoutData.dpdProduct ?? null,
+        pickupPoint: checkoutData.pickupPoint
+          ? (checkoutData.pickupPoint as unknown as Prisma.InputJsonValue)
+          : undefined,
+        shippingAddress: checkoutData.shippingAddress
+          ? (checkoutData.shippingAddress as unknown as Prisma.InputJsonValue)
+          : undefined,
+        billingAddress: checkoutData.billingAddress
+          ? (checkoutData.billingAddress as unknown as Prisma.InputJsonValue)
+          : undefined,
+        codAmount:
+          checkoutData.paymentMethod === "COD" ? total : undefined,
+        codCurrency:
+          checkoutData.paymentMethod === "COD" ? "EUR" : undefined,
+        notes: checkoutData.notes || null,
       },
-    },
-    include: {
-      items: true,
-    },
+      select: {
+        id: true,
+      },
+    });
+
+    const mappings: Array<{ cartItemId: string; orderItemId: string }> = [];
+
+    for (const preparedItem of preparedOrderItems) {
+      const createdItem = await tx.orderItem.create({
+        data: {
+          orderId: createdOrder.id,
+          ...preparedItem.data,
+        },
+        select: {
+          id: true,
+        },
+      });
+      mappings.push({
+        cartItemId: preparedItem.sourceCartItemId,
+        orderItemId: createdItem.id,
+      });
+    }
+
+    const fullOrder = await tx.order.findUnique({
+      where: { id: createdOrder.id },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!fullOrder) {
+      throw new Error("Objednávku sa nepodarilo načítať po vytvorení.");
+    }
+
+    return {
+      order: fullOrder,
+      itemMappings: mappings,
+    };
   });
 
   // Корзина очищается на клиенте после успешной оплаты (order-success)
 
-  return order as unknown as OrderData;
+  return {
+    ...(order as unknown as OrderData),
+    itemMappings,
+  };
 }
 
 /**

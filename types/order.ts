@@ -41,6 +41,7 @@ export interface CheckoutData {
 }
 
 export interface OrderItemData {
+  id: string;
   productId: string;
   productName: string;
   productPriceType?: "ON_REQUEST" | "FIXED" | "MATRIX" | "AREA" | null;
@@ -81,6 +82,10 @@ export interface OrderData {
   carrierMeta?: unknown;
   notes?: string | null;
   items: OrderItemData[];
+  itemMappings?: Array<{
+    cartItemId: string;
+    orderItemId: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }

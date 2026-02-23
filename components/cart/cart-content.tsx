@@ -51,6 +51,7 @@ interface CartContentProps {
 
 type PendingOrderUpload = {
   file: File;
+  cartItemId?: string;
 };
 
 declare global {
@@ -464,7 +465,10 @@ export function CartContent({ cart: initialCart, mode, vatRate }: CartContentPro
 
                       {isMatrixItem ? (
                         <div className="mb-3">
-                          {pendingUpload?.file && index === 0 ? (
+                          {pendingUpload?.file &&
+                          (pendingUpload.cartItemId
+                            ? pendingUpload.cartItemId === item.id
+                            : index === 0) ? (
                             <div className="flex items-center gap-2 text-[12px] leading-[16px] text-[#00a63e]">
                               <FileCheck className="h-3.5 w-3.5" />
                               <span>Súbor: {pendingUpload.file.name}</span>

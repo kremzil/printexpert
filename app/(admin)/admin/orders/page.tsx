@@ -129,6 +129,7 @@ async function getOrders(searchParams: SearchParams) {
     subtotal: Number(order.subtotal),
     vatAmount: Number(order.vatAmount),
     total: Number(order.total),
+    codAmount: order.codAmount !== null ? Number(order.codAmount) : null,
     items: order.items.map(item => ({
       ...item,
       width: item.width ? Number(item.width) : null,

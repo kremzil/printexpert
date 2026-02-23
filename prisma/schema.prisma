@@ -25,6 +25,7 @@ model User {
   name          String?
   image         String?
   passwordHash  String?
+  passwordMigrated Boolean @default(true)
   role          UserRole  @default(USER)
   stripeCustomerId String? @unique
   createdAt     DateTime  @default(now())

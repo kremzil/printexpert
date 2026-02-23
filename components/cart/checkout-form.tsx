@@ -37,6 +37,7 @@ interface CheckoutFormProps {
 
 type PendingOrderUpload = {
   file: File;
+  cartItemId?: string;
 };
 
 type SavedAddress = {
@@ -105,7 +106,7 @@ declare global {
 
   interface Window {
     __pendingOrderUpload?: PendingOrderUpload;
-    __pendingDesignPdf?: { file: File };
+    __pendingDesignPdf?: { file: File; cartItemId?: string };
     DpdPudo?: {
       Widget: new (options: Record<string, unknown>) => {
         open: () => Promise<DpdPudoPlace>;
@@ -687,16 +688,25 @@ export function CheckoutForm({
 
     const order = await response.json();
     let uploadFailed = false;
+    const itemMappings = Array.isArray(order?.itemMappings)
+      ? (order.itemMappings as Array<{ cartItemId: string; orderItemId: string }>)
+      : [];
+    const resolveOrderItemId = (cartItemId?: string) =>
+      cartItemId
+        ? itemMappings.find((mapping) => mapping.cartItemId === cartItemId)?.orderItemId ?? null
+        : null;
 
     const pendingUpload = window.__pendingOrderUpload;
     if (pendingUpload?.file) {
       try {
         const file = pendingUpload.file;
+        const orderItemId = resolveOrderItemId(pendingUpload.cartItemId);
         const presignResponse = await fetch("/api/uploads/presign", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({
             orderId: order.id,
+            orderItemId,
             kind: "ARTWORK",
             fileName: file.name,
             mimeType: file.type,
@@ -743,11 +753,13 @@ export function CheckoutForm({
     if (pendingDesignPdf?.file) {
       try {
         const file = pendingDesignPdf.file;
+        const orderItemId = resolveOrderItemId(pendingDesignPdf.cartItemId);
         const presignResponse = await fetch("/api/uploads/presign", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getCsrfHeader() },
           body: JSON.stringify({
             orderId: order.id,
+            orderItemId,
             kind: "ARTWORK",
             fileName: file.name,
             mimeType: file.type,

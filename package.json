@@ -25,6 +25,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "import:wp-customers": "node scripts/import-wp-customers-orders.js",
+    "import:wp-customers:apply": "node scripts/import-wp-customers-orders.js --apply",
     "postinstall": "prisma generate",
     "health": "node -e \"fetch('http://localhost:3000/api/health').then(r=>r.text()).then(console.log).catch(e=>{console.error(e);process.exit(1)})\""
   },

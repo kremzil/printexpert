@@ -39,6 +39,7 @@ const GETHandler = async (
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        orderItemId: true,
         kind: true,
         status: true,
         fileNameOriginal: true,

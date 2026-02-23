@@ -212,6 +212,8 @@ async function ProductDetails({
     .filter(Boolean)
   const productDescriptionText = toPlainText(product.excerpt ?? product.description ?? null)
 
+  const effectivePrice = product.priceAfterDiscountFrom ?? product.priceFrom
+
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -224,11 +226,11 @@ async function ProductDetails({
       name: SITE_NAME,
     },
     url: productUrl,
-    offers: product.priceFrom
+    offers: effectivePrice
       ? {
           "@type": "Offer",
           priceCurrency: "EUR",
-          price: Number(product.priceFrom),
+          price: Number(effectivePrice),
           availability: "https://schema.org/InStock",
           url: productUrl,
         }

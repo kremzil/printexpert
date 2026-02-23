@@ -71,6 +71,7 @@ const FALLBACK_A_UNIT = 1
 
 type PendingOrderUpload = {
   file: File
+  cartItemId?: string
 }
 
 declare global {
@@ -684,6 +685,15 @@ export function PriceCalculatorLetaky({
 
       if (!cartResponse.ok) {
         throw new Error("Не удалось добавить в корзину")
+      }
+      const cartItem = await cartResponse.json().catch(() => null)
+      const cartItemId =
+        cartItem && typeof cartItem.id === "string" ? cartItem.id : null
+      if (cartItemId && window.__pendingOrderUpload?.file) {
+        window.__pendingOrderUpload = {
+          ...window.__pendingOrderUpload,
+          cartItemId,
+        }
       }
 
       // Обновляем badge корзины

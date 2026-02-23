@@ -52,6 +52,7 @@ export async function createUserByAdmin(formData: FormData) {
       name,
       email,
       passwordHash,
+      passwordMigrated: true,
       role,
     },
   })

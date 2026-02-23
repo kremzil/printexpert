@@ -1,4 +1,4 @@
-import NextAuth from "next-auth"
+import NextAuth, { CredentialsSignin } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import type { Adapter } from "next-auth/adapters"
 import Credentials from "next-auth/providers/credentials"
@@ -20,6 +20,10 @@ const credentialsSchema = z.object({
 })
 
 const hashEmail = (email: string) => hashValue(email.trim().toLowerCase())
+
+class PasswordMigrationRequiredError extends CredentialsSignin {
+  code = "password_migration_required"
+}
 
 // Расширяем PrismaAdapter для поддержки кастомного поля role
 function customPrismaAdapter(): Adapter {
@@ -96,14 +100,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: normalizedEmail },
         })
 
-        if (!user?.passwordHash) {
+        if (!user) {
           logger.warn({
             event: OBS_EVENT.AUTH_LOGIN_FAILED,
             provider: "credentials",
-            reason: "user_not_found_or_no_password",
+            reason: "user_not_found",
             ipHash,
             emailHash,
           })
+          return null
+        }
+
+        if (!user.passwordHash) {
+          const isPasswordMigrationPending = user.passwordMigrated === false
+          logger.warn({
+            event: OBS_EVENT.AUTH_LOGIN_FAILED,
+            provider: "credentials",
+            reason: isPasswordMigrationPending
+              ? "password_migration_required"
+              : "user_has_no_password",
+            ipHash,
+            emailHash,
+            userId: user.id,
+          })
+
+          if (isPasswordMigrationPending) {
+            throw new PasswordMigrationRequiredError()
+          }
+
           return null
         }
 

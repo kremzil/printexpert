@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Send, Download, FilePlus, Printer } from "lucide-react";
+import { ArrowLeft, Loader2, Send, Download, FilePlus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getCsrfHeader } from "@/lib/csrf";
 import { getDesignElementCount } from "@/lib/design-studio";
@@ -48,6 +48,8 @@ interface Order {
   customerEmail: string;
   customerPhone: string | null;
   notes: string | null;
+  shippingAddress?: unknown;
+  billingAddress?: unknown;
   deliveryMethod?: "DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP" | null;
   paymentMethod?: "STRIPE" | "BANK_TRANSFER" | "COD" | null;
   paymentStatus?: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
@@ -93,6 +95,7 @@ interface StripeEventEntry {
 
 interface OrderAsset {
   id: string;
+  orderItemId: string | null;
   kind: "ARTWORK" | "PREVIEW" | "INVOICE" | "OTHER";
   status: "PENDING" | "UPLOADED" | "APPROVED" | "REJECTED";
   fileNameOriginal: string;
@@ -173,6 +176,75 @@ const hasDpdLabelUrlInMeta = (meta: unknown) => {
   return typeof value === "string" && value.length > 0;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const toText = (value: unknown): string | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+};
+
+const formatAddressLines = (address: unknown): string[] => {
+  if (!isRecord(address)) return [];
+
+  const firstName = toText(address.firstName);
+  const lastName = toText(address.lastName);
+  const company = toText(address.company);
+  const address1 = toText(address.address1);
+  const address2 = toText(address.address2);
+  const city = toText(address.city);
+  const postcode = toText(address.postcode);
+  const country = toText(address.country);
+
+  const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const street = [address1, address2].filter(Boolean).join(", ").trim();
+  const cityLine = [postcode, city].filter(Boolean).join(" ").trim();
+  const lines = [name, company, street, cityLine, country].filter(Boolean) as string[];
+
+  return lines;
+};
+
+function AddressPreview({ value }: { value: unknown }) {
+  if (!value) {
+    return <p className="text-xs text-muted-foreground">—</p>;
+  }
+
+  const lines = formatAddressLines(value);
+  if (lines.length > 0) {
+    return (
+      <div className="space-y-0.5 text-xs">
+        {lines.map((line, index) => (
+          <p key={`${line}-${index}`}>{line}</p>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <pre className="overflow-x-auto rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
+}
+
+function JsonPreview({ value }: { value: unknown }) {
+  if (!value) {
+    return <p className="text-xs text-muted-foreground">—</p>;
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return <p className="text-xs">{String(value)}</p>;
+  }
+
+  return (
+    <pre className="overflow-x-auto rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
+}
+
 function PanelStatus({ feedback }: { feedback: PanelFeedback }) {
   const toneClass =
     feedback.tone === "error"
@@ -212,6 +284,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   const [isCreatingShipment, setIsCreatingShipment] = useState(false);
   const [isPrintingLabel, setIsPrintingLabel] = useState(false);
   const [isCancellingShipment, setIsCancellingShipment] = useState(false);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
   const [dpdFeedback, setDpdFeedback] = useState<PanelFeedback>(
     order.carrierShipmentId
       ? { tone: "idle", message: "DPD zásielka je vytvorená." }
@@ -300,6 +373,27 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
   }, [fetchAssets]);
 
   const hasInvoiceAsset = assets.some((asset) => asset.kind === "INVOICE");
+  const customerAssets = useMemo(
+    () => assets.filter((asset) => asset.kind === "ARTWORK"),
+    [assets]
+  );
+  const customerAssetsByItemId = useMemo(() => {
+    const grouped = new Map<string, OrderAsset[]>();
+    for (const asset of customerAssets) {
+      if (!asset.orderItemId) continue;
+      const existing = grouped.get(asset.orderItemId);
+      if (existing) {
+        existing.push(asset);
+      } else {
+        grouped.set(asset.orderItemId, [asset]);
+      }
+    }
+    return grouped;
+  }, [customerAssets]);
+  const customerAssetsWithoutItem = useMemo(
+    () => customerAssets.filter((asset) => !asset.orderItemId),
+    [customerAssets]
+  );
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     setIsUpdating(true);
@@ -448,6 +542,35 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
     }
   };
 
+  const handleDeleteOrder = async () => {
+    const confirmed = window.confirm(
+      "Naozaj chcete natrvalo odstrániť túto objednávku?"
+    );
+    if (!confirmed) return;
+
+    setIsDeletingOrder(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}`, {
+        method: "DELETE",
+        headers: { ...getCsrfHeader() },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error ?? "Nepodarilo sa odstrániť objednávku.");
+      }
+
+      toast.success("Objednávka bola odstránená.");
+      router.push("/admin/orders");
+      router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Nepodarilo sa odstrániť objednávku.";
+      toast.error(message);
+    } finally {
+      setIsDeletingOrder(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -547,6 +670,29 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                             );
                           })()}
                           <p className="text-sm text-muted-foreground">Množstvo: {item.quantity}</p>
+                          {(() => {
+                            const itemAssets = customerAssetsByItemId.get(item.id) ?? [];
+                            if (itemAssets.length === 0) return null;
+                            return (
+                              <div className="mt-3 rounded-md border border-blue-200/60 bg-blue-50/40 p-2">
+                                <p className="mb-1 text-xs font-medium text-blue-900">
+                                  Súbory od zákazníka
+                                </p>
+                                <div className="space-y-1">
+                                  {itemAssets.map((asset) => (
+                                    <div key={asset.id} className="flex items-center justify-between gap-2">
+                                      <p className="truncate text-xs text-blue-950" title={asset.fileNameOriginal}>
+                                        {asset.fileNameOriginal}
+                                      </p>
+                                      <AdminButton asChild size="sm" variant="outline">
+                                        <a href={`/api/assets/${asset.id}/download`}>Stiahnuť</a>
+                                      </AdminButton>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="text-right">
                           {(() => {
@@ -561,6 +707,25 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                         </div>
                       </div>
                     ))}
+                    {customerAssetsWithoutItem.length > 0 ? (
+                      <div className="rounded-md border border-dashed p-3">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">
+                          Súbory od zákazníka bez väzby na položku
+                        </p>
+                        <div className="space-y-2">
+                          {customerAssetsWithoutItem.map((asset) => (
+                            <div key={asset.id} className="flex items-center justify-between gap-2">
+                              <p className="truncate text-xs" title={asset.fileNameOriginal}>
+                                {asset.fileNameOriginal}
+                              </p>
+                              <AdminButton asChild size="sm" variant="outline">
+                                <a href={`/api/assets/${asset.id}/download`}>Stiahnuť</a>
+                              </AdminButton>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>
@@ -598,7 +763,7 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                 <CardHeader>
                   <CardTitle>Doprava a DPD</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="space-y-4 text-sm">
                   <p>
                     <span className="text-muted-foreground">Metóda doručenia: </span>
                     {order.deliveryMethod === "PERSONAL_PICKUP"
@@ -609,6 +774,28 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                   </p>
                   <p><span className="text-muted-foreground">Shipment ID: </span>{order.carrierShipmentId ?? "—"}</p>
                   <p><span className="text-muted-foreground">Parcely: </span>{order.carrierParcelNumbers?.join(", ") || "—"}</p>
+
+                  <div className="grid gap-4 border-t pt-3 md:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Fakturačná adresa
+                      </p>
+                      <AddressPreview value={order.billingAddress} />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Dodacia adresa
+                      </p>
+                      <AddressPreview value={order.shippingAddress} />
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-3">
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Pickup point
+                    </p>
+                    <JsonPreview value={order.pickupPoint} />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -897,6 +1084,35 @@ export function AdminOrderDetail({ order }: AdminOrderDetailProps) {
                   )}
                 </AdminButton>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Nebezpečná zóna</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Odstránenie objednávky je trvalé a nie je možné ho vrátiť späť.
+              </p>
+              <AdminButton
+                variant="danger"
+                className="w-full"
+                onClick={handleDeleteOrder}
+                disabled={isDeletingOrder}
+              >
+                {isDeletingOrder ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Odstraňujem...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Odstrániť objednávku
+                  </>
+                )}
+              </AdminButton>
             </CardContent>
           </Card>
 

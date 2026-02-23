@@ -57,6 +57,7 @@ export async function registerUser(prevState: RegisterState, formData: FormData)
         name,
         email,
         passwordHash,
+        passwordMigrated: true,
         role: UserRole.USER,
       },
     })

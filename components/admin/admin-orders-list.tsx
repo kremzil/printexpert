@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye, Loader2 } from "lucide-react";
+import { Download, Eye, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,6 +86,7 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
   status: "Status",
   actions: "Akcie",
 };
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -94,6 +95,10 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>("PROCESSING");
   const [bulkNote, setBulkNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
 
   const filteredOrders = useMemo(() => {
     if (quickStatus === "all") return orders;
@@ -101,8 +106,19 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   }, [orders, quickStatus]);
 
   const orderIds = useMemo(() => filteredOrders.map((order) => order.id), [filteredOrders]);
-  const allSelected = orderIds.length > 0 && selectedIds.length === orderIds.length;
-  const someSelected = selectedIds.length > 0 && selectedIds.length < orderIds.length;
+  const pageCount = Math.max(Math.ceil(filteredOrders.length / pageSize), 1);
+  const safePageIndex = Math.min(pageIndex, pageCount - 1);
+  const paginatedOrders = useMemo(() => {
+    const start = safePageIndex * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, pageSize, safePageIndex]);
+  const currentPageIds = useMemo(() => paginatedOrders.map((order) => order.id), [paginatedOrders]);
+  const selectedOnPageCount = useMemo(
+    () => currentPageIds.filter((id) => selectedIds.includes(id)).length,
+    [currentPageIds, selectedIds]
+  );
+  const allSelected = currentPageIds.length > 0 && selectedOnPageCount === currentPageIds.length;
+  const someSelected = selectedOnPageCount > 0 && selectedOnPageCount < currentPageIds.length;
 
   useEffect(() => {
     try {
@@ -122,6 +138,11 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => orderIds.includes(id)));
   }, [orderIds]);
+  useEffect(() => {
+    if (pageIndex !== safePageIndex) {
+      setPageIndex(safePageIndex);
+    }
+  }, [pageIndex, safePageIndex]);
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("sk-SK", {
@@ -131,7 +152,12 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
   };
 
   const toggleAll = (checked: boolean) => {
-    setSelectedIds(checked ? [...orderIds] : []);
+    setSelectedIds((prev) => {
+      if (!checked) {
+        return prev.filter((id) => !currentPageIds.includes(id));
+      }
+      return Array.from(new Set([...prev, ...currentPageIds]));
+    });
   };
 
   const toggleOne = (orderId: string, checked: boolean) => {
@@ -183,6 +209,75 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
     window.location.href = `/api/admin/orders/export?${params.toString()}`;
   };
 
+  const deleteOrder = async (orderId: string, orderNumber: string) => {
+    const confirmed = window.confirm(
+      `Naozaj chcete odstrániť objednávku #${orderNumber}?`
+    );
+    if (!confirmed) return;
+
+    setDeletingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "DELETE",
+        headers: {
+          ...getCsrfHeader(),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error ?? "Nepodarilo sa odstrániť objednávku.");
+      }
+
+      toast.success(`Objednávka #${orderNumber} bola odstránená.`);
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nepodarilo sa odstrániť objednávku.");
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
+  const deleteSelectedOrders = async () => {
+    if (selectedIds.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Naozaj chcete odstrániť vybrané objednávky (${selectedIds.length})?`
+    );
+    if (!confirmed) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const response = await fetch("/api/admin/orders/bulk-delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getCsrfHeader(),
+        },
+        body: JSON.stringify({
+          orderIds: selectedIds,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error ?? "Hromadné odstránenie objednávok zlyhalo.");
+      }
+
+      toast.success(`Odstránené objednávky: ${data.deleted ?? 0}`);
+      setSelectedIds([]);
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Hromadné odstránenie objednávok zlyhalo."
+      );
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   if (orders.length === 0) {
     return (
       <Card>
@@ -202,7 +297,10 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
             <AdminButton
               size="sm"
               variant={quickStatus === "all" ? "primary" : "outline"}
-              onClick={() => setQuickStatus("all")}
+              onClick={() => {
+                setQuickStatus("all");
+                setPageIndex(0);
+              }}
             >
               Všetky
             </AdminButton>
@@ -211,7 +309,10 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                 key={option.value}
                 size="sm"
                 variant={quickStatus === option.value ? "primary" : "outline"}
-                onClick={() => setQuickStatus(option.value)}
+                onClick={() => {
+                  setQuickStatus(option.value);
+                  setPageIndex(0);
+                }}
               >
                 {option.label}
               </AdminButton>
@@ -287,6 +388,15 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Aktualizovať status
           </AdminButton>
+          <AdminButton
+            size="sm"
+            variant="danger"
+            onClick={deleteSelectedOrders}
+            disabled={isBulkDeleting}
+          >
+            {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Odstrániť vybrané
+          </AdminButton>
         </div>
       ) : null}
 
@@ -311,7 +421,7 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map((order) => {
+            {paginatedOrders.map((order) => {
               const statusMeta = STATUS_OPTIONS.find((item) => item.value === order.status);
               const selected = selectedIds.includes(order.id);
               return (
@@ -348,9 +458,23 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
                   ) : null}
                   {columnVisibility.actions ? (
                     <td className="px-3 py-2 text-right">
-                      <AdminButton asChild size="sm" variant="outline">
-                        <Link href={`/admin/orders/${order.id}`}>Detail</Link>
-                      </AdminButton>
+                      <div className="flex justify-end gap-2">
+                        <AdminButton asChild size="sm" variant="outline">
+                          <Link href={`/admin/orders/${order.id}`}>Detail</Link>
+                        </AdminButton>
+                        <AdminButton
+                          size="sm"
+                          variant="danger"
+                          onClick={() => deleteOrder(order.id, order.orderNumber)}
+                          disabled={deletingOrderId === order.id}
+                        >
+                          {deletingOrderId === order.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </AdminButton>
+                      </div>
                     </td>
                   ) : null}
                 </tr>
@@ -358,6 +482,48 @@ export function AdminOrdersList({ orders }: AdminOrdersListProps) {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="text-sm text-muted-foreground">{filteredOrders.length} objednávok celkom</div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">Počet na stránku</label>
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={String(pageSize)}
+            onChange={(event) => {
+              const nextSize = Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number];
+              if (!PAGE_SIZE_OPTIONS.includes(nextSize)) return;
+              setPageSize(nextSize);
+              setPageIndex(0);
+            }}
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+          <AdminButton
+            variant="outline"
+            size="sm"
+            onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
+            disabled={safePageIndex <= 0}
+          >
+            Späť
+          </AdminButton>
+          <div className="text-sm text-muted-foreground">
+            {safePageIndex + 1} / {pageCount}
+          </div>
+          <AdminButton
+            variant="outline"
+            size="sm"
+            onClick={() => setPageIndex((prev) => Math.min(prev + 1, pageCount - 1))}
+            disabled={safePageIndex >= pageCount - 1}
+          >
+            Ďalej
+          </AdminButton>
+        </div>
       </div>
     </div>
   );
