@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { FormEvent, useMemo, useState } from "react"
+import { FormEvent, Suspense, useMemo, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 
 import { ModeButton as Button } from "@/components/print/mode-button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCsrfHeader } from "@/lib/csrf"
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams()
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams])
 
@@ -159,3 +159,21 @@ export default function ResetPasswordPage() {
   )
 }
 
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[calc(100vh-140px)] w-full items-center justify-center p-6 md:p-10">
+          <Card className="w-full max-w-md border-border/60 shadow-xl">
+            <CardHeader>
+              <CardTitle>Obnovenie hesla</CardTitle>
+              <CardDescription>Načítavam formulár…</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
+  )
+}
