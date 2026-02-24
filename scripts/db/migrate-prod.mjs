@@ -4,13 +4,13 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import dotenv from "dotenv";
 
-const DEFAULT_ENV_FILE = ".env.prod";
+const DEFAULT_ENV_FILE = ".env.production";
 const DEFAULT_RETRIES = 3;
 
 function printUsage() {
   console.log(`Usage:
-  node scripts/db/migrate-prod.mjs status [--env-file .env.prod] [--retries 3]
-  node scripts/db/migrate-prod.mjs deploy [--env-file .env.prod] [--retries 3]
+  node scripts/db/migrate-prod.mjs status [--env-file .env.production] [--retries 3]
+  node scripts/db/migrate-prod.mjs deploy [--env-file .env.production] [--retries 3]
 `);
 }
 

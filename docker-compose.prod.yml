@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: shop
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d shop"]
@@ -16,11 +18,15 @@ services:
       retries: 20
 
   web:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: shop-web
     container_name: shop-web
+    env_file:
+      - .env.production
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL}
     ports:
       - "3000:3000"
     depends_on:

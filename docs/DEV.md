@@ -229,6 +229,8 @@ npm install
 ```env
 POSTGRES_PASSWORD="SUPER_STRONG_PASSWORD"
 DATABASE_URL="postgresql://postgres:SUPER_STRONG_PASSWORD@db:5432/shop?schema=public"
+DIRECT_URL="postgresql://postgres:SUPER_STRONG_PASSWORD@127.0.0.1:5432/shop?schema=public"
+AUTH_SECRET="LONG_RANDOM_SECRET_MIN_16_CHARS"
 ```
 
 ### 8.5 Запуск Postgres на VPS
@@ -242,11 +244,12 @@ docker ps
 ## 9) Запуск web-сервиса (Next.js)
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.production exec web npx prisma migrate deploy
+npm run db:migrate:prod:deploy
 ```
 Smoke-check:
 ```bash
 curl -sS http://127.0.0.1:3000/api/health
+curl -sS http://127.0.0.1:3000/api/auth/session
 ```
 
 ---
@@ -255,7 +258,7 @@ curl -sS http://127.0.0.1:3000/api/health
 ```bash
 git pull
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.production exec web npx prisma migrate deploy
+npm run db:migrate:prod:deploy
 ```
 
 ---

@@ -11,7 +11,6 @@ import {
   Mail,
   Package,
   Settings,
-  Star,
   Paintbrush,
   Sparkles,
 } from "lucide-react"
@@ -376,6 +375,7 @@ function RealConfiguratorSection({
   showFloatingBar,
   onSizeKeyChange,
   onBeforeSizeChange,
+  onSharePriceChange,
 }: {
   mode: CustomerMode
   data: WpConfiguratorData
@@ -392,6 +392,7 @@ function RealConfiguratorSection({
   showFloatingBar: boolean
   onSizeKeyChange?: (sizeKey: string | null) => void
   onBeforeSizeChange?: (nextSizeKey: string | null) => boolean
+  onSharePriceChange?: (price: number | null) => void
 }) {
   const {
     selections,
@@ -439,6 +440,10 @@ function RealConfiguratorSection({
   useEffect(() => {
     onSizeKeyChange?.(currentSizeKey)
   }, [currentSizeKey, onSizeKeyChange])
+
+  useEffect(() => {
+    onSharePriceChange?.(total)
+  }, [onSharePriceChange, total])
 
   const elementCount = getDesignElementCount(designData)
   const hasDesignData = elementCount > 0
@@ -492,13 +497,7 @@ function RealConfiguratorSection({
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="space-y-8 lg:col-span-2">
-        <div ref={topShareRef}>
-          <ProductShareButtons
-            productName={product.name}
-            imageUrl={product.images[0]?.url ?? null}
-            price={total}
-          />
-        </div>
+        <div ref={topShareRef} className="h-px" aria-hidden />
         <ProductGallery images={product.images} productName={product.name} />
 
         <Card className="p-6">
@@ -710,7 +709,7 @@ function RealConfiguratorSection({
 
       </div>
 
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 pt-8">
         <RealConfiguratorPanel
           mode={mode}
           summaryItems={summaryItems}
@@ -731,11 +730,13 @@ function RealConfiguratorSection({
           showVolumeDiscounts={useQuantitySelect}
           shareSection={
             isTopShareVisible ? null : (
-              <ProductShareButtons
-                productName={product.name}
-                imageUrl={product.images[0]?.url ?? null}
-                price={total}
-              />
+              <div className="flex px-3 justify-center">
+                <ProductShareButtons
+                  productName={product.name}
+                  imageUrl={product.images[0]?.url ?? null}
+                  price={total}
+                />
+              </div>
             )
           }
         />
@@ -822,6 +823,7 @@ function SimpleConfiguratorSection({
   designThumbnail,
   isLoggedIn,
   showFloatingBar,
+  onSharePriceChange,
 }: {
   mode: CustomerMode
   productId: string
@@ -832,6 +834,7 @@ function SimpleConfiguratorSection({
   designThumbnail?: string | null
   isLoggedIn?: boolean
   showFloatingBar: boolean
+  onSharePriceChange?: (price: number | null) => void
 }) {
   const [quantity, setQuantity] = useState(1)
   const [productionSpeedId, setProductionSpeedId] =
@@ -866,6 +869,10 @@ function SimpleConfiguratorSection({
     excludeWeekendDays: true,
     timeZone: "Europe/Bratislava",
   }).formattedDate
+
+  useEffect(() => {
+    onSharePriceChange?.(total)
+  }, [onSharePriceChange, total])
 
   const handleAddToCart = async () => {
     if (isAddingToCart || total === null) {
@@ -992,11 +999,6 @@ function SimpleConfiguratorSection({
     <>
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-8 lg:col-span-2">
-        <ProductShareButtons
-          productName={product.name}
-          imageUrl={product.images[0]?.url ?? null}
-          price={total}
-        />
         <ProductGallery images={product.images} productName={product.name} />
 
         <Card className="p-6">
@@ -1220,6 +1222,7 @@ export function ProductPageClient({
   )
   const productTitleRef = useRef<HTMLHeadingElement | null>(null)
   const [showFloatingBar, setShowFloatingBar] = useState(false)
+  const [sharePrice, setSharePrice] = useState<number | null>(null)
 
   useEffect(() => {
     const target = productTitleRef.current
@@ -1345,7 +1348,7 @@ export function ProductPageClient({
           <span className="text-foreground">{product.name}</span>
         </nav>
 
-        <div className="mb-8">
+        <div className="mb-16">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {product.isTopProduct ? (
               <Badge className="bg-green-100 text-green-700">
@@ -1368,17 +1371,14 @@ export function ProductPageClient({
               Profesionálny vzhľad, rýchla výroba a kontrola súborov v cene.
             </p>
           )}
-
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              ))}
-            </div>
-            <span className="text-sm text-muted-foreground">
-              4.9 (247 hodnotení)
-            </span>
+          <div className="mt-8">
+            <ProductShareButtons
+              productName={product.name}
+              imageUrl={product.images[0]?.url ?? null}
+              price={sharePrice}
+            />
           </div>
+
         </div>
 
         {calculatorData ? (
@@ -1398,6 +1398,7 @@ export function ProductPageClient({
             showFloatingBar={showFloatingBar}
             onSizeKeyChange={setSelectedSizeKey}
             onBeforeSizeChange={handleBeforeSizeChange}
+            onSharePriceChange={setSharePrice}
           />
         ) : (
           <SimpleConfiguratorSection
@@ -1410,6 +1411,7 @@ export function ProductPageClient({
             designThumbnail={designThumbnail}
             isLoggedIn={isLoggedIn}
             showFloatingBar={showFloatingBar}
+            onSharePriceChange={setSharePrice}
           />
         )}
         <div className="my-12">

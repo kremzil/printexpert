@@ -14,8 +14,8 @@ const IDENTIFIER_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function printUsage() {
   console.log(`Usage:
-  node scripts/db/sync-data.mjs --from-env .env --to-env .env.prod --plan ${DEFAULT_PLAN} --dry-run
-  node scripts/db/sync-data.mjs --from-env .env --to-env .env.prod --plan ${DEFAULT_PLAN} --apply
+  node scripts/db/sync-data.mjs --from-env .env --to-env .env.production --plan ${DEFAULT_PLAN} --dry-run
+  node scripts/db/sync-data.mjs --from-env .env --to-env .env.production --plan ${DEFAULT_PLAN} --apply
 
 Optional:
   --allow-protected-overwrite

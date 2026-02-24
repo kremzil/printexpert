@@ -33,7 +33,7 @@ const SEO_PAGES = {
     canonicalPath: "/",
     openGraphTitle: `Online tlač pre firmy aj domácnosti | ${SITE_NAME}`,
     openGraphDescription:
-      "Objednajte profesionálnu tlač online. Kvalitná výroba, expresné termíny a podpora pre B2C aj B2B zákazníkov.",
+      "Objednajte profesionálnu tlač online. Kvalitná výroba, expresné termíny a podpora pre firmy a domácnosti.",
   },
   doprava: {
     title: "Doprava",

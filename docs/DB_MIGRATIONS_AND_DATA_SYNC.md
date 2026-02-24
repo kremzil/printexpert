@@ -35,7 +35,7 @@ npm run db:migrate:prod:deploy
 
 Скрипт `scripts/db/migrate-prod.mjs`:
 
-- грузит env из `.env.prod` (или через `--env-file`);
+- грузит env из `.env.production` (или через `--env-file`);
 - делает `migrate status`;
 - делает `migrate deploy`;
 - повторно проверяет `migrate status`;
@@ -89,8 +89,8 @@ npm run db:sync:data:apply
 Прямой запуск с кастомными env/plan:
 
 ```bash
-node scripts/db/sync-data.mjs --from-env .env --to-env .env.prod --plan scripts/db/sync-plan.json --dry-run
-node scripts/db/sync-data.mjs --from-env .env --to-env .env.prod --plan scripts/db/sync-plan.json --apply
+node scripts/db/sync-data.mjs --from-env .env --to-env .env.production --plan scripts/db/sync-plan.json --dry-run
+node scripts/db/sync-data.mjs --from-env .env --to-env .env.production --plan scripts/db/sync-plan.json --apply
 ```
 
 ### 3.4 Protected overwrite
@@ -100,7 +100,7 @@ node scripts/db/sync-data.mjs --from-env .env --to-env .env.prod --plan scripts/
 ```bash
 node scripts/db/sync-data.mjs \
   --from-env .env \
-  --to-env .env.prod \
+  --to-env .env.production \
   --plan scripts/db/sync-plan.json \
   --apply \
   --allow-protected-overwrite \
