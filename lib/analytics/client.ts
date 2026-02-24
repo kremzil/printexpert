@@ -36,7 +36,6 @@ export const trackDataLayerEvent = (
   payload: DataLayerPayload = {}
 ) => {
   if (!isBrowser()) return false
-  if (!isMarketingConsentAccepted()) return false
 
   pushToDataLayer({
     event: eventName,

@@ -1,6 +1,7 @@
 import pino from "pino";
 
 const logLevel = process.env.LOG_LEVEL ?? "info";
+const loggingEnabled = process.env.LOG_ENABLED === "true";
 const shouldPrettyPrint =
   process.env.LOG_PRETTY !== undefined
     ? process.env.LOG_PRETTY === "true"
@@ -30,6 +31,7 @@ const redactPaths = [
 ];
 
 export const logger = pino({
+  enabled: loggingEnabled,
   level: logLevel,
   base: {
     service: serviceName,
@@ -40,7 +42,7 @@ export const logger = pino({
     censor: "[REDACTED]",
   },
   timestamp: pino.stdTimeFunctions.isoTime,
-  ...(shouldPrettyPrint
+  ...(loggingEnabled && shouldPrettyPrint
     ? {
         transport: {
           target: "pino-pretty",

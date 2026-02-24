@@ -43,21 +43,18 @@ export function MarketingConsentGate() {
   useEffect(() => {
     if (typeof window === "undefined") return
 
+    loadGtmScript()
+
     const initialStatusRaw = window.localStorage.getItem(COOKIE_CONSENT_KEY)
     if (isValidConsentStatus(initialStatusRaw)) {
       pushConsentDataLayerEvent(initialStatusRaw)
-      if (initialStatusRaw === "accepted") {
-        loadGtmScript()
-      }
     }
 
     const onConsentChanged = (event: Event) => {
       const customEvent = event as CustomEvent<{ status?: CookieConsentStatus }>
       const status = customEvent.detail?.status
       if (!status) return
-      if (status === "accepted") {
-        loadGtmScript()
-      }
+      loadGtmScript()
     }
 
     window.addEventListener(COOKIE_CONSENT_CHANGED_EVENT, onConsentChanged as EventListener)
