@@ -351,7 +351,7 @@ async function ContactPageContent({ searchParams }: ContactPageProps) {
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {[
-            "Kontrola súborov zadarmo",
+            "Kontrola súborov v cene",
             "Bezpečná platba",
             "Expresné dodanie",
           ].map((item) => (
@@ -361,7 +361,7 @@ async function ContactPageContent({ searchParams }: ContactPageProps) {
               </div>
               <h3 className="mb-2 font-semibold">{item}</h3>
               <p className="text-sm text-muted-foreground">
-                {item === "Kontrola súborov zadarmo"
+                {item === "Kontrola súborov v cene"
                   ? "Každý súbor prejde kontrolou pred tlačou"
                   : item === "Bezpečná platba"
                     ? "SSL šifrovanie a overené platobné brány"

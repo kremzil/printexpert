@@ -1,7 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import {
   BookOpen,
+  ChevronDown,
+  ChevronRight,
   CreditCard,
   FileText,
   Flag,
@@ -57,6 +60,19 @@ export function CategorySidebar({
     map.set(category.parentId, list)
     return map
   }, new Map<string, CategoryItem[]>())
+  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({})
+  const selectedParentId =
+    categories.find((category) => category.slug === selectedCategory)?.parentId ?? null
+
+  const toggleCategoryChildren = (categoryId: string) => {
+    setExpandedOverrides((prev) => {
+      const isExpanded = prev[categoryId] ?? selectedParentId === categoryId
+      return {
+        ...prev,
+        [categoryId]: !isExpanded,
+      }
+    })
+  }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -91,15 +107,18 @@ export function CategorySidebar({
         {rootCategories.map((category) => {
           const Icon = iconBySlug[category.slug] ?? FileText
           const children = childrenByParent.get(category.id) ?? []
+          const categoryCount = children.length
+            ? children.reduce((sum, child) => sum + child.count, 0)
+            : category.count
+          const isExpanded =
+            expandedOverrides[category.id] ?? selectedParentId === category.id
           const isActive =
             selectedCategory === category.slug ||
             children.some((child) => child.slug === selectedCategory)
 
           return (
             <div key={category.id} className="space-y-2">
-              <button
-                type="button"
-                onClick={() => onCategorySelect(category.slug)}
+              <div
                 className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
                   isActive
                     ? "border-transparent text-white shadow-sm"
@@ -107,7 +126,11 @@ export function CategorySidebar({
                 }`}
                 style={isActive ? { backgroundColor: modeColor } : undefined}
               >
-                <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onCategorySelect(category.slug)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                >
                   <span
                     className="flex h-8 w-8 items-center justify-center rounded-full"
                     style={{
@@ -119,18 +142,38 @@ export function CategorySidebar({
                       style={{ color: isActive ? "white" : modeColor }}
                     />
                   </span>
-                  {category.name}
-                </span>
+                  <span className="truncate">{category.name}</span>
+                </button>
+
+                {children.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      toggleCategoryChildren(category.id)
+                    }}
+                    className={`ml-2 inline-flex h-6 w-6 items-center justify-center rounded transition ${
+                      isActive ? "hover:bg-white/20" : "hover:bg-muted"
+                    }`}
+                    aria-label={isExpanded ? "Zbaliť podkategórie" : "Rozbaliť podkategórie"}
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
                 <span
-                  className={`text-xs ${
+                  className={`ml-2 text-xs ${
                     isActive ? "text-white/80" : "text-muted-foreground"
                   }`}
                 >
-                  {category.count}
+                  {categoryCount}
                 </span>
-              </button>
+              </div>
 
-              {children.length > 0 && (
+              {children.length > 0 && isExpanded && (
                 <div className="ml-6 space-y-2 border-l border-border pl-3">
                   {children.map((child) => {
                     const childActive = selectedCategory === child.slug

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { sendPurchaseConversions } from "@/lib/analytics/server-conversions";
 import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 type CheckoutPaymentMethod = "STRIPE" | "BANK_TRANSFER" | "COD";
@@ -41,6 +42,7 @@ const PATCHHandler = async (
         id: true,
         userId: true,
         customerEmail: true,
+        paymentMethod: true,
         paymentStatus: true,
         total: true,
       },
@@ -94,6 +96,17 @@ const PATCHHandler = async (
           : {}),
       },
     });
+    if (paymentMethod !== "STRIPE" && order.paymentMethod === "STRIPE") {
+      await sendPurchaseConversions(orderId, { reason: "payment_method_offline" }).catch(
+        (conversionError) => {
+          const err =
+            conversionError instanceof Error
+              ? conversionError
+              : new Error(String(conversionError));
+          console.error("Failed to send offline purchase conversion:", err.message);
+        }
+      );
+    }
 
     return NextResponse.json({ success: true, paymentMethod });
   } catch (error) {

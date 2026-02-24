@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModeButton as Button } from "@/components/print/mode-button";
+import type { Metadata } from "next";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  robots: NOINDEX_ROBOTS,
+};
 
 type SearchParams = {
   orderId?: string;

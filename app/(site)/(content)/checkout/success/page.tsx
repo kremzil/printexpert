@@ -1,5 +1,11 @@
 import { OrderSuccess } from "@/components/print/order-success";
 import { resolveAudienceContext } from "@/lib/audience-context";
+import type { Metadata } from "next";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  robots: NOINDEX_ROBOTS,
+};
 
 type SearchParams = {
   orderId?: string;

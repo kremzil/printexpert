@@ -3,6 +3,7 @@ import localFont from "next/font/local"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from '@vercel/analytics/next';
 
+import { MarketingConsentGate } from "@/components/analytics/marketing-consent-gate"
 import { ROOT_METADATA, SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
 import "./globals.css"
@@ -116,6 +117,7 @@ export default function RootLayout({
   return (
     <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
       <body className="antialiased">
+        <MarketingConsentGate />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }}

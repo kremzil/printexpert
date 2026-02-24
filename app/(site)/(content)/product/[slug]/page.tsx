@@ -4,6 +4,7 @@ import { Suspense, cache } from "react"
 
 import { auth } from "@/auth"
 import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product-page-client"
+import { ProductPageSkeleton } from "@/app/(site)/(content)/product/[slug]/product-page-skeleton"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getRelatedProducts, getTopProductIds } from "@/lib/catalog"
 import { getProductCalculatorData } from "@/lib/pricing"
@@ -290,7 +291,9 @@ async function ProductDetails({
         calculatorData={calculatorData}
         relatedProducts={relatedProducts}
         product={{
+          id: product.id,
           slug: product.slug,
+          wpProductId: product.wpProductId ?? null,
           name: product.name,
           priceFrom: product.priceFrom ?? null,
           priceAfterDiscountFrom: product.priceAfterDiscountFrom ?? null,
@@ -347,20 +350,7 @@ async function ProductDetails({
 
 export default function ProductPage({ params, searchParams }: ProductPageProps) {
   return (
-    <Suspense
-      fallback={
-        <section className="space-y-4">
-          <div className="space-y-2">
-            <div className="h-4 w-24 rounded bg-muted" />
-            <div className="h-7 w-1/2 rounded bg-muted" />
-            <div className="h-4 w-2/3 rounded bg-muted" />
-          </div>
-          <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-            Načítavame detail produktu…
-          </div>
-        </section>
-      }
-    >
+    <Suspense fallback={<ProductPageSkeleton />}>
       <ProductDetails
         paramsPromise={params}
         searchParamsPromise={searchParams}

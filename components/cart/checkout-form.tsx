@@ -25,6 +25,8 @@ import { PaymentMethodSelector } from "@/components/print/payment-method-selecto
 import { CheckoutSteps } from "@/components/print/checkout-steps";
 import { AddressForm } from "@/components/print/address-form";
 import { OrderReview } from "@/components/print/order-review";
+import { trackDataLayerEvent } from "@/lib/analytics/client";
+import { buildMarketingItemId } from "@/lib/analytics/item-id";
 import { getCsrfHeader } from "@/lib/csrf";
 import {
   calculateDpdCourierShippingGross,
@@ -256,6 +258,7 @@ export function CheckoutForm({
   const [dpdCourierFreeFrom, setDpdCourierFreeFrom] = useState(100);
   const [shopVatRate, setShopVatRate] = useState(0.2);
   const isPreparingRef = useRef(false);
+  const hasTrackedBeginCheckoutRef = useRef(false);
   const initialBilling = buildBillingData(initialBillingData);
   const defaultSavedAddress =
     savedAddresses.find((address) => address.isDefault) ?? savedAddresses[0];
@@ -303,6 +306,26 @@ export function CheckoutForm({
   const shippingVatAmount = splitGrossByVat(shippingCost, normalizeVatRate(shopVatRate)).vat;
   const orderVatWithShipping = cart.totals.vatAmount + shippingVatAmount;
   const orderTotalWithShipping = cart.totals.total + shippingCost;
+
+  useEffect(() => {
+    if (hasTrackedBeginCheckoutRef.current) return;
+
+    const items = cart.items.map((item) => ({
+      item_id: buildMarketingItemId(item.product.id, item.product.wpProductId ?? null),
+      item_name: item.product.name,
+      price: item.priceSnapshot?.gross ?? 0,
+      quantity: item.quantity,
+    }));
+
+    if (items.length === 0) return;
+
+    trackDataLayerEvent("begin_checkout", {
+      currency: "EUR",
+      value: cart.totals.subtotal,
+      items,
+    });
+    hasTrackedBeginCheckoutRef.current = true;
+  }, [cart.items, cart.totals.subtotal]);
 
   useEffect(() => {
     let active = true;

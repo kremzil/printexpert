@@ -9,7 +9,7 @@ export const SITE_URL = normalizedSiteUrl
 export const SITE_NAME = "PrintExpert"
 export const SITE_DESCRIPTION =
   "Profesionálna online tlač pre firmy aj domácnosti. Vizitky, letáky, bannery, polepy a ďalšie tlačové produkty s rýchlym doručením."
-export const DEFAULT_OG_IMAGE = "/printexpert-logo.png"
+export const DEFAULT_OG_IMAGE = "/printexpert-og.png"
 
 export const NOINDEX_ROBOTS: NonNullable<Metadata["robots"]> = {
   index: false,

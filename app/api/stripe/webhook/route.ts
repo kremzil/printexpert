@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { sendPurchaseConversions } from "@/lib/analytics/server-conversions";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma";
 import { OBS_EVENT } from "@/lib/observability/events";
@@ -101,12 +102,14 @@ const postHandler = async (req: Request) => {
             select: {
               id: true,
               status: true,
+              paymentStatus: true,
             },
           });
 
           if (!order) break;
 
           const shouldConfirm = order.status !== "CONFIRMED";
+          const shouldSendPurchase = order.paymentStatus !== "PAID";
 
           await tx.order.update({
             where: { id: orderId },
@@ -133,6 +136,9 @@ const postHandler = async (req: Request) => {
               },
             });
           }
+          if (shouldSendPurchase) {
+            return { duplicated: false, purchaseOrderId: orderId };
+          }
 
           break;
         }
@@ -146,12 +152,14 @@ const postHandler = async (req: Request) => {
             select: {
               id: true,
               status: true,
+              paymentStatus: true,
             },
           });
 
           if (!order) break;
 
           const shouldConfirm = order.status !== "CONFIRMED";
+          const shouldSendPurchase = order.paymentStatus !== "PAID";
 
           await tx.order.update({
             where: { id: orderId },
@@ -174,6 +182,9 @@ const postHandler = async (req: Request) => {
                 note: `stripe:webhook:${event.id}`,
               },
             });
+          }
+          if (shouldSendPurchase) {
+            return { duplicated: false, purchaseOrderId: orderId };
           }
 
           break;
@@ -280,6 +291,24 @@ const postHandler = async (req: Request) => {
       ipHash,
       stripeEventId: event.id,
     });
+    if (result?.purchaseOrderId) {
+      await sendPurchaseConversions(result.purchaseOrderId, { reason: "stripe_paid" }).catch(
+        (conversionError) => {
+          const err =
+            conversionError instanceof Error
+              ? conversionError
+              : new Error(String(conversionError));
+          logger.error({
+            event: "stripe.webhook.purchase_conversion_failed",
+            requestId,
+            ipHash,
+            stripeEventId: event.id,
+            errorName: err.name,
+            errorMessage: err.message,
+          });
+        }
+      );
+    }
     return NextResponse.json({ received: true });
   } catch (error) {
     const err = error instanceof Error ? error : new Error("Unknown Stripe webhook error");

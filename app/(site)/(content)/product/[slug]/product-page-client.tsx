@@ -49,6 +49,8 @@ import {
   QUOTE_REQUEST_UPDATED_EVENT,
   upsertQuoteRequestItem,
 } from "@/lib/quote-request-store"
+import { trackDataLayerEvent } from "@/lib/analytics/client"
+import { buildMarketingItemId } from "@/lib/analytics/item-id"
 import { getCsrfHeader } from "@/lib/csrf"
 import { calculateShipmentDate } from "@/lib/shipment-date"
 import {
@@ -113,7 +115,9 @@ type ProductPageClientProps = {
     images: Array<{ url: string; alt?: string | null }>
   }>
   product: {
+    id: string
     slug: string
+    wpProductId?: number | null
     name: string
     priceFrom?: string | null
     priceAfterDiscountFrom?: string | null
@@ -428,7 +432,15 @@ function RealConfiguratorSection({
     addToCart,
     isAddingToCart,
     serverError,
-  } = useWpConfigurator({ data, productId, designData })
+  } = useWpConfigurator({
+    data,
+    productId,
+    designData,
+    analyticsItem: {
+      productName: product.name,
+      wpProductId: product.wpProductId ?? null,
+    },
+  })
 
   const sizeSelectMeta = useMemo(() => resolveSizeSelectFromCalculator(data), [data])
   const currentSizeKey = useMemo(() => {
@@ -938,6 +950,18 @@ function SimpleConfiguratorSection({
         throw new Error("Nepodarilo sa pridať do košíka")
       }
       const cartItem = await cartResponse.json().catch(() => null)
+      trackDataLayerEvent("add_to_cart", {
+        currency: "EUR",
+        value: priceResult.gross,
+        items: [
+          {
+            item_id: buildMarketingItemId(productId, product.wpProductId ?? null),
+            item_name: product.name,
+            price: perUnitPrice.gross,
+            quantity,
+          },
+        ],
+      })
       const cartItemId =
         cartItem && typeof cartItem.id === "string" ? cartItem.id : null
       if (cartItemId) {
@@ -1223,6 +1247,31 @@ export function ProductPageClient({
   const productTitleRef = useRef<HTMLHeadingElement | null>(null)
   const [showFloatingBar, setShowFloatingBar] = useState(false)
   const [sharePrice, setSharePrice] = useState<number | null>(null)
+  const hasTrackedViewRef = useRef(false)
+
+  useEffect(() => {
+    if (hasTrackedViewRef.current) return
+
+    const basePriceRaw = product.priceAfterDiscountFrom ?? product.priceFrom
+    const parsedBasePrice = basePriceRaw === null || typeof basePriceRaw === "undefined"
+      ? Number.NaN
+      : Number(basePriceRaw)
+    const basePrice = Number.isFinite(parsedBasePrice) ? parsedBasePrice : undefined
+
+    trackDataLayerEvent("view_item", {
+      currency: "EUR",
+      value: basePrice,
+      items: [
+        {
+          item_id: buildMarketingItemId(productId, product.wpProductId ?? null),
+          item_name: product.name,
+          price: basePrice,
+          quantity: 1,
+        },
+      ],
+    })
+    hasTrackedViewRef.current = true
+  }, [product.priceAfterDiscountFrom, product.priceFrom, product.wpProductId, product.name, productId])
 
   useEffect(() => {
     const target = productTitleRef.current

@@ -12,7 +12,7 @@ export const metadata = buildStaticPageMetadata("vratenieTovaru")
 
 export default function VratenieTovaruPage() {
   return (
-    <div className="container space-y-16">
+    <div className="container space-y-16 min-h-[80vh]">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

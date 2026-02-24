@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { trackDataLayerEvent } from "@/lib/analytics/client"
+import { buildMarketingItemId } from "@/lib/analytics/item-id"
 import { getCsrfHeader } from "@/lib/csrf"
 import { calculateShipmentDate } from "@/lib/shipment-date"
 
@@ -336,10 +338,15 @@ export function useWpConfigurator({
   data,
   productId,
   designData,
+  analyticsItem,
 }: {
   data: WpConfiguratorData
   productId: string
   designData?: unknown
+  analyticsItem?: {
+    productName: string
+    wpProductId?: number | null
+  }
 }) {
   const router = useRouter()
 
@@ -857,6 +864,19 @@ export function useWpConfigurator({
       if (!cartResponse.ok) {
         throw new Error("Nepodarilo sa pridať do košíka")
       }
+
+      trackDataLayerEvent("add_to_cart", {
+        currency: "EUR",
+        value: priceResult.gross,
+        items: [
+          {
+            item_id: buildMarketingItemId(productId, analyticsItem?.wpProductId ?? null),
+            item_name: analyticsItem?.productName ?? "Produkt",
+            price: perUnitPrice.gross,
+            quantity,
+          },
+        ],
+      })
 
       window.dispatchEvent(new Event("cart-updated"))
       router.push("/cart")

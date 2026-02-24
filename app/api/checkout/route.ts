@@ -8,6 +8,7 @@ import { withObservedRoute } from "@/lib/observability/with-observed-route";
 import { getClientIp, getClientIpHash, getRequestIdOrCreate } from "@/lib/request-utils";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { getShopSettings } from "@/lib/shop-settings";
+import { sendPurchaseConversions } from "@/lib/analytics/server-conversions";
 
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
@@ -117,6 +118,27 @@ const postHandler = async (req: NextRequest) => {
       },
       sessionId
     );
+    const orderPaymentMethod = order.paymentMethod ?? paymentMethod ?? "STRIPE";
+    if (orderPaymentMethod === "BANK_TRANSFER" || orderPaymentMethod === "COD") {
+      await sendPurchaseConversions(order.id, { reason: "checkout_offline" }).catch(
+        (conversionError) => {
+          const err =
+            conversionError instanceof Error
+              ? conversionError
+              : new Error(String(conversionError));
+          logger.error({
+            event: OBS_EVENT.SERVER_UNHANDLED_ERROR,
+            requestId,
+            method: req.method,
+            path: new URL(req.url).pathname,
+            ipHash,
+            scope: "checkout.conversions.offline_purchase",
+            errorName: err.name,
+            errorMessage: err.message,
+          });
+        }
+      );
+    }
 
     // Cookie корзины удаляется на клиенте после успешной оплаты
 

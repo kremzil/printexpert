@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 
 import { CatalogClient } from "@/app/(site)/(content)/catalog/catalog-client"
+import { CatalogPageSkeleton } from "@/app/(site)/(content)/catalog/catalog-page-skeleton"
 import {
   getCategories,
   getCatalogProducts,
@@ -78,20 +79,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   }
 
   return (
-    <Suspense
-      fallback={
-        <section className="space-y-4">
-          <div className="space-y-2">
-            <div className="h-4 w-24 rounded bg-muted" />
-            <div className="h-7 w-1/2 rounded bg-muted" />
-            <div className="h-4 w-2/3 rounded bg-muted" />
-          </div>
-          <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-            Načítavame katalóg…
-          </div>
-        </section>
-      }
-    >
+    <Suspense fallback={<CatalogPageSkeleton />}>
       <CatalogContent searchParamsPromise={Promise.resolve(resolvedSearchParams)} />
     </Suspense>
   )

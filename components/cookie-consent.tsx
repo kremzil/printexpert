@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-const COOKIE_CONSENT_KEY = "pe_cookie_consent"
+import {
+  COOKIE_CONSENT_CHANGED_EVENT,
+  COOKIE_CONSENT_KEY,
+  type CookieConsentStatus,
+} from "@/lib/analytics/constants"
+import { pushConsentDataLayerEvent } from "@/lib/analytics/client"
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false)
@@ -15,16 +20,28 @@ export function CookieConsent() {
       const timer = setTimeout(() => setVisible(true), 1500)
       return () => clearTimeout(timer)
     }
+    if (consent === "accepted" || consent === "declined") {
+      pushConsentDataLayerEvent(consent)
+    }
   }, [])
 
-  const accept = () => {
-    localStorage.setItem(COOKIE_CONSENT_KEY, "accepted")
+  const applyConsent = (status: CookieConsentStatus) => {
+    localStorage.setItem(COOKIE_CONSENT_KEY, status)
+    pushConsentDataLayerEvent(status)
+    window.dispatchEvent(
+      new CustomEvent(COOKIE_CONSENT_CHANGED_EVENT, {
+        detail: { status },
+      })
+    )
     setVisible(false)
   }
 
+  const accept = () => {
+    applyConsent("accepted")
+  }
+
   const decline = () => {
-    localStorage.setItem(COOKIE_CONSENT_KEY, "declined")
-    setVisible(false)
+    applyConsent("declined")
   }
 
   if (!visible) return null
