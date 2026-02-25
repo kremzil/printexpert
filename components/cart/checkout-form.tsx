@@ -125,12 +125,19 @@ const getStripePromise = () => {
 
 type PaymentFormProps = {
   orderId: string;
+  customerEmail: string;
   onError: (message: string) => void;
   onProcessing: (value: boolean) => void;
   mode: CustomerMode;
 };
 
-function PaymentForm({ orderId, onError, onProcessing, mode }: PaymentFormProps) {
+function PaymentForm({
+  orderId,
+  customerEmail,
+  onError,
+  onProcessing,
+  mode,
+}: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isPaying, setIsPaying] = useState(false);
@@ -144,6 +151,23 @@ function PaymentForm({ orderId, onError, onProcessing, mode }: PaymentFormProps)
 
     setIsPaying(true);
     onProcessing(true);
+
+    const paymentStartResponse = await fetch("/api/stripe/payment-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getCsrfHeader() },
+      body: JSON.stringify({
+        orderId,
+        customerEmail: customerEmail.trim(),
+      }),
+    });
+
+    if (!paymentStartResponse.ok) {
+      const startError = await paymentStartResponse.json().catch(() => ({}));
+      onError(startError.error || "Nepodarilo sa pripraviť platbu.");
+      setIsPaying(false);
+      onProcessing(false);
+      return;
+    }
 
     const result = await stripe.confirmPayment({
       elements,
@@ -294,6 +318,8 @@ export function CheckoutForm({
   };
   const [notes, setNotes] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+  const [hasUploadedFiles, setHasUploadedFiles] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [invalidBillingFields, setInvalidBillingFields] = useState<Set<string>>(new Set());
   const [invalidDeliveryFields, setInvalidDeliveryFields] = useState<Set<string>>(new Set());
@@ -518,6 +544,13 @@ export function CheckoutForm({
     deliveryMethod,
     pickupPoint,
   ]);
+
+  useEffect(() => {
+    const hasPendingFiles = Boolean(
+      window.__pendingOrderUpload?.file || window.__pendingDesignPdf?.file
+    );
+    setHasUploadedFiles(hasPendingFiles);
+  }, []);
 
   const customerName = `${billingData.firstName} ${billingData.lastName}`.trim();
   const customerEmail = billingData.email.trim();
@@ -860,6 +893,16 @@ export function CheckoutForm({
       setError("Meno a e-mail sú povinné.");
       return;
     }
+    if (!acceptedTerms) {
+      setTermsError(true);
+      setError(
+        "Na dokončenie objednávky potvrďte súhlas s obchodnými podmienkami a ochranou osobných údajov."
+      );
+      const termsCheckbox = document.getElementById("terms");
+      termsCheckbox?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setTermsError(false);
     setIsSubmitting(true);
     setError(null);
     try {
@@ -895,6 +938,7 @@ export function CheckoutForm({
     customerName,
     clearCartAfterCheckout,
     paymentMethod,
+    acceptedTerms,
     isPreparingPayment,
     isSubmitting,
     orderId,
@@ -1088,6 +1132,7 @@ export function CheckoutForm({
             <OrderReview
               mode={mode}
               items={orderItems}
+              hasUploadedFiles={hasUploadedFiles}
               shippingMethod={
                 deliveryMethod === "PERSONAL_PICKUP"
                   ? "Osobný odber - Rozvojová 2, Košice"
@@ -1142,19 +1187,39 @@ export function CheckoutForm({
                   type="checkbox"
                   id="terms"
                   checked={acceptedTerms}
-                  onChange={(event) => setAcceptedTerms(event.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-border"
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setAcceptedTerms(checked);
+                    if (checked) {
+                      setTermsError(false);
+                    }
+                  }}
+                  className={`mt-1 h-4 w-4 rounded ${
+                    termsError
+                      ? "border-destructive ring-2 ring-destructive/30"
+                      : "border-border"
+                  }`}
                 />
-                <label htmlFor="terms" className="text-sm text-muted-foreground">
+                <div>
+                  <label
+                    htmlFor="terms"
+                    className={`text-sm ${termsError ? "text-destructive" : "text-muted-foreground"}`}
+                  >
                   Súhlasím s{" "}
-                  <a href="#" className="font-medium text-primary hover:underline">
+                  <a href="/obchodne-podmienky" className="font-medium text-primary hover:underline">
                     obchodnými podmienkami
                   </a>{" "}
                   a{" "}
-                  <a href="#" className="font-medium text-primary hover:underline">
+                  <a href="/ochrana-osobnych-udajov" className="font-medium text-primary hover:underline">
                     ochranou osobných údajov
                   </a>
-                </label>
+                  </label>
+                  {termsError && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Potvrďte súhlas pre dokončenie objednávky.
+                    </p>
+                  )}
+                </div>
               </div>
             </Card>
           </>
@@ -1343,7 +1408,7 @@ export function CheckoutForm({
                       type="button"
                       className="w-full"
                       onClick={handleOfflinePayment}
-                      disabled={isSubmitting || isPreparingPayment || !acceptedTerms}
+                      disabled={isSubmitting || isPreparingPayment}
                     >
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Potvrdiť objednávku
@@ -1375,6 +1440,7 @@ export function CheckoutForm({
                           <PaymentForm
                             mode={mode}
                             orderId={orderId}
+                            customerEmail={customerEmail}
                             onError={(message) => setError(message)}
                             onProcessing={(value) => setIsProcessingPayment(value)}
                           />
@@ -1400,7 +1466,7 @@ export function CheckoutForm({
               </div>
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-green-600" />
-                <span className="text-muted-foreground">Kontrola súborov zdarma</span>
+                <span className="text-muted-foreground">Kontrola súborov v cene</span>
               </div>
             </div>
           </Card>

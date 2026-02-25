@@ -243,7 +243,7 @@ export function OrderSuccess({
             className="font-medium hover:underline"
             style={{ color: modeColor }}
           >
-            +421 900 123 456
+            +421 917 545 003
           </a>
         </p>
       </div>

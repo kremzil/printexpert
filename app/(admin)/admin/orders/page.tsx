@@ -74,7 +74,11 @@ async function getOrders(searchParams: SearchParams) {
   const toDate = parseDateInput(normalizeString(searchParams.to), true);
   const sort = normalizeString(searchParams.sort) || "newest";
 
-  const where: Prisma.OrderWhereInput = {};
+  const where: Prisma.OrderWhereInput = {
+    NOT: {
+      AND: [{ paymentMethod: "STRIPE" }, { paymentStatus: "UNPAID" }],
+    },
+  };
 
   if (selectedStatuses.length > 0) {
     where.status = { in: selectedStatuses };

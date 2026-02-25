@@ -10,6 +10,10 @@ import {
   calculateDpdCourierShippingGross,
   splitGrossByVat,
 } from "@/lib/delivery-pricing";
+import {
+  buildStripeIdempotencyKey,
+  withStripeRetry,
+} from "@/lib/stripe-retry";
 import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -165,33 +169,45 @@ const POSTHandler = async (req: NextRequest) => {
       );
     }
 
-    const stripeSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: order.customerEmail,
-      client_reference_id: order.id,
-      metadata: {
-        orderId: order.id,
-      },
-      payment_intent_data: {
-        metadata: {
-          orderId: order.id,
-        },
-      },
-      line_items: [
+    const stripeSession = await withStripeRetry(() =>
+      stripe.checkout.sessions.create(
         {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: `Objednávka #${order.orderNumber}`,
-            },
-            unit_amount: amountInCents,
+          mode: "payment",
+          customer_email: order.customerEmail,
+          client_reference_id: order.id,
+          metadata: {
+            orderId: order.id,
           },
-          quantity: 1,
+          payment_intent_data: {
+            metadata: {
+              orderId: order.id,
+            },
+          },
+          line_items: [
+            {
+              price_data: {
+                currency: "eur",
+                product_data: {
+                  name: `Objednávka #${order.orderNumber}`,
+                },
+                unit_amount: amountInCents,
+              },
+              quantity: 1,
+            },
+          ],
+          success_url: `${siteUrl}/checkout/success?orderId=${order.id}`,
+          cancel_url: `${siteUrl}/checkout/cancel?orderId=${order.id}`,
         },
-      ],
-      success_url: `${siteUrl}/checkout/success?orderId=${order.id}`,
-      cancel_url: `${siteUrl}/checkout/cancel?orderId=${order.id}`,
-    });
+        {
+          idempotencyKey: buildStripeIdempotencyKey(
+            "order",
+            order.id,
+            "checkout-session",
+            "create"
+          ),
+        }
+      )
+    );
 
     if (!stripeSession.url) {
       return NextResponse.json(

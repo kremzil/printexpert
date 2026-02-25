@@ -39,10 +39,19 @@ const GETHandler = async (request: NextRequest) => {
     }),
     prisma.order.findMany({
       where: {
-        OR: [
-          { orderNumber: { contains: q, mode: "insensitive" } },
-          { customerName: { contains: q, mode: "insensitive" } },
-          { customerEmail: { contains: q, mode: "insensitive" } },
+        AND: [
+          {
+            NOT: {
+              AND: [{ paymentMethod: "STRIPE" }, { paymentStatus: "UNPAID" }],
+            },
+          },
+          {
+            OR: [
+              { orderNumber: { contains: q, mode: "insensitive" } },
+              { customerName: { contains: q, mode: "insensitive" } },
+              { customerEmail: { contains: q, mode: "insensitive" } },
+            ],
+          },
         ],
       },
       select: {
@@ -93,4 +102,3 @@ const GETHandler = async (request: NextRequest) => {
 };
 
 export const GET = withObservedRoute("GET /api/admin/search", GETHandler);
-

@@ -22,6 +22,7 @@ interface OrderItem {
 interface OrderReviewProps {
   mode: CustomerMode
   items: OrderItem[]
+  hasUploadedFiles?: boolean
   shippingMethod: string
   shippingCost: number
   billingAddress: {
@@ -50,6 +51,7 @@ interface OrderReviewProps {
 export function OrderReview({
   mode,
   items,
+  hasUploadedFiles = false,
   shippingMethod,
   shippingCost,
   billingAddress,
@@ -63,14 +65,6 @@ export function OrderReview({
     shipping: mode === "b2c" ? 1 : 2,
     billing: mode === "b2c" ? 1 : 2,
   }
-
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.quantity * item.pricePerUnit,
-    0
-  )
-  const totalWithoutVAT = subtotal + shippingCost
-  const vatAmount = totalWithoutVAT * 0.2
-  const totalWithVAT = totalWithoutVAT + vatAmount
 
   return (
     <div className="space-y-6">
@@ -117,10 +111,12 @@ export function OrderReview({
           ))}
         </div>
 
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          <FileCheck className="h-4 w-4 flex-shrink-0" />
-          <span>Všetky súbory boli úspešne nahrané</span>
-        </div>
+        {hasUploadedFiles ? (
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+            <FileCheck className="h-4 w-4 flex-shrink-0" />
+            <span>Všetky súbory boli úspešne nahrané</span>
+          </div>
+        ) : null}
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -211,57 +207,6 @@ export function OrderReview({
         </Card>
       </div>
 
-      <Card className="p-6">
-        <h3 className="mb-4 font-semibold">Celková suma</h3>
-
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Medzisúčet:</span>
-            <PriceDisplay price={subtotal} mode={mode} size="sm" showVAT={false} />
-          </div>
-
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Doprava:</span>
-            {shippingCost === 0 ? (
-              <span className="font-medium text-green-600">Zdarma</span>
-            ) : (
-              <PriceDisplay price={shippingCost} mode={mode} size="sm" showVAT={false} />
-            )}
-          </div>
-
-          {mode === "b2b" && (
-            <>
-              <div className="border-t border-border pt-2">
-                <div className="flex justify-between font-medium">
-                  <span>Celkom bez DPH:</span>
-                  <PriceDisplay price={totalWithoutVAT} mode={mode} size="md" showVAT={false} />
-                </div>
-              </div>
-
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">DPH 20%:</span>
-                <span>+{vatAmount.toFixed(2)} €</span>
-              </div>
-            </>
-          )}
-
-          <div className="border-t border-border pt-2">
-            <div className="flex justify-between text-lg font-bold">
-              <span>Celkom {mode === "b2c" ? "s DPH" : ""}:</span>
-              {mode === "b2c" ? (
-                <PriceDisplay price={totalWithVAT} mode={mode} size="lg" />
-              ) : (
-                <span>{totalWithVAT.toFixed(2)} €</span>
-              )}
-            </div>
-            {mode === "b2c" && (
-              <div className="mt-1 text-right text-xs text-muted-foreground">
-                Obsahuje DPH 20%: {vatAmount.toFixed(2)} €
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { AdminButton } from "@/components/admin/admin-button"
 import { getAdminProducts } from "@/lib/catalog"
 import { requireAdmin } from "@/lib/auth-helpers"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@/lib/generated/prisma"
 import { formatPrice } from "@/lib/utils"
 import { Overview } from "@/components/admin/overview"
 import { StatCard } from "@/components/admin/stat-card"
@@ -84,8 +85,11 @@ async function AdminPageContent({
       ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0)
       : new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0, 0)
 
-  const orderFilterBase = {
+  const orderFilterBase: Prisma.OrderWhereInput = {
     ...(segment === "all" ? {} : { audience: segment }),
+    NOT: {
+      AND: [{ paymentMethod: { equals: "STRIPE" } }, { paymentStatus: { equals: "UNPAID" } }],
+    },
   }
 
   const [

@@ -10,6 +10,10 @@ import {
   calculateDpdCourierShippingGross,
   splitGrossByVat,
 } from "@/lib/delivery-pricing";
+import {
+  buildStripeIdempotencyKey,
+  withStripeRetry,
+} from "@/lib/stripe-retry";
 import { withObservedRoute } from "@/lib/observability/with-observed-route";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -117,8 +121,8 @@ const POSTHandler = async (req: NextRequest) => {
     }
 
     if (order.stripePaymentIntentId) {
-      const existingIntent = await stripe.paymentIntents.retrieve(
-        order.stripePaymentIntentId
+      const existingIntent = await withStripeRetry(() =>
+        stripe.paymentIntents.retrieve(order.stripePaymentIntentId!)
       );
       if (existingIntent.status === "succeeded") {
         return NextResponse.json(
@@ -126,6 +130,16 @@ const POSTHandler = async (req: NextRequest) => {
           { status: 400 }
         );
       }
+
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: "PENDING",
+          paymentProvider: "STRIPE",
+          stripePaymentIntentId: existingIntent.id,
+        },
+      });
+
       return NextResponse.json({ clientSecret: existingIntent.client_secret });
     }
 
@@ -207,13 +221,25 @@ const POSTHandler = async (req: NextRequest) => {
       if (user?.stripeCustomerId) {
         customerId = user.stripeCustomerId;
       } else {
-        const customer = await stripe.customers.create({
-          email: order.customerEmail ?? user?.email ?? undefined,
-          name: order.customerName ?? user?.name ?? undefined,
-          metadata: {
-            userId: session.user.id,
-          },
-        });
+        const customer = await withStripeRetry(() =>
+          stripe.customers.create(
+            {
+              email: order.customerEmail ?? user?.email ?? undefined,
+              name: order.customerName ?? user?.name ?? undefined,
+              metadata: {
+                userId: session.user.id,
+              },
+            },
+            {
+              idempotencyKey: buildStripeIdempotencyKey(
+                "order",
+                order.id,
+                "customer",
+                "create"
+              ),
+            }
+          )
+        );
         customerId = customer.id;
         await prisma.user.update({
           where: { id: session.user.id },
@@ -237,21 +263,36 @@ const POSTHandler = async (req: NextRequest) => {
     };
 
     let paymentIntent: Stripe.Response<Stripe.PaymentIntent>;
+    const createPaymentIntent = (
+      paymentMethodTypes: NonNullable<
+        Stripe.PaymentIntentCreateParams["payment_method_types"]
+      >
+    ) =>
+      withStripeRetry(() =>
+        stripe.paymentIntents.create(
+          {
+            ...baseIntentPayload,
+            payment_method_types: paymentMethodTypes,
+          },
+          {
+            idempotencyKey: buildStripeIdempotencyKey(
+              "order",
+              order.id,
+              "payment-intent",
+              paymentMethodTypes.join("-")
+            ),
+          }
+        )
+      );
 
     try {
-      paymentIntent = await stripe.paymentIntents.create({
-        ...baseIntentPayload,
-        payment_method_types: ["card", "link"],
-      });
+      paymentIntent = await createPaymentIntent(["card", "link"]);
     } catch (error) {
       const stripeError = error as { code?: string };
       if (stripeError?.code !== "payment_method_type_not_enabled") {
         throw error;
       }
-      paymentIntent = await stripe.paymentIntents.create({
-        ...baseIntentPayload,
-        payment_method_types: ["card"],
-      });
+      paymentIntent = await createPaymentIntent(["card"]);
     }
 
     await prisma.order.update({
@@ -260,8 +301,8 @@ const POSTHandler = async (req: NextRequest) => {
         subtotal,
         vatAmount,
         total,
-        paymentStatus: "PENDING",
-        paymentProvider: "STRIPE",
+        paymentStatus: "UNPAID",
+        paymentProvider: null,
         stripePaymentIntentId: paymentIntent.id,
       },
     });

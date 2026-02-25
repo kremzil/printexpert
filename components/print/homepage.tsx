@@ -875,11 +875,11 @@ function CTASection({
             <div className="space-y-3 opacity-90">
               <div className="flex items-center gap-3">
                 <Phone className="h-5 w-5" />
-                <span>+421 900 123 456</span>
+                <span>+421 917 545 003</span>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5" />
-                <span>b2b@printexpert.sk</span>
+                <span>info@printexpert.sk</span>
               </div>
             </div>
           </div>
