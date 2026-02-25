@@ -25,7 +25,7 @@ async function FooterCategories() {
       {rootCategories.map((cat) => (
         <li key={cat.id}>
           <Link
-            href={`/kategorie?cat=${cat.slug}`}
+            href={`/catalog?cat=${encodeURIComponent(cat.slug)}`}
             className="text-sm text-primary-foreground/85 transition-colors hover:text-primary-foreground/65"
           >
             {cat.name}
