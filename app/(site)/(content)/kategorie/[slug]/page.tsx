@@ -13,7 +13,7 @@ import {
   type CatalogSort,
 } from "@/lib/catalog"
 import { resolveAudienceContext } from "@/lib/audience-context"
-import { SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
+import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
 type CategoryPageProps = {
   params: Promise<{
@@ -37,12 +37,17 @@ export async function generateMetadata({
 }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params
   const category = await getCategoryBySlug(slug)
+  const defaultOgImage = new URL(DEFAULT_OG_IMAGE, SITE_URL).toString()
 
   if (!category) {
     return {
       title: "Kategória",
       alternates: {
         canonical: `/kategorie/${slug}`,
+      },
+      openGraph: {
+        siteName: SITE_NAME,
+        images: [defaultOgImage],
       },
     }
   }
@@ -61,6 +66,8 @@ export async function generateMetadata({
         category.description ??
         `Prehľad produktov v kategórii ${category.name}.`,
       url: `/kategorie/${category.slug}`,
+      siteName: SITE_NAME,
+      images: [defaultOgImage],
     },
   }
 }

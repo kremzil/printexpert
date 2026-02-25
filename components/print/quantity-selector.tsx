@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Minus, Plus } from "lucide-react"
 
 import type { CustomerMode } from "@/components/print/types"
@@ -24,6 +25,11 @@ export function QuantitySelector({
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
   const minValue = min ?? presets[0] ?? 1
+  const [inputValue, setInputValue] = useState(String(value))
+
+  useEffect(() => {
+    setInputValue(String(value))
+  }, [value])
 
   const handleIncrement = () => {
     onChange(value + 1)
@@ -33,6 +39,18 @@ export function QuantitySelector({
     if (value > minValue) {
       onChange(value - 1)
     }
+  }
+
+  const commitInputValue = () => {
+    const parsed = parseInt(inputValue, 10)
+    if (Number.isNaN(parsed)) {
+      onChange(minValue)
+      setInputValue(String(minValue))
+      return
+    }
+    const nextValue = Math.max(minValue, parsed)
+    onChange(nextValue)
+    setInputValue(String(nextValue))
   }
 
   return (
@@ -73,14 +91,23 @@ export function QuantitySelector({
           <div className="flex-1">
             <input
               type="number"
-              value={value}
+              value={inputValue}
               onChange={(e) => {
-                const newValue = parseInt(e.target.value, 10)
-                if (Number.isNaN(newValue)) {
-                  onChange(minValue)
+                const rawValue = e.target.value
+                setInputValue(rawValue)
+                const parsedValue = parseInt(rawValue, 10)
+                if (Number.isNaN(parsedValue)) {
                   return
                 }
-                onChange(Math.max(minValue, newValue))
+                if (parsedValue >= minValue) {
+                  onChange(parsedValue)
+                }
+              }}
+              onBlur={commitInputValue}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  commitInputValue()
+                }
               }}
               min={minValue}
               step={1}

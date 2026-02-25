@@ -89,7 +89,7 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
   }
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
+    <div className="group relative flex h-full flex-col  overflow-hidden rounded-lg border border-border bg-card transition-all hover:shadow-lg">
       <div className="relative aspect-square overflow-hidden bg-muted">
         {product.isTopProduct ? (
           <Badge className="absolute left-3 top-3 z-10 bg-green-100 text-green-700">
@@ -126,47 +126,25 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
           )}
         </div>
 
-        <div className="mt-auto">
-          {hasPrice ? (
-            <PriceDisplay
-              price={finalPrice}
-              oldPrice={hasDiscount ? basePriceValue : undefined}
-              mode={mode}
-              size="md"
-              showFrom
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Na vyžiadanie</div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
+        <div className="mt-auto flex flex-col gap-4">
           {mode === "b2c" ? (
-            <ModeButton
-              asChild
-              mode={mode}
-              variant="primary"
-              size="md"
-              className="flex-1"
-            >
-              <Link href={`/product/${product.slug}`}>
-                <ShoppingCart className="h-4 w-4" />
-                Kúpiť
-              </Link>
-            </ModeButton>
-          ) : (
-            <>
-              <ModeButton
-                mode={mode}
-                variant={isInQuoteList ? "secondary" : "outline"}
-                size="md"
-                className="flex-1"
-                type="button"
-                onClick={handleQuoteRequestAdd}
-              >
-                <MessageSquare className="h-4 w-4" />
-                {isInQuoteList ? "V zozname" : "Cenová ponuka"}
-              </ModeButton>
+            <div>
+              {hasPrice ? (
+                <PriceDisplay
+                  price={finalPrice}
+                  oldPrice={hasDiscount ? basePriceValue : undefined}
+                  mode={mode}
+                  size="md"
+                  showFrom
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">Na vyžiadanie</div>
+              )}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-2">
+            {mode === "b2c" ? (
               <ModeButton
                 asChild
                 mode={mode}
@@ -175,11 +153,37 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
                 className="flex-1"
               >
                 <Link href={`/product/${product.slug}`}>
-                  Konfigurovať
+                  <ShoppingCart className="h-4 w-4" />
+                  Kúpiť
                 </Link>
               </ModeButton>
-            </>
-          )}
+            ) : (
+              <>
+                <ModeButton
+                  mode={mode}
+                  variant={isInQuoteList ? "secondary" : "outline"}
+                  size="md"
+                  className="flex-1"
+                  type="button"
+                  onClick={handleQuoteRequestAdd}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  {isInQuoteList ? "V zozname" : "Vyžiadať cenu"}
+                </ModeButton>
+                <ModeButton
+                  asChild
+                  mode={mode}
+                  variant="primary"
+                  size="md"
+                  className="flex-1"
+                >
+                  <Link href={`/product/${product.slug}`}>
+                    Pozrieť a objednať
+                  </Link>
+                </ModeButton>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

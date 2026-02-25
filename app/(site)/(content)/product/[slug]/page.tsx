@@ -8,7 +8,7 @@ import { ProductPageSkeleton } from "@/app/(site)/(content)/product/[slug]/produ
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getRelatedProducts, getTopProductIds } from "@/lib/catalog"
 import { getProductCalculatorData } from "@/lib/pricing"
-import { SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
+import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
 type ProductSearchParams = {
   mode?: string
@@ -114,6 +114,7 @@ export async function generateMetadata({
   const imageUrl =
     resolveAbsoluteUrl(resolvedSearchParams.si) ??
     (primaryImage?.url ? new URL(primaryImage.url, siteUrl).toString() : null)
+  const metadataImageUrl = imageUrl ?? new URL(DEFAULT_OG_IMAGE, siteUrl).toString()
   if (imageUrl) {
     openGraphUrl.searchParams.set("si", imageUrl)
   }
@@ -128,22 +129,21 @@ export async function generateMetadata({
     openGraph: {
       type: "website",
       url: openGraphUrl,
+      siteName: SITE_NAME,
       title,
       description,
-      images: imageUrl
-        ? [
-            {
-              url: imageUrl,
-              alt: imageAlt,
-            },
-          ]
-        : undefined,
+      images: [
+        {
+          url: metadataImageUrl,
+          alt: imageAlt,
+        },
+      ],
     },
     twitter: {
-      card: imageUrl ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: imageUrl ? [imageUrl] : undefined,
+      images: [metadataImageUrl],
     },
   }
 }
