@@ -241,6 +241,12 @@ const toCheckoutPaymentMethod = (method: PaymentMethod): "STRIPE" | "BANK_TRANSF
   return "STRIPE";
 };
 
+const pickPreferredPaymentMethod = (methods: PaymentMethod[]): PaymentMethod => {
+  if (methods.includes("bank")) return "bank";
+  if (methods.includes("cod")) return "cod";
+  return "stripe";
+};
+
 const buildBillingData = (
   initial?: Partial<CheckoutBillingData> | null
 ): CheckoutBillingData => ({
@@ -273,7 +279,7 @@ export function CheckoutForm({
   const [saveCard, setSaveCard] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isPreparingPayment, setIsPreparingPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank");
   const [deliveryMethod, setDeliveryMethod] = useState<"DPD_COURIER" | "DPD_PICKUP" | "PERSONAL_PICKUP">("DPD_COURIER");
   const [pickupPoint, setPickupPoint] = useState<CheckoutAddressStorage["selectedPickupPoint"]>(null);
   const [pickupPointEnabled, setPickupPointEnabled] = useState(true);
@@ -371,7 +377,7 @@ export function CheckoutForm({
         if (active && methods.length > 0) {
           setAvailablePaymentMethods(methods);
           if (!methods.includes(paymentMethod)) {
-            setPaymentMethod(methods[0]);
+            setPaymentMethod(pickPreferredPaymentMethod(methods));
           }
         }
         if (active) {
