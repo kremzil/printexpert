@@ -14,6 +14,8 @@ type TopProduct = {
   excerpt?: string | null
   description?: string | null
   priceFrom?: string | null
+  priceAfterDiscountFrom?: string | null
+  feedPrice?: number | null
   images?: Array<{
     url: string
     alt?: string | null

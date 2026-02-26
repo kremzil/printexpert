@@ -112,6 +112,7 @@ type ProductPageClientProps = {
     excerpt?: string | null
     priceFrom?: string | null
     priceAfterDiscountFrom?: string | null
+    feedPrice?: number | null
     images: Array<{ url: string; alt?: string | null }>
   }>
   product: {
@@ -128,6 +129,8 @@ type ProductPageClientProps = {
   }
   designerConfig?: DesignerRuntimeConfig
   isLoggedIn?: boolean
+  isAdmin?: boolean
+  adminEditHref?: string | null
 }
 
 declare global {
@@ -1233,6 +1236,8 @@ export function ProductPageClient({
   product,
   designerConfig,
   isLoggedIn,
+  isAdmin,
+  adminEditHref,
 }: ProductPageClientProps) {
   const [fileStatus, setFileStatus] = useState<"idle" | "success">("idle")
   const [fileStatusMessage, setFileStatusMessage] = useState<string | undefined>(
@@ -1407,6 +1412,16 @@ export function ProductPageClient({
             <Badge variant="outline">Expedícia do 48h</Badge>
             {mode === "b2b" && <Badge variant="outline">B2B ceny</Badge>}
           </div>
+          {isAdmin && adminEditHref ? (
+            <div className="mb-4">
+              <Button asChild variant="outline" size="sm">
+                <Link href={adminEditHref} className="inline-flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Upraviť produkt v administrácii
+                </Link>
+              </Button>
+            </div>
+          ) : null}
           <h1 ref={productTitleRef} className="mb-2 text-3xl font-bold md:text-4xl">
             {product.name}
           </h1>
@@ -1483,6 +1498,7 @@ export function ProductPageClient({
                       excerpt: item.excerpt ?? null,
                       priceFrom: item.priceFrom ?? null,
                       priceAfterDiscountFrom: item.priceAfterDiscountFrom ?? null,
+                      feedPrice: item.feedPrice ?? null,
                       images: item.images ?? [],
                     }}
                   />

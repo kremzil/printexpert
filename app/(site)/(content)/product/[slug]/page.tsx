@@ -170,6 +170,7 @@ async function ProductDetails({
   }
 
   const mode = audienceContext.audience === "b2b" ? "b2b" : "b2c"
+  const isAdmin = session?.user?.role === "ADMIN"
 
   const [calculatorData, relatedSource, topProductIds] = await Promise.all([
     getProductCalculatorData({
@@ -198,6 +199,7 @@ async function ProductDetails({
         excerpt: excerptText,
         priceFrom: item.priceFrom,
         priceAfterDiscountFrom: item.priceAfterDiscountFrom,
+        feedPrice: item.feedPrice,
         images: item.images ?? [],
       }
     })
@@ -343,6 +345,8 @@ async function ProductDetails({
             : null
         }
         isLoggedIn={!!session?.user}
+        isAdmin={isAdmin}
+        adminEditHref={isAdmin ? `/admin/products/${product.id}` : null}
       />
     </>
   )

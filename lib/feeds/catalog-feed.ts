@@ -29,6 +29,15 @@ type FeedProduct = {
   categoryName: string | null
 }
 
+type FeedPriceSource = {
+  id: string
+  priceAfterDiscountFrom: unknown
+  priceFrom: unknown
+  areaMinQuantity: number | null
+  areaMinWidth: unknown
+  areaMinHeight: unknown
+}
+
 const FEED_AUDIENCE_CONTEXT: AudienceContext = {
   audience: "b2c",
   mode: "b2c",
@@ -49,14 +58,7 @@ const resolvePriceFromDb = (value: unknown): number | null => {
   return Number.isFinite(parsed) && parsed > 0 ? round2(parsed) : null
 }
 
-const resolveProductPrice = async (product: {
-  id: string
-  priceAfterDiscountFrom: unknown
-  priceFrom: unknown
-  areaMinQuantity: number | null
-  areaMinWidth: unknown
-  areaMinHeight: unknown
-}) => {
+export const resolveFeedProductPrice = async (product: FeedPriceSource) => {
   const dbPrice =
     resolvePriceFromDb(product.priceAfterDiscountFrom) ??
     resolvePriceFromDb(product.priceFrom)
@@ -129,7 +131,7 @@ export const getCatalogFeedData = async (feedType: "google" | "meta") => {
   const items: FeedProduct[] = []
 
   for (const product of products) {
-    const price = await resolveProductPrice(product)
+    const price = await resolveFeedProductPrice(product)
     if (price === null) {
       diagnostics.push({
         id: product.id,

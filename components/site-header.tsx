@@ -240,6 +240,7 @@ async function MobileMenu({
   audienceContext: AudienceContext
   session: AuthSession
 }) {
+  const isAdmin = session?.user?.role === "ADMIN"
   const authHoverClass =
     audienceContext.audience === "b2b"
       ? "hover:bg-[color:var(--b2b-accent)]"
@@ -294,15 +295,28 @@ async function MobileMenu({
                 />
               </>
             ) : (
-              <ModeButton
-                asChild
-                variant="outline"
-                size="sm"
-                className={`w-full ${authHoverClass}`}
-                mode={audienceContext.audience}
-              >
-                <Link href="/account">Môj účet</Link>
-              </ModeButton>
+              <>
+                {isAdmin ? (
+                  <ModeButton
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className={`w-full ${authHoverClass}`}
+                    mode={audienceContext.audience}
+                  >
+                    <Link href="/admin">Administrácia</Link>
+                  </ModeButton>
+                ) : null}
+                <ModeButton
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className={`w-full ${authHoverClass}`}
+                  mode={audienceContext.audience}
+                >
+                  <Link href="/account">Môj účet</Link>
+                </ModeButton>
+              </>
             )}
           </div>
         </SheetHeader>
@@ -410,6 +424,7 @@ export async function SiteHeader() {
     auth(),
     resolveAudienceContext(),
   ])
+  const isAdmin = session?.user?.role === "ADMIN"
   const isModeSelectionPage = audienceContext.source === "default"
   const authHoverClass =
     audienceContext.audience === "b2b"
@@ -550,15 +565,28 @@ export async function SiteHeader() {
                  
                 </>
               ) : (
-                <ModeButton
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  mode={audienceContext.audience}
-                  className={`rounded-full ${authHoverClass}`}
-                >
-                  <Link href="/account">Môj účet</Link>
-                </ModeButton>
+                <>
+                  {isAdmin ? (
+                    <ModeButton
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      mode={audienceContext.audience}
+                      className={authHoverClass}
+                    >
+                      <Link href="/admin">Administrácia</Link>
+                    </ModeButton>
+                  ) : null}
+                  <ModeButton
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    mode={audienceContext.audience}
+                    className={`rounded-full ${authHoverClass}`}
+                  >
+                    <Link href="/account">Môj účet</Link>
+                  </ModeButton>
+                </>
               )}
             </div>
           </div>

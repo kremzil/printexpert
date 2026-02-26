@@ -171,6 +171,7 @@ async function CategoryContent({
     description: product.description,
     priceFrom: product.priceFrom,
     priceAfterDiscountFrom: product.priceAfterDiscountFrom,
+    feedPrice: product.feedPrice,
     images: product.images ?? [],
     categoryId: product.categoryId,
     isTopProduct: topProductIdSet.has(product.id),

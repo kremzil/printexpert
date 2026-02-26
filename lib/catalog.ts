@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { getPrisma } from "@/lib/prisma";
 import { getAudienceFilter } from "@/lib/audience-filter";
 import { TAGS, productTag } from "@/lib/cache-tags";
+import { resolveFeedProductPrice } from "@/lib/feeds/catalog-feed";
 import { versionedImageUrl } from "@/lib/utils";
 
 const serializeProduct = <
@@ -38,6 +39,34 @@ const serializeProduct = <
     : null,
   vatRate: product.vatRate.toString(),
 });
+
+type FeedPriceCompatibleProduct = {
+  id: string;
+  priceFrom?: string | null;
+  priceAfterDiscountFrom?: string | null;
+  areaMinQuantity?: number | null;
+  areaMinWidth?: string | null;
+  areaMinHeight?: string | null;
+};
+
+const addFeedPriceToProduct = async <T extends FeedPriceCompatibleProduct>(
+  product: T
+): Promise<T & { feedPrice: number | null }> => ({
+  ...product,
+  feedPrice: await resolveFeedProductPrice({
+    id: product.id,
+    priceFrom: product.priceFrom ?? null,
+    priceAfterDiscountFrom: product.priceAfterDiscountFrom ?? null,
+    areaMinQuantity: product.areaMinQuantity ?? null,
+    areaMinWidth: product.areaMinWidth ?? null,
+    areaMinHeight: product.areaMinHeight ?? null,
+  }),
+});
+
+const addFeedPriceToProducts = async <T extends FeedPriceCompatibleProduct>(
+  products: T[]
+): Promise<Array<T & { feedPrice: number | null }>> =>
+  Promise.all(products.map((product) => addFeedPriceToProduct(product)));
 
 const toNumberOrZero = (value: { toString(): string } | number | null | undefined) => {
   if (value === null || value === undefined) return 0;
@@ -169,6 +198,9 @@ const getCachedProducts = unstable_cache(
         excerpt: true,
         priceFrom: true,
         priceAfterDiscountFrom: true,
+        areaMinQuantity: true,
+        areaMinWidth: true,
+        areaMinHeight: true,
         vatRate: true,
         categoryId: true,
         updatedAt: true,
@@ -187,7 +219,10 @@ const getCachedProducts = unstable_cache(
       },
     });
 
-    return products.map((p) => versionImages(serializeProduct(p)));
+    const serializedProducts = products.map((p) =>
+      versionImages(serializeProduct(p))
+    );
+    return addFeedPriceToProducts(serializedProducts);
   },
   ["catalog-products"],
   { tags: [TAGS.PRODUCTS] }
@@ -273,6 +308,9 @@ export async function getCatalogProducts(options: {
         description: true,
         priceFrom: true,
         priceAfterDiscountFrom: true,
+        areaMinQuantity: true,
+        areaMinWidth: true,
+        areaMinHeight: true,
         vatRate: true,
         categoryId: true,
         images: {
@@ -292,8 +330,11 @@ export async function getCatalogProducts(options: {
     prisma.product.count({ where }),
   ]);
 
+  const serializedProducts = products.map(serializeProduct);
+  const productsWithFeedPrice = await addFeedPriceToProducts(serializedProducts);
+
   return {
-    products: products.map(serializeProduct),
+    products: productsWithFeedPrice,
     total,
     page,
     pageSize,
@@ -395,6 +436,9 @@ const getCachedRelatedProducts = unstable_cache(
         excerpt: true,
         priceFrom: true,
         priceAfterDiscountFrom: true,
+        areaMinQuantity: true,
+        areaMinWidth: true,
+        areaMinHeight: true,
         vatRate: true,
         images: {
           take: 1,
@@ -408,7 +452,7 @@ const getCachedRelatedProducts = unstable_cache(
       },
     });
 
-    return products.map(serializeProduct);
+    return addFeedPriceToProducts(products.map(serializeProduct));
   },
   ["related-products"],
   { tags: [TAGS.RELATED], revalidate: 3600 }
@@ -510,9 +554,10 @@ const getCachedCollectionProducts = unstable_cache(
     });
 
     const order = new Map(orderedIds.map((id, index) => [id, index]));
-    return products
+    const serializedProducts = products
       .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
       .map((p) => versionImages(serializeProduct(p)));
+    return addFeedPriceToProducts(serializedProducts);
   },
   ["collection-products"],
   { tags: [TAGS.COLLECTIONS, TAGS.PRODUCTS] }
@@ -641,9 +686,10 @@ async function fetchTopProducts(audience: string, count: number) {
   });
 
   const order = new Map(orderedIds.map((id, index) => [id, index]));
-  return products
+  const serializedProducts = products
     .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
     .map((p) => versionImages(serializeProduct(p)));
+  return addFeedPriceToProducts(serializedProducts);
 }
 
 export const getTopProducts = unstable_cache(

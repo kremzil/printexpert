@@ -23,6 +23,7 @@ type Props = {
     description?: string | null
     priceFrom?: string | null
     priceAfterDiscountFrom?: string | null
+    feedPrice?: number | null
     images?: Array<{
       url: string
       alt?: string | null
@@ -65,15 +66,23 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
 
   const basePriceValue = Number(product.priceFrom)
   const discountPriceValue = Number(product.priceAfterDiscountFrom)
+  const feedPriceValue = Number(product.feedPrice)
   const hasBasePrice = Number.isFinite(basePriceValue) && basePriceValue > 0
   const hasDiscountPrice =
     Number.isFinite(discountPriceValue) && discountPriceValue > 0
+  const hasFeedPrice = Number.isFinite(feedPriceValue) && feedPriceValue > 0
   const hasDiscount =
     hasBasePrice && hasDiscountPrice && discountPriceValue < basePriceValue
   const discountPercent = hasDiscount
     ? Math.round(((basePriceValue - discountPriceValue) / basePriceValue) * 100)
     : 0
-  const finalPrice = hasDiscount ? discountPriceValue : basePriceValue
+  const finalPrice = hasDiscount
+    ? discountPriceValue
+    : hasBasePrice
+      ? basePriceValue
+      : hasFeedPrice
+        ? feedPriceValue
+        : Number.NaN
   const hasPrice = Number.isFinite(finalPrice) && finalPrice > 0
 
   const handleQuoteRequestAdd = () => {

@@ -21,6 +21,7 @@ type ProductSource = {
   description?: string | null
   priceFrom?: string | number | null
   priceAfterDiscountFrom?: string | number | null
+  feedPrice?: number | null
   images?: ProductImage[] | null
   categoryId: string
 }
@@ -42,6 +43,7 @@ type HomepageFeaturedProduct = {
   description?: string | null
   priceFrom?: string | null
   priceAfterDiscountFrom?: string | null
+  feedPrice?: number | null
   images?: ProductImage[]
 }
 
@@ -102,6 +104,7 @@ export function buildHomepageModel({
             typeof product.priceAfterDiscountFrom === "undefined"
               ? null
               : String(product.priceAfterDiscountFrom),
+          feedPrice: product.feedPrice ?? null,
           images: imagesByProductId.get(product.id) ?? product.images ?? [],
         }))
       : products.slice(0, fallbackCount).map((product) => ({
@@ -119,6 +122,7 @@ export function buildHomepageModel({
             typeof product.priceAfterDiscountFrom === "undefined"
               ? null
               : String(product.priceAfterDiscountFrom),
+          feedPrice: product.feedPrice ?? null,
           images: product.images ?? [],
         }))
 
