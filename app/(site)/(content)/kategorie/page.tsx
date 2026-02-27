@@ -10,35 +10,58 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCategories, getCategoryProductCounts } from "@/lib/catalog"
+import { buildCategoryTree } from "@/lib/category-tree"
 import { buildStaticPageMetadata } from "@/lib/seo"
 
 export const metadata = buildStaticPageMetadata("kategorie")
+
+type PublicCategory = Awaited<ReturnType<typeof getCategories>>[number]
+
+const buildSubtreeProductCountMap = (
+  categories: PublicCategory[],
+  childrenByParentId: Map<string, PublicCategory[]>,
+  directProductCountByCategoryId: Map<string, number>
+) => {
+  const memo = new Map<string, number>()
+
+  const visit = (id: string, seen: Set<string>) => {
+    const cached = memo.get(id)
+    if (typeof cached === "number") return cached
+    if (seen.has(id)) return 0
+
+    const nextSeen = new Set(seen)
+    nextSeen.add(id)
+    let total = directProductCountByCategoryId.get(id) ?? 0
+
+    const children = childrenByParentId.get(id) ?? []
+    for (const child of children) {
+      total += visit(child.id, nextSeen)
+    }
+
+    memo.set(id, total)
+    return total
+  }
+
+  for (const category of categories) {
+    visit(category.id, new Set<string>())
+  }
+
+  return memo
+}
 
 export default async function CategoriesPage() {
   const [categories, productCountByCategoryId] = await Promise.all([
     getCategories(),
     getCategoryProductCounts({}),
   ])
-  const categorySlugById = new Map(
-    categories.map((category) => [category.id, category.slug])
+  const { childrenByParentId, rootCategories } = buildCategoryTree(categories)
+  const rootItems = rootCategories.length > 0 ? rootCategories : categories
+  const subtreeProductCountByCategoryId = buildSubtreeProductCountMap(
+    categories,
+    childrenByParentId,
+    productCountByCategoryId
   )
-  const childrenByParentId = categories.reduce((map, category) => {
-    const key = category.parentId ?? "root"
-    const list = map.get(key) ?? []
-    list.push(category)
-    map.set(key, list)
-    return map
-  }, new Map<string, typeof categories>())
-  const rootCategories = childrenByParentId.get("root") ?? []
-  const productCountByCategory = new Map<string, number>()
-  categorySlugById.forEach((slug, categoryId) => {
-    productCountByCategory.set(
-      slug,
-      productCountByCategoryId.get(categoryId) ?? 0
-    )
-  })
 
   return (
     <section className="space-y-6">
@@ -61,62 +84,109 @@ export default async function CategoriesPage() {
           Vyberte si kategóriu a pozrite si dostupné produkty.
         </p>
       </div>
-      <div className="space-y-8">
-        {rootCategories.map((category) => {
-          const children = childrenByParentId.get(category.id) ?? []
-          const hasChildren = children.length > 0
-          const groups = hasChildren ? children : [category]
-
-          return (
-            <div key={category.slug} className="space-y-3">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">{category.name}</h2>
-                {category.description ? (
-                  <p className="text-sm text-muted-foreground">
-                    {category.description}
-                  </p>
-                ) : null}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {groups.map((item) => (
-                  <Link
-                    key={item.slug}
-                    href={`/kategorie/${item.slug}`}
-                    className="group"
-                  >
-                    <Card className="h-full overflow-hidden py-0 transition-colors group-hover:border-primary/30">
-                      <CardHeader className="p-4">
-                        <div className="relative aspect-square w-full">
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                            sizes="(min-width: 1024px) 320px, (min-width: 640px) 45vw, 100vw"
-                          />
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2 px-4 pb-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-base">{item.name}</CardTitle>
-                          <Badge variant="secondary">
-                            {productCountByCategory.get(item.slug) ?? 0} produktov
-                          </Badge>
-                        </div>
-                        {item.description ? (
-                          <p className="text-sm text-muted-foreground">
-                            {item.description}
-                          </p>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )
-        })}
+      <div className="space-y-5">
+        {rootItems.map((category) => (
+          <CategoryTreeNode
+            key={category.id}
+            category={category}
+            depth={0}
+            lineage={[]}
+            childrenByParentId={childrenByParentId}
+            subtreeProductCountByCategoryId={subtreeProductCountByCategoryId}
+          />
+        ))}
       </div>
     </section>
+  )
+}
+
+function CategoryTreeNode({
+  category,
+  depth,
+  lineage,
+  childrenByParentId,
+  subtreeProductCountByCategoryId,
+}: {
+  category: PublicCategory
+  depth: number
+  lineage: string[]
+  childrenByParentId: Map<string, PublicCategory[]>
+  subtreeProductCountByCategoryId: Map<string, number>
+}) {
+  const lineageSet = new Set(lineage)
+  const children = (childrenByParentId.get(category.id) ?? []).filter(
+    (child) => !lineageSet.has(child.id)
+  )
+  const subtreeCount =
+    subtreeProductCountByCategoryId.get(category.id) ?? 0
+
+  return (
+    <article
+      className={`overflow-hidden rounded-xl border bg-card ${
+        depth === 0 ? "border-primary/25 shadow-sm" : "border-border/80"
+      }`}
+    >
+      <div className="flex flex-col gap-4 p-4 sm:flex-row">
+        <Link
+          href={`/kategorie/${category.slug}`}
+          className="relative block h-24 w-24 shrink-0 overflow-hidden rounded-lg border"
+        >
+          <Image
+            src={category.image}
+            alt={category.name}
+            fill
+            className="object-cover transition-transform duration-300 hover:scale-[1.03]"
+            sizes="96px"
+          />
+        </Link>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="min-w-0 text-base font-semibold">
+              <Link
+                href={`/kategorie/${category.slug}`}
+                className="truncate hover:text-primary"
+              >
+                {category.name}
+              </Link>
+            </h2>
+            <Badge variant="secondary">{subtreeCount} produktov</Badge>
+          </div>
+
+          {category.description ? (
+            <p className="text-sm text-muted-foreground">
+              {category.description}
+            </p>
+          ) : null}
+
+          <Link
+            href={`/kategorie/${category.slug}`}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            Otvoriť kategóriu
+          </Link>
+        </div>
+      </div>
+
+      {children.length > 0 ? (
+        <div className="border-t bg-muted/15 px-4 py-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            Podkategórie ({children.length})
+          </p>
+          <div className="mt-3 space-y-3 border-l border-border/70 pl-4">
+            {children.map((child) => (
+              <CategoryTreeNode
+                key={child.id}
+                category={child}
+                depth={depth + 1}
+                lineage={[...lineage, category.id]}
+                childrenByParentId={childrenByParentId}
+                subtreeProductCountByCategoryId={subtreeProductCountByCategoryId}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </article>
   )
 }

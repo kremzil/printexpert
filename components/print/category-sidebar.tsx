@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   BookOpen,
   ChevronDown,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import type { CustomerMode } from "@/components/print/types"
+import { buildCategoryTree } from "@/lib/category-tree"
 
 type CategoryItem = {
   id: string
@@ -52,21 +53,65 @@ export function CategorySidebar({
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const modeAccent = mode === "b2c" ? "var(--b2c-accent)" : "var(--b2b-accent)"
 
-  const rootCategories = categories.filter((category) => !category.parentId)
-  const childrenByParent = categories.reduce((map, category) => {
-    if (!category.parentId) return map
-    const list = map.get(category.parentId) ?? []
-    list.push(category)
-    map.set(category.parentId, list)
-    return map
-  }, new Map<string, CategoryItem[]>())
+  const { childrenByParentId, rootCategories } = useMemo(
+    () => buildCategoryTree(categories),
+    [categories]
+  )
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories]
+  )
+  const parentById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category.parentId ?? null])),
+    [categories]
+  )
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({})
-  const selectedParentId =
-    categories.find((category) => category.slug === selectedCategory)?.parentId ?? null
+  const selectedCategoryNode =
+    categories.find((category) => category.slug === selectedCategory) ?? null
+
+  const selectedAncestorIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (!selectedCategoryNode) return ids
+    let currentParent = selectedCategoryNode.parentId ?? null
+    while (currentParent && !ids.has(currentParent)) {
+      ids.add(currentParent)
+      currentParent = parentById.get(currentParent) ?? null
+    }
+    return ids
+  }, [parentById, selectedCategoryNode])
+
+  const subtreeCountById = useMemo(() => {
+    const memo = new Map<string, number>()
+    const visit = (id: string, seen: Set<string>) => {
+      const cached = memo.get(id)
+      if (typeof cached === "number") return cached
+      if (seen.has(id)) return 0
+      const category = categoryById.get(id)
+      if (!category) return 0
+
+      const nextSeen = new Set(seen)
+      nextSeen.add(id)
+
+      let total = category.count
+      const children = childrenByParentId.get(id) ?? []
+      for (const child of children) {
+        total += visit(child.id, nextSeen)
+      }
+      memo.set(id, total)
+      return total
+    }
+
+    for (const category of categories) {
+      visit(category.id, new Set<string>())
+    }
+    return memo
+  }, [categories, categoryById, childrenByParentId])
+
+  const rootItems = rootCategories.length > 0 ? rootCategories : categories
 
   const toggleCategoryChildren = (categoryId: string) => {
     setExpandedOverrides((prev) => {
-      const isExpanded = prev[categoryId] ?? selectedParentId === categoryId
+      const isExpanded = prev[categoryId] ?? selectedAncestorIds.has(categoryId)
       return {
         ...prev,
         [categoryId]: !isExpanded,
@@ -104,107 +149,155 @@ export function CategorySidebar({
       </button>
 
       <div className="space-y-2">
-        {rootCategories.map((category) => {
+        {rootItems.map((category) => {
           const Icon = iconBySlug[category.slug] ?? FileText
-          const children = childrenByParent.get(category.id) ?? []
-          const categoryCount = children.length
-            ? children.reduce((sum, child) => sum + child.count, 0)
-            : category.count
-          const isExpanded =
-            expandedOverrides[category.id] ?? selectedParentId === category.id
-          const isActive =
-            selectedCategory === category.slug ||
-            children.some((child) => child.slug === selectedCategory)
-
-          return (
-            <div key={category.id} className="space-y-2">
-              <div
-                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
-                  isActive
-                    ? "border-transparent text-white shadow-sm"
-                    : "border-border bg-background text-foreground hover:bg-muted/50"
-                }`}
-                style={isActive ? { backgroundColor: modeColor } : undefined}
-              >
-                <button
-                  type="button"
-                  onClick={() => onCategorySelect(category.slug)}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                >
-                  <span
-                    className="flex h-8 w-8 items-center justify-center rounded-full"
-                    style={{
-                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : modeAccent,
-                    }}
-                  >
-                    <Icon
-                      className="h-4 w-4"
-                      style={{ color: isActive ? "white" : modeColor }}
-                    />
-                  </span>
-                  <span className="truncate">{category.name}</span>
-                </button>
-
-                {children.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      toggleCategoryChildren(category.id)
-                    }}
-                    className={`ml-2 inline-flex h-6 w-6 items-center justify-center rounded transition ${
-                      isActive ? "hover:bg-white/20" : "hover:bg-muted"
-                    }`}
-                    aria-label={isExpanded ? "Zbaliť podkategórie" : "Rozbaliť podkategórie"}
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </button>
-                )}
-                <span
-                  className={`ml-2 text-xs ${
-                    isActive ? "text-white/80" : "text-muted-foreground"
-                  }`}
-                >
-                  {categoryCount}
-                </span>
-              </div>
-
-              {children.length > 0 && isExpanded && (
-                <div className="ml-6 space-y-2 border-l border-border pl-3">
-                  {children.map((child) => {
-                    const childActive = selectedCategory === child.slug
-                    return (
-                      <button
-                        key={child.id}
-                        type="button"
-                        onClick={() => onCategorySelect(child.slug)}
-                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
-                          childActive
-                            ? "bg-muted font-medium"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        }`}
-                      >
-                        <span>{child.name}</span>
-                        <span
-                          className={`text-xs ${
-                            childActive ? "text-foreground/60" : "text-muted-foreground"
-                          }`}
-                        >
-                          {child.count}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
+          return renderCategoryNode({
+            category,
+            depth: 0,
+            lineage: [],
+            selectedCategory,
+            selectedAncestorIds,
+            childrenByParentId,
+            subtreeCountById,
+            expandedOverrides,
+            modeColor,
+            modeAccent,
+            Icon,
+            onToggle: toggleCategoryChildren,
+            onSelect: onCategorySelect,
+          })
         })}
       </div>
+    </div>
+  )
+}
+
+function renderCategoryNode({
+  category,
+  depth,
+  lineage,
+  selectedCategory,
+  selectedAncestorIds,
+  childrenByParentId,
+  subtreeCountById,
+  expandedOverrides,
+  modeColor,
+  modeAccent,
+  Icon,
+  onToggle,
+  onSelect,
+}: {
+  category: CategoryItem
+  depth: number
+  lineage: string[]
+  selectedCategory: string | null
+  selectedAncestorIds: Set<string>
+  childrenByParentId: Map<string, CategoryItem[]>
+  subtreeCountById: Map<string, number>
+  expandedOverrides: Record<string, boolean>
+  modeColor: string
+  modeAccent: string
+  Icon: typeof CreditCard
+  onToggle: (categoryId: string) => void
+  onSelect: (slug: string | null) => void
+}) {
+  const lineageSet = new Set(lineage)
+  const children = (childrenByParentId.get(category.id) ?? []).filter(
+    (child) => !lineageSet.has(child.id)
+  )
+  const hasChildren = children.length > 0
+  const isExpanded = expandedOverrides[category.id] ?? selectedAncestorIds.has(category.id)
+  const isActive = selectedCategory === category.slug || selectedAncestorIds.has(category.id)
+  const categoryCount = subtreeCountById.get(category.id) ?? category.count
+
+  return (
+    <div key={category.id} className="space-y-2">
+      <div
+        className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+          isActive
+            ? "border-transparent text-white shadow-sm"
+            : "border-border bg-background text-foreground hover:bg-muted/50"
+        }`}
+        style={isActive ? { backgroundColor: modeColor } : undefined}
+      >
+        <button
+          type="button"
+          onClick={() => onSelect(category.slug)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          {depth === 0 ? (
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full"
+              style={{
+                backgroundColor: isActive ? "rgba(255,255,255,0.2)" : modeAccent,
+              }}
+            >
+              <Icon
+                className="h-4 w-4"
+                style={{ color: isActive ? "white" : modeColor }}
+              />
+            </span>
+          ) : (
+            <span
+              className={`ml-1 text-xs ${
+                isActive ? "text-white/80" : "text-muted-foreground"
+              }`}
+            >
+              ↳
+            </span>
+          )}
+          <span className="truncate">{category.name}</span>
+        </button>
+
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggle(category.id)
+            }}
+            className={`ml-2 inline-flex h-6 w-6 items-center justify-center rounded transition ${
+              isActive ? "hover:bg-white/20" : "hover:bg-muted"
+            }`}
+            aria-label={isExpanded ? "Zbaliť podkategórie" : "Rozbaliť podkategórie"}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+        ) : null}
+        <span
+          className={`ml-2 text-xs ${
+            isActive ? "text-white/80" : "text-muted-foreground"
+          }`}
+        >
+          {categoryCount}
+        </span>
+      </div>
+
+      {hasChildren && isExpanded ? (
+        <div className="ml-5 space-y-2 border-l border-border pl-3">
+          {children.map((child) =>
+            renderCategoryNode({
+              category: child,
+              depth: depth + 1,
+              lineage: [...lineage, category.id],
+              selectedCategory,
+              selectedAncestorIds,
+              childrenByParentId,
+              subtreeCountById,
+              expandedOverrides,
+              modeColor,
+              modeAccent,
+              Icon,
+              onToggle,
+              onSelect,
+            })
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -173,6 +173,36 @@ async function AdminPageContent({
 
   const rangeLabel = period === "mesiac" ? "posledných 30 dní" : "posledný štvrťrok"
 
+  const formatDateForQuery = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+  }
+
+  const buildOrdersHref = (overrides: {
+    status?: (typeof ORDER_STATUSES)[number]
+    paymentStatus?: string
+    includePeriodRange?: boolean
+  }) => {
+    const params = new URLSearchParams()
+
+    if (overrides.status) {
+      params.set("status", overrides.status)
+    }
+
+    if (overrides.paymentStatus) {
+      params.set("paymentStatus", overrides.paymentStatus)
+    }
+
+    if (overrides.includePeriodRange) {
+      params.set("from", formatDateForQuery(periodStart))
+      params.set("to", formatDateForQuery(now))
+    }
+
+    return `/admin/orders?${params.toString()}`
+  }
+
   const buildHref = (overrides: {
     period?: "mesiac" | "stvrtrok"
     segment?: "all" | "b2b" | "b2c"
@@ -188,15 +218,24 @@ async function AdminPageContent({
     return `/admin?${params.toString()}`
   }
 
-  const alerts: string[] = []
+  const alerts: Array<{ label: string; href: string }> = []
   if (pendingOrdersCount > 0) {
-    alerts.push(`Objednávky čakajúce na vybavenie: ${pendingOrdersCount}`)
+    alerts.push({
+      label: `Objednávky čakajúce na vybavenie: ${pendingOrdersCount}`,
+      href: buildOrdersHref({ status: "PENDING" }),
+    })
   }
   if (pendingPaymentInPeriodCount > 0) {
-    alerts.push(`Objednávky bez úhrady (${rangeLabel}): ${pendingPaymentInPeriodCount}`)
+    alerts.push({
+      label: `Objednávky bez úhrady (${rangeLabel}): ${pendingPaymentInPeriodCount}`,
+      href: buildOrdersHref({ paymentStatus: "UNPAID,PENDING", includePeriodRange: true }),
+    })
   }
   if (cancelledInPeriodCount > 0) {
-    alerts.push(`Zrušené objednávky (${rangeLabel}): ${cancelledInPeriodCount}`)
+    alerts.push({
+      label: `Zrušené objednávky (${rangeLabel}): ${cancelledInPeriodCount}`,
+      href: buildOrdersHref({ status: "CANCELLED", includePeriodRange: true }),
+    })
   }
 
   return (
@@ -279,9 +318,14 @@ async function AdminPageContent({
             ) : (
               <ul className="space-y-2 text-sm">
                 {alerts.map((alert) => (
-                  <li key={alert} className="flex items-start gap-2">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
-                    <span>{alert}</span>
+                  <li key={alert.label}>
+                    <Link
+                      href={alert.href}
+                      className="group flex items-start gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                      <span className="group-hover:underline">{alert.label}</span>
+                    </Link>
                   </li>
                 ))}
               </ul>
