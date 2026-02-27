@@ -38,6 +38,8 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
   const [isInQuoteList, setIsInQuoteList] = useState(false)
 
   const imageAlt = primaryImage?.alt ?? product.name
+  const toPlainText = (value?: string | null) =>
+    value ? value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : ""
 
   useEffect(() => {
     if (mode !== "b2b") return
@@ -56,13 +58,12 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
     }
   }, [mode, product.slug])
 
+  const descriptionSource =
+    toPlainText(product.excerpt) || toPlainText(product.description)
   const shortDescription =
-    product.excerpt ||
-    (product.description
-      ? `${String(product.description).slice(0, 160).trim()}${
-          String(product.description).length > 160 ? "…" : ""
-        }`
-      : "")
+    descriptionSource.length > 160
+      ? `${descriptionSource.slice(0, 159).trim()}…`
+      : descriptionSource
 
   const basePriceValue = Number(product.priceFrom)
   const discountPriceValue = Number(product.priceAfterDiscountFrom)

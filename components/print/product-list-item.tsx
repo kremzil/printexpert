@@ -27,6 +27,9 @@ export function ProductListItem({
 }: ProductListItemProps) {
   const modeColor = mode === "b2c" ? "var(--b2c-primary)" : "var(--b2b-primary)"
   const priceValue = priceFrom ? Number(priceFrom) : Number.NaN
+  const plainDescription = description
+    ? description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    : ""
 
   return (
     <Link
@@ -52,8 +55,8 @@ export function ProductListItem({
       <div className="flex flex-1 flex-col gap-3">
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">{title}</h3>
-          {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
+          {plainDescription && (
+            <p className="text-sm text-muted-foreground">{plainDescription}</p>
           )}
         </div>
 
