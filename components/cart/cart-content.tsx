@@ -46,6 +46,7 @@ import {
   normalizeCourierPrice,
 } from "@/lib/delivery-pricing";
 import { getDesignElementCount } from "@/lib/design-studio";
+import { resolveProductImageUrl } from "@/lib/image-url";
 import type { CartData } from "@/types/cart";
 import type { CustomerMode } from "@/components/print/types";
 
@@ -634,6 +635,8 @@ export function CartContent({
               const canIncrease = quantityPresets
                 ? nextQuantity !== item.quantity
                 : true;
+              const primaryImage = item.product.images[0];
+              const primaryImageUrl = resolveProductImageUrl(primaryImage?.url);
 
               return (
                 <div
@@ -642,10 +645,10 @@ export function CartContent({
                 >
                   <div className="flex gap-4">
                     <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-[10px] border border-black/10 bg-[#ececf0]">
-                      {item.product.images[0] ? (
+                      {primaryImageUrl ? (
                         <Image
-                          src={item.product.images[0].url}
-                          alt={item.product.images[0].alt || item.product.name}
+                          src={primaryImageUrl}
+                          alt={primaryImage?.alt || item.product.name}
                           fill
                           className="object-cover"
                           sizes="96px"

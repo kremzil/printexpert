@@ -369,10 +369,7 @@ export function CheckoutForm({
         const methods: PaymentMethod[] = [];
         if (data?.paymentSettings?.bankTransferEnabled) methods.push("bank");
         if (data?.paymentSettings?.cardEnabled) methods.push("stripe");
-        const codAllowed =
-          data?.paymentSettings?.codEnabled &&
-          ((deliveryMethod === "DPD_PICKUP" && data?.paymentSettings?.codForPickup) ||
-            (deliveryMethod === "DPD_COURIER" && data?.paymentSettings?.codForCourier));
+        const codAllowed = data?.paymentSettings?.codEnabled;
         if (codAllowed) methods.push("cod");
         if (active && methods.length > 0) {
           setAvailablePaymentMethods(methods);

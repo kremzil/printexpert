@@ -284,16 +284,9 @@ export default async function AdminSettingsPage() {
                       <input type="checkbox" name="codEnabled" value="1" defaultChecked={settings.paymentSettings.codEnabled} />
                       COD (Dobierka)
                     </label>
-                    <div className="pl-6 space-y-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" name="codForCourier" value="1" defaultChecked={settings.paymentSettings.codForCourier} />
-                        COD pre kuriéra
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" name="codForPickup" value="1" defaultChecked={settings.paymentSettings.codForPickup} />
-                        COD pre pickup point
-                      </label>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Dobierka je dostupná pre všetky spôsoby doručenia.
+                    </p>
                     <div className="flex justify-end">
                       <FormSubmitButton size="sm">Uložiť metódy platby</FormSubmitButton>
                     </div>

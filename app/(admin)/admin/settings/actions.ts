@@ -202,27 +202,28 @@ export async function updateDpdShippingPrice(formData: FormData) {
 export async function updatePaymentMethods(formData: FormData) {
   await requireAdmin()
   const prisma = getPrisma()
+  const cardEnabled = String(formData.get("cardEnabled") ?? "") === "1"
+  const bankTransferEnabled = String(formData.get("bankTransferEnabled") ?? "") === "1"
+  const codEnabled = String(formData.get("codEnabled") ?? "") === "1"
   await prisma.shopSettings.upsert({
     where: { id: SETTINGS_ID },
     create: {
       id: SETTINGS_ID,
       paymentSettings: {
-        cardEnabled: String(formData.get("cardEnabled") ?? "") === "1",
-        bankTransferEnabled:
-          String(formData.get("bankTransferEnabled") ?? "") === "1",
-        codEnabled: String(formData.get("codEnabled") ?? "") === "1",
-        codForCourier: String(formData.get("codForCourier") ?? "") === "1",
-        codForPickup: String(formData.get("codForPickup") ?? "") === "1",
+        cardEnabled,
+        bankTransferEnabled,
+        codEnabled,
+        codForCourier: codEnabled,
+        codForPickup: codEnabled,
       },
     },
     update: {
       paymentSettings: {
-        cardEnabled: String(formData.get("cardEnabled") ?? "") === "1",
-        bankTransferEnabled:
-          String(formData.get("bankTransferEnabled") ?? "") === "1",
-        codEnabled: String(formData.get("codEnabled") ?? "") === "1",
-        codForCourier: String(formData.get("codForCourier") ?? "") === "1",
-        codForPickup: String(formData.get("codForPickup") ?? "") === "1",
+        cardEnabled,
+        bankTransferEnabled,
+        codEnabled,
+        codForCourier: codEnabled,
+        codForPickup: codEnabled,
       },
     },
   })

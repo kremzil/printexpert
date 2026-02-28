@@ -76,25 +76,9 @@ const postHandler = async (req: NextRequest) => {
       );
     }
     if (paymentMethod === "COD") {
-      if (deliveryMethod === "PERSONAL_PICKUP") {
-        return NextResponse.json(
-          { error: "Dobierka nie je dostupná pre osobný odber." },
-          { status: 400 }
-        );
-      }
       if (!settings.paymentSettings.codEnabled) {
         return NextResponse.json(
           { error: "Dobierka nie je dostupná." },
-          { status: 400 }
-        );
-      }
-      if (
-        (deliveryMethod === "DPD_PICKUP" && !settings.paymentSettings.codForPickup) ||
-        ((deliveryMethod ?? "DPD_COURIER") === "DPD_COURIER" &&
-          !settings.paymentSettings.codForCourier)
-      ) {
-        return NextResponse.json(
-          { error: "Dobierka nie je dostupná pre vybraný spôsob doručenia." },
           { status: 400 }
         );
       }
