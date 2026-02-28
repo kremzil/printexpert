@@ -71,6 +71,29 @@ type ReorderProductImagesInput = {
   imageIds: string[]
 }
 
+const getProductsCdnBaseUrl = () =>
+  (process.env.PRODUCTS_CDN_BASE_URL ||
+    process.env.NEXT_PUBLIC_PRODUCTS_CDN_BASE_URL ||
+    "")
+    .trim()
+    .replace(/\/+$/, "")
+
+const normalizeProductImageUrl = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return trimmed
+
+  const cdnBaseUrl = getProductsCdnBaseUrl()
+  if (!cdnBaseUrl) {
+    return trimmed
+  }
+
+  if (trimmed.startsWith("/products/")) {
+    return `${cdnBaseUrl}${trimmed}`
+  }
+
+  return trimmed
+}
+
 // ...existing code...
 type PhpSerializable =
   | string
@@ -1234,11 +1257,12 @@ export async function addProductImage(input: AddProductImageInput) {
   if (!product) return
 
   const isFirst = product.images.length === 0
+  const normalizedUrl = normalizeProductImageUrl(input.url)
 
   await prisma.productImage.create({
     data: {
       productId: input.productId,
-      url: input.url,
+      url: normalizedUrl,
       isPrimary: isFirst,
       sortOrder: product.images.length,
     },

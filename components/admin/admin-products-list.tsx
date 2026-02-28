@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatPrice } from "@/lib/utils";
 import { getCsrfHeader } from "@/lib/csrf";
+import { resolveProductImageUrl } from "@/lib/image-url";
 
 type AdminProductItem = {
   id: string;
@@ -326,11 +327,12 @@ export function AdminProductsList({ products }: AdminProductsListProps) {
         size: 92,
         cell: ({ row }) => {
           const image = row.original.images?.[0];
+          const imageUrl = resolveProductImageUrl(image?.url);
           return (
             <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
-              {image ? (
+              {image && imageUrl ? (
                 <Image
-                  src={image.url}
+                  src={imageUrl}
                   alt={image.alt || row.original.name}
                   fill
                   className="object-cover"

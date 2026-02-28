@@ -45,6 +45,7 @@ const serverSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_ENDPOINT: z.string().optional(),
+  PRODUCTS_CDN_BASE_URL: z.string().url().optional(),
 
   // ── Uploads ──
   UPLOAD_MAX_BYTES: z.coerce.number().int().positive().optional(),
@@ -75,6 +76,7 @@ const clientSchema = z.object({
   NEXT_PUBLIC_UPLOAD_MAX_BYTES: z.coerce.number().int().positive().optional(),
   NEXT_PUBLIC_GTM_ID: z.string().optional(),
   NEXT_PUBLIC_GA4_ID: z.string().optional(),
+  NEXT_PUBLIC_PRODUCTS_CDN_BASE_URL: z.string().url().optional(),
 })
 
 export type ServerEnv = z.infer<typeof serverSchema>
@@ -109,6 +111,8 @@ export function validateClientEnv(): ClientEnv {
     NEXT_PUBLIC_UPLOAD_MAX_BYTES: process.env.NEXT_PUBLIC_UPLOAD_MAX_BYTES,
     NEXT_PUBLIC_GTM_ID: process.env.NEXT_PUBLIC_GTM_ID,
     NEXT_PUBLIC_GA4_ID: process.env.NEXT_PUBLIC_GA4_ID,
+    NEXT_PUBLIC_PRODUCTS_CDN_BASE_URL:
+      process.env.NEXT_PUBLIC_PRODUCTS_CDN_BASE_URL,
   })
   if (!result.success) {
     const issues = result.error.issues

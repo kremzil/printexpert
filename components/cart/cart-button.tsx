@@ -16,6 +16,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { getCsrfHeader } from "@/lib/csrf";
+import { resolveProductImageUrl } from "@/lib/image-url";
 import type { CartData } from "@/types/cart";
 import type { CustomerMode } from "@/components/print/types";
 
@@ -233,6 +234,7 @@ export function CartButton({ mode = "b2c", userId }: CartButtonProps) {
                     const itemPrice = item.priceSnapshot?.gross ?? 0;
                     const itemTotal = itemPrice * item.quantity;
                     const image = item.product.images[0];
+                    const imageUrl = resolveProductImageUrl(image?.url);
                     const isRemoving = removingItems.has(item.id);
                     return (
                       <li
@@ -241,9 +243,9 @@ export function CartButton({ mode = "b2c", userId }: CartButtonProps) {
                       >
                         <div className="flex items-start gap-3">
                           <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
-                            {image ? (
+                            {image && imageUrl ? (
                               <Image
-                                src={image.url}
+                                src={imageUrl}
                                 alt={image.alt || item.product.name}
                                 fill
                                 sizes="56px"

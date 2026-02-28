@@ -422,7 +422,7 @@ export function AdminProductsImportDialog() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="image-folder" className="text-xs">
-                      Priečinok v /public/products
+                      Priečinok v products/ (S3)
                     </Label>
                     <Input
                       id="image-folder"

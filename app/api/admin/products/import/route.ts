@@ -4,17 +4,18 @@ import type { Prisma, PriceType } from "@/lib/generated/prisma"
 import { revalidatePath } from "next/cache"
 import { invalidateAllCatalog } from "@/lib/cache-tags"
 import path from "path"
-import fs from "fs/promises"
 import sharp from "sharp"
-import { pathToFileURL } from "url"
+import { PutObjectCommand } from "@aws-sdk/client-s3"
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeHtml } from "@/lib/sanitize-html"
+import { getS3Client, getS3Config } from "@/lib/s3"
 
 const MAX_ROWS = 5000
 const DEFAULT_CATEGORY_IMAGE = "/categories/velke-formaty.webp"
-const PRODUCTS_ROOT_URL = pathToFileURL(`${path.join(process.cwd(), "public", "products")}${path.sep}`)
+const PRODUCTS_PREFIX = "products"
+const DEFAULT_PRODUCTS_CDN_BASE_URL = "https://cdn.printexpert.sk"
 
 type MappingRow = {
   csvColumn: string
@@ -139,6 +140,22 @@ const sanitizeFileName = (value: string) => {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "")
 }
 
+const buildProductsPublicUrl = (objectKey: string) => {
+  const configuredBase = (
+    process.env.PRODUCTS_CDN_BASE_URL ||
+    process.env.NEXT_PUBLIC_PRODUCTS_CDN_BASE_URL ||
+    DEFAULT_PRODUCTS_CDN_BASE_URL
+  )
+    .trim()
+    .replace(/\/+$/, "")
+
+  if (!configuredBase) {
+    return `/${objectKey}`
+  }
+
+  return `${configuredBase}/${objectKey}`
+}
+
 async function downloadAndProcessImage(options: {
   imageUrl: string
   productId: string
@@ -165,22 +182,32 @@ async function downloadAndProcessImage(options: {
     throw new Error("Neplatný názov súboru obrázka.")
   }
 
-  const relativeFolder = path.posix.join(options.folder, safeProductId)
-  const baseFolderUrl = new URL(`${relativeFolder}/`, PRODUCTS_ROOT_URL)
-  await fs.mkdir(baseFolderUrl, { recursive: true })
-
-  const fileUrl = new URL(safeFileName, baseFolderUrl)
+  const { bucket } = getS3Config()
+  const client = getS3Client()
+  const folder = sanitizeFolder(options.folder)
+  const objectKey = path.posix.join(
+    PRODUCTS_PREFIX,
+    folder,
+    safeProductId,
+    safeFileName
+  )
 
   const output = await sharp(buffer)
     .resize({ width: options.width, withoutEnlargement: true })
     .webp({ quality: options.quality })
     .toBuffer()
 
-  await fs.writeFile(fileUrl, output)
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: output,
+      ContentType: "image/webp",
+      CacheControl: "public, max-age=31536000, immutable",
+    })
+  )
 
-  const publicPath = path.posix.join("/products", relativeFolder, safeFileName)
-
-  return publicPath
+  return buildProductsPublicUrl(objectKey)
 }
 
 function parseImageList(raw: string | null | undefined) {

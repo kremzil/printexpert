@@ -55,6 +55,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "cdn.printexpert.sk",
+        pathname: "/products/**",
+      },
+      {
+        protocol: "https",
         hostname: "printexpert.sk",
         pathname: "/wp-content/uploads/**",
       },

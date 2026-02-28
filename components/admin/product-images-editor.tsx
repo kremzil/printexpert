@@ -1,12 +1,20 @@
 "use client"
 
-import { useOptimistic, useTransition, useState, useRef } from "react"
+import {
+  useOptimistic,
+  useTransition,
+  useState,
+  useRef,
+  type ChangeEvent,
+} from "react"
 import Image from "next/image"
-import { GripVertical, Star, Trash2, Plus, X } from "lucide-react"
+import { GripVertical, Star, Trash2, Plus, X, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { resolveProductImageUrl } from "@/lib/image-url"
+import { getCsrfHeader } from "@/lib/csrf"
+import { toast } from "sonner"
 import {
   addProductImage,
   deleteProductImage,
@@ -27,13 +35,26 @@ type ProductImagesEditorProps = {
   images: ProductImage[]
 }
 
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+const allowedClientTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+])
+
 export function ProductImagesEditor({ productId, images }: ProductImagesEditorProps) {
   const [isPending, startTransition] = useTransition()
   const [optimisticImages, setOptimisticImages] = useOptimistic(images)
-  const [newImageUrl, setNewImageUrl] = useState("")
   const [isAddingImage, setIsAddingImage] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isDragActive, setIsDragActive] = useState(false)
   const dragItem = useRef<number | null>(null)
   const dragOverItem = useRef<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const isBusy = isPending || isUploading
 
   const sortedImages = [...optimisticImages].sort((a, b) => {
     if (a.isPrimary && !b.isPrimary) return -1
@@ -41,24 +62,98 @@ export function ProductImagesEditor({ productId, images }: ProductImagesEditorPr
     return a.sortOrder - b.sortOrder
   })
 
-  const handleAddImage = () => {
-    if (!newImageUrl.trim()) return
+  const uploadSingleFile = async (file: File) => {
+    const formData = new FormData()
+    formData.set("file", file)
+    formData.set("productId", productId)
 
-    startTransition(async () => {
-      setOptimisticImages((prev) => [
-        ...prev,
-        {
-          id: `temp-${Date.now()}`,
-          url: newImageUrl.trim(),
-          alt: null,
-          sortOrder: prev.length,
-          isPrimary: prev.length === 0,
-        },
-      ])
-      await addProductImage({ productId, url: newImageUrl.trim() })
-      setNewImageUrl("")
-      setIsAddingImage(false)
+    const response = await fetch("/api/admin/products/upload-image", {
+      method: "POST",
+      headers: getCsrfHeader(),
+      body: formData,
     })
+
+    const payload = (await response.json().catch(() => null)) as
+      | { url?: string; error?: string }
+      | null
+
+    if (!response.ok || !payload?.url) {
+      throw new Error(payload?.error || "Nepodarilo sa nahrať obrázok.")
+    }
+
+    return String(payload.url)
+  }
+
+  const validateFiles = (files: File[]) => {
+    if (!files.length) {
+      return { ok: false, reason: "Nevybrali ste žiadny súbor." }
+    }
+
+    const invalidType = files.find((file) => !allowedClientTypes.has(file.type))
+    if (invalidType) {
+      return {
+        ok: false,
+        reason: `Nepodporovaný typ súboru: ${invalidType.name}`,
+      }
+    }
+
+    const oversized = files.find((file) => file.size > MAX_UPLOAD_SIZE)
+    if (oversized) {
+      return {
+        ok: false,
+        reason: `Súbor je príliš veľký (max 10 MB): ${oversized.name}`,
+      }
+    }
+
+    return { ok: true, reason: "" }
+  }
+
+  const handleUploadFiles = async (input: FileList | File[]) => {
+    const files = Array.from(input)
+    const validation = validateFiles(files)
+    if (!validation.ok) {
+      toast.error(validation.reason)
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      let addedCount = 0
+      for (const file of files) {
+        const uploadedUrl = await uploadSingleFile(file)
+        setOptimisticImages((prev) => [
+          ...prev,
+          {
+            id: `temp-upload-${Date.now()}-${prev.length}`,
+            url: uploadedUrl,
+            alt: null,
+            sortOrder: prev.length,
+            isPrimary: prev.length === 0,
+          },
+        ])
+        await addProductImage({ productId, url: uploadedUrl })
+        addedCount += 1
+      }
+
+      setIsAddingImage(false)
+      toast.success(
+        addedCount > 1
+          ? `Nahrané obrázky: ${addedCount}`
+          : "Obrázok bol nahraný."
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nahrávanie zlyhalo.")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleFileInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files && files.length > 0) {
+      await handleUploadFiles(files)
+    }
+    event.target.value = ""
   }
 
   const handleDeleteImage = (imageId: string) => {
@@ -131,62 +226,80 @@ export function ProductImagesEditor({ productId, images }: ProductImagesEditorPr
             onClick={() => setIsAddingImage(true)}
           >
             <Plus className="h-4 w-4" />
-            Pridať obrázok
+            Nahrať obrázky
           </Button>
         )}
       </div>
 
       {isAddingImage && (
-        <div className="flex items-start gap-2 rounded-lg border bg-muted/50 p-4 transition-all animate-in fade-in-0 zoom-in-95">
-          <div className="grid flex-1 gap-2">
-            <Label htmlFor="image-url" className="sr-only">
-              URL obrázka
-            </Label>
-            <Input
-              id="image-url"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  handleAddImage()
-                }
-              }}
-              className="h-9"
-            />
+        <div className="space-y-3 rounded-lg border bg-muted/50 p-4 transition-all animate-in fade-in-0 zoom-in-95">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            multiple
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+
+          <div
+            onDragOver={(event) => {
+              event.preventDefault()
+              setIsDragActive(true)
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault()
+              const related = event.relatedTarget as Node | null
+              if (related && event.currentTarget.contains(related)) return
+              setIsDragActive(false)
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              setIsDragActive(false)
+              const files = event.dataTransfer.files
+              if (files && files.length > 0) {
+                void handleUploadFiles(files)
+              }
+            }}
+            className={cn(
+              "flex min-h-[140px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-background px-4 text-center transition-colors",
+              isDragActive
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-muted/40",
+              isBusy && "pointer-events-none opacity-70"
+            )}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <p className="text-sm font-medium">
+              Pretiahnite obrázky sem alebo kliknite pre výber
+            </p>
             <p className="text-xs text-muted-foreground">
-              Zadajte priamy odkaz na obrázok (zahrňte https://).
+              JPG, PNG, WEBP, GIF, AVIF · max 10 MB na súbor
             </p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleAddImage}
-            disabled={!newImageUrl.trim() || isPending}
-            className="h-9"
-          >
-            Pridať
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-9 w-9 px-0"
-            onClick={() => {
-              setIsAddingImage(false)
-              setNewImageUrl("")
-            }}
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Zrušiť</span>
-          </Button>
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Obrázky sa nahrajú do S3 a automaticky priradia k produktu.
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9"
+              onClick={() => setIsAddingImage(false)}
+              disabled={isBusy}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Zavrieť
+            </Button>
+          </div>
         </div>
       )}
 
       {sortedImages.length === 0 && !isAddingImage ? (
-        <div 
+        <div
           onClick={() => setIsAddingImage(true)}
           className="flex min-h-[150px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-center transition-colors hover:bg-muted/50"
         >
@@ -199,74 +312,78 @@ export function ProductImagesEditor({ productId, images }: ProductImagesEditorPr
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {sortedImages.map((image, index) => (
-            <div
-              key={image.id}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragEnter={() => handleDragEnter(index)}
-              onDragEnd={handleDragEnd}
-              onDragOver={(e) => e.preventDefault()}
-              className={cn(
-                "group relative aspect-square cursor-move overflow-hidden rounded-lg border bg-background shadow-sm transition-all hover:shadow-md",
-                image.isPrimary && "ring-2 ring-primary ring-offset-2",
-                isPending && "opacity-50"
-              )}
-            >
-              <Image
-                src={image.url}
-                alt={image.alt || "Obrázok produktu"}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
-              />
+          {sortedImages.map((image, index) => {
+            const imageUrl = resolveProductImageUrl(image.url)
+            return (
+              <div
+                key={image.id}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragEnter={() => handleDragEnter(index)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => e.preventDefault()}
+                className={cn(
+                  "group relative aspect-square cursor-move overflow-hidden rounded-lg border bg-background shadow-sm transition-all hover:shadow-md",
+                  image.isPrimary && "ring-2 ring-primary ring-offset-2",
+                  isBusy && "opacity-50"
+                )}
+              >
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={image.alt || "Obrázok produktu"}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                    Bez obrázku
+                  </div>
+                )}
 
-              {/* Primary badge */}
-              {image.isPrimary && (
-                <div className="absolute left-2 top-2 z-10 rounded bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground shadow-sm">
-                  Hlavný
+                {image.isPrimary && (
+                  <div className="absolute left-2 top-2 z-10 rounded bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground shadow-sm">
+                    Hlavný
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+
+                <div className="absolute right-2 top-2 z-10 hidden rounded-md bg-white/90 p-1.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 sm:block">
+                  <GripVertical className="h-3.5 w-3.5 text-foreground/70" />
                 </div>
-              )}
 
-              {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-
-              {/* Drag handle */}
-              <div className="absolute right-2 top-2 z-10 hidden rounded-md bg-white/90 p-1.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 sm:block">
-                <GripVertical className="h-3.5 w-3.5 text-foreground/70" />
-              </div>
-
-              {/* Action buttons */}
-              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-center gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                {!image.isPrimary && (
+                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-center gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  {!image.isPrimary && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="h-8 w-8 bg-white/90 hover:bg-white text-muted-foreground hover:text-primary shadow-sm"
+                      onClick={() => handleSetPrimary(image.id)}
+                      disabled={isBusy}
+                      title="Nastaviť ako hlavný"
+                    >
+                      <Star className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="secondary"
                     size="icon"
-                    className="h-8 w-8 bg-white/90 hover:bg-white text-muted-foreground hover:text-primary shadow-sm"
-                    onClick={() => handleSetPrimary(image.id)}
-                    disabled={isPending}
-                    title="Nastaviť ako hlavný"
+                    className="h-8 w-8 bg-white/90 hover:bg-destructive hover:text-destructive-foreground shadow-sm"
+                    onClick={() => handleDeleteImage(image.id)}
+                    disabled={isBusy}
+                    title="Odstrániť"
                   >
-                    <Star className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  className="h-8 w-8 bg-white/90 hover:bg-destructive hover:text-destructive-foreground shadow-sm"
-                  onClick={() => handleDeleteImage(image.id)}
-                  disabled={isPending}
-                  title="Odstrániť"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                </div>
               </div>
-            </div>
-          ))}
-          
-          {/* Add Helper Card in Grid */}
+            )
+          })}
+
           {!isAddingImage && sortedImages.length > 0 && (
             <button
               type="button"

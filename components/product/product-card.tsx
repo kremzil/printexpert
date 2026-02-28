@@ -14,6 +14,7 @@ import {
   QUOTE_REQUEST_UPDATED_EVENT,
   upsertQuoteRequestItem,
 } from "@/lib/quote-request-store"
+import { resolveProductImageUrl } from "@/lib/image-url"
 
 type Props = {
   product: {
@@ -35,6 +36,7 @@ type Props = {
 
 export function ProductCard({ product, mode = "b2c" }: Props) {
   const primaryImage = product.images?.[0]
+  const primaryImageUrl = resolveProductImageUrl(primaryImage?.url)
   const [isInQuoteList, setIsInQuoteList] = useState(false)
 
   const imageAlt = primaryImage?.alt ?? product.name
@@ -111,9 +113,9 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
             ZĽAVA -{discountPercent}%
           </Badge>
         ) : null}
-        {primaryImage?.url ? (
+        {primaryImageUrl ? (
           <Image
-            src={primaryImage.url}
+            src={primaryImageUrl}
             alt={imageAlt}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"

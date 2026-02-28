@@ -5,6 +5,7 @@ import Image from "next/image"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { resolveProductImageUrl } from "@/lib/image-url"
 
 interface ProductImage {
   url: string
@@ -37,17 +38,25 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
     setSelectedIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
   }
 
+  const selectedImageUrl = resolveProductImageUrl(images[selectedIndex]?.url)
+
   return (
     <div className="space-y-4">
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted">
-        <Image
-          src={images[selectedIndex].url}
-          alt={`${productName} - obrázok ${selectedIndex + 1}`}
-          fill
-          className="object-cover"
-          priority
-          sizes="(min-width: 1024px) 560px, 100vw"
-        />
+        {selectedImageUrl ? (
+          <Image
+            src={selectedImageUrl}
+            alt={`${productName} - obrázok ${selectedIndex + 1}`}
+            fill
+            className="object-cover"
+            priority
+            sizes="(min-width: 1024px) 560px, 100vw"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            Bez obrázku
+          </div>
+        )}
 
         {images.length > 1 && (
           <>
@@ -77,26 +86,35 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
 
       {images.length > 1 && (
         <div className="grid grid-cols-4 gap-2">
-          {images.map((image, index) => (
-            <button
-              key={`${image.url}-${index}`}
-              onClick={() => setSelectedIndex(index)}
-              className={cn(
-                "relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
-                index === selectedIndex
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border hover:border-muted-foreground"
-              )}
-            >
-              <Image
-                src={image.url}
-                alt={`${productName} náhľad ${index + 1}`}
-                fill
-                className="object-cover"
-                sizes="(min-width: 1024px) 120px, 25vw"
-              />
-            </button>
-          ))}
+          {images.map((image, index) => {
+            const imageUrl = resolveProductImageUrl(image.url)
+            return (
+              <button
+                key={`${image.url}-${index}`}
+                onClick={() => setSelectedIndex(index)}
+                className={cn(
+                  "relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
+                  index === selectedIndex
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border hover:border-muted-foreground"
+                )}
+              >
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={`${productName} náhľad ${index + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="(min-width: 1024px) 120px, 25vw"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
+                    Bez obrázku
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
