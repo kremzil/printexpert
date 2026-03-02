@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Loader2, Search } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
+import { resolveProductImageUrl } from "@/lib/image-url"
 import { cn } from "@/lib/utils"
 
 type SearchProduct = {
@@ -197,39 +198,42 @@ export function HeaderSearch({
                       Produkty
                     </div>
                     <div className="space-y-1">
-                      {results.products.map((product) => (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => {
-                            router.push(`/product/${product.slug}`)
-                            setIsOpen(false)
-                          }}
-                          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition hover:bg-muted"
-                        >
-                          <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border bg-muted/40">
-                            {product.images?.[0]?.url ? (
-                              <Image
-                                src={product.images[0].url}
-                                alt={product.images[0].alt || product.name}
-                                fill
-                                className="object-cover"
-                                sizes="40px"
-                              />
-                            ) : null}
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-foreground">
-                              {product.name}
+                      {results.products.map((product) => {
+                        const imageUrl = resolveProductImageUrl(product.images?.[0]?.url)
+                        return (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onClick={() => {
+                              router.push(`/product/${product.slug}`)
+                              setIsOpen(false)
+                            }}
+                            className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition hover:bg-muted"
+                          >
+                            <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border bg-muted/40">
+                              {imageUrl ? (
+                                <Image
+                                  src={imageUrl}
+                                  alt={product.images[0].alt || product.name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="40px"
+                                />
+                              ) : null}
                             </div>
-                            {formatPrice(product.priceFrom) ? (
-                              <div className="text-xs text-muted-foreground">
-                                Od {formatPrice(product.priceFrom)}
+                            <div className="flex-1">
+                              <div className="font-medium text-foreground">
+                                {product.name}
                               </div>
-                            ) : null}
-                          </div>
-                        </button>
-                      ))}
+                              {formatPrice(product.priceFrom) ? (
+                                <div className="text-xs text-muted-foreground">
+                                  Od {formatPrice(product.priceFrom)}
+                                </div>
+                              ) : null}
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 ) : null}

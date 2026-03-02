@@ -21,6 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { getCsrfHeader } from "@/lib/csrf"
+import { resolveProductImageUrl } from "@/lib/image-url"
 import {
   clearQuoteRequestItems,
   QUOTE_REQUEST_CACHE_KEY,
@@ -272,52 +273,54 @@ export function QuoteRequestButton({
               </div>
             ) : (
               <ul className="space-y-3">
-                {items.map((item) => (
-                  <li key={item.slug} className="rounded-lg border border-border/60 p-2">
-                    <div className="flex items-start gap-3">
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
-                        {item.imageUrl ? (
-                          <Image
-                            src={item.imageUrl}
-                            alt={item.imageAlt || item.name}
-                            fill
-                            sizes="56px"
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
-                            Bez obrázka
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          href={`/product/${item.slug}`}
-                          className="line-clamp-2 text-sm font-medium hover:underline"
+                {items.map((item) => {
+                  const imageUrl = resolveProductImageUrl(item.imageUrl)
+                  return (
+                    <li key={item.slug} className="rounded-lg border border-border/60 p-2">
+                      <div className="flex items-start gap-3">
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
+                          {imageUrl ? (
+                            <Image
+                              src={imageUrl}
+                              alt={item.imageAlt || item.name}
+                              fill
+                              sizes="56px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                              Bez obrázka
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/product/${item.slug}`}
+                            className="line-clamp-2 text-sm font-medium hover:underline"
+                          >
+                            {item.name}
+                          </Link>
+                          {formatConfigurationSummary(item) ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatConfigurationSummary(item)}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Produkt je pripravený na dopyt.
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.slug)}
+                          aria-label="Odstrániť položku zo zoznamu"
+                          className="rounded-md border border-border/60 p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
-                          {item.name}
-                        </Link>
-                        {formatConfigurationSummary(item) ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {formatConfigurationSummary(item)}
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Produkt je pripravený na dopyt.
-                          </p>
-                        )}
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.slug)}
-                        aria-label="Odstrániť položku zo zoznamu"
-                        className="rounded-md border border-border/60 p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                )})}
               </ul>
             )}
           </div>

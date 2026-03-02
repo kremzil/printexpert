@@ -92,7 +92,7 @@ export function ProductCard({ product, mode = "b2c" }: Props) {
     upsertQuoteRequestItem({
       slug: product.slug,
       name: product.name,
-      imageUrl: primaryImage?.url ?? "",
+      imageUrl: primaryImageUrl,
       imageAlt,
       addedAt: new Date().toISOString(),
     })

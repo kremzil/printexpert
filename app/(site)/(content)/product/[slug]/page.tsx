@@ -7,6 +7,7 @@ import { ProductPageClient } from "@/app/(site)/(content)/product/[slug]/product
 import { ProductPageSkeleton } from "@/app/(site)/(content)/product/[slug]/product-page-skeleton"
 import { resolveAudienceContext } from "@/lib/audience-context"
 import { getProductBySlug, getRelatedProducts, getTopProductIds } from "@/lib/catalog"
+import { resolveProductImageUrl } from "@/lib/image-url"
 import { getProductCalculatorData } from "@/lib/pricing"
 import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL, toJsonLd } from "@/lib/seo"
 
@@ -111,9 +112,10 @@ export async function generateMetadata({
     openGraphUrl.searchParams.set("sp", sharePrice)
   }
   const primaryImage = product?.images?.[0]
+  const primaryImageUrl = resolveProductImageUrl(primaryImage?.url)
   const imageUrl =
     resolveAbsoluteUrl(resolvedSearchParams.si) ??
-    (primaryImage?.url ? new URL(primaryImage.url, siteUrl).toString() : null)
+    (primaryImageUrl ? new URL(primaryImageUrl, siteUrl).toString() : null)
   const metadataImageUrl = imageUrl ?? new URL(DEFAULT_OG_IMAGE, siteUrl).toString()
   if (imageUrl) {
     openGraphUrl.searchParams.set("si", imageUrl)
@@ -211,8 +213,9 @@ async function ProductDetails({
     ? `${SITE_URL}/kategorie/${product.category.slug}`
     : null
   const productImages = (product.images ?? [])
-    .map((image) => resolveAbsoluteUrl(image.url) ?? new URL(image.url, siteUrl).toString())
-    .filter(Boolean)
+    .map((image) => resolveProductImageUrl(image.url))
+    .filter((imageUrl): imageUrl is string => Boolean(imageUrl))
+    .map((imageUrl) => resolveAbsoluteUrl(imageUrl) ?? new URL(imageUrl, siteUrl).toString())
   const productDescriptionText = toPlainText(product.excerpt ?? product.description ?? null)
 
   const effectivePrice = product.priceAfterDiscountFrom ?? product.priceFrom

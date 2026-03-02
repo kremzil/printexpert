@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Clock } from "lucide-react"
 
 import type { CustomerMode } from "@/components/print/types"
+import { resolveProductImageUrl } from "@/lib/image-url"
 
 type ProductListItemProps = {
   mode: CustomerMode
@@ -30,6 +31,7 @@ export function ProductListItem({
   const plainDescription = description
     ? description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
     : ""
+  const resolvedImageUrl = resolveProductImageUrl(image)
 
   return (
     <Link
@@ -37,9 +39,9 @@ export function ProductListItem({
       className="group flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-all hover:shadow-md md:flex-row"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted md:h-36 md:w-56">
-        {image ? (
+        {resolvedImageUrl ? (
           <Image
-            src={image}
+            src={resolvedImageUrl}
             alt={title}
             fill
             sizes="(max-width: 768px) 100vw, 224px"

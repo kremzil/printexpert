@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
 import { getCsrfHeader } from "@/lib/csrf";
+import { resolveProductImageUrl } from "@/lib/image-url";
 import { cn } from "@/lib/utils";
 
 type Mode = "MANUAL";
@@ -306,6 +307,7 @@ function ReorderItem({
   onRemove: (productId: string) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const imageUrl = resolveProductImageUrl(product.images?.[0]?.url);
 
   return (
     <div
@@ -332,9 +334,9 @@ function ReorderItem({
     >
       <GripVertical className="h-4 w-4 text-muted-foreground" />
       <div className="relative h-8 w-8 overflow-hidden rounded-md border bg-muted">
-        {product.images?.[0]?.url ? (
+        {imageUrl ? (
           <Image
-            src={product.images[0].url}
+            src={imageUrl}
             alt={product.images[0].alt || product.name}
             fill
             className="object-cover"

@@ -53,6 +53,7 @@ import { trackDataLayerEvent } from "@/lib/analytics/client"
 import { buildMarketingItemId } from "@/lib/analytics/item-id"
 import { getCsrfHeader } from "@/lib/csrf"
 import { calculateShipmentDate } from "@/lib/shipment-date"
+import { resolveProductImageUrl } from "@/lib/image-url"
 import {
   extractDesignPages,
   extractDesignElements,
@@ -493,7 +494,7 @@ function RealConfiguratorSection({
     upsertQuoteRequestItem({
       slug: product.slug,
       name: product.name,
-      imageUrl: product.images[0]?.url ?? "",
+      imageUrl: resolveProductImageUrl(product.images[0]?.url),
       imageAlt: product.images[0]?.alt ?? product.name,
       addedAt: new Date().toISOString(),
       configuration: {
@@ -748,7 +749,7 @@ function RealConfiguratorSection({
               <div className="flex px-3 justify-center">
                 <ProductShareButtons
                   productName={product.name}
-                  imageUrl={product.images[0]?.url ?? null}
+                  imageUrl={resolveProductImageUrl(product.images[0]?.url) || null}
                   price={total}
                 />
               </div>
@@ -1006,7 +1007,7 @@ function SimpleConfiguratorSection({
     upsertQuoteRequestItem({
       slug: product.slug,
       name: product.name,
-      imageUrl: product.images[0]?.url ?? "",
+      imageUrl: resolveProductImageUrl(product.images[0]?.url),
       imageAlt: product.images[0]?.alt ?? product.name,
       addedAt: new Date().toISOString(),
       configuration: {
@@ -1438,7 +1439,7 @@ export function ProductPageClient({
           <div className="mt-8">
             <ProductShareButtons
               productName={product.name}
-              imageUrl={product.images[0]?.url ?? null}
+              imageUrl={resolveProductImageUrl(product.images[0]?.url) || null}
               price={sharePrice}
             />
           </div>

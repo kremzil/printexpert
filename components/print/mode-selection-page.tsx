@@ -99,7 +99,7 @@ export function ModeSelectionPage() {
             <ModeSelectionCard
               mode="b2c"
               title="Súkromne"
-              subtitle="Pre Dobacnosť"
+              subtitle="Pre Domacnosť"
               description="Rýchly online nákup s jasnými cenami s DPH. Ideálne pre menšie množstvá."
               features={b2cFeatures}
               icon={ShoppingBag}
