@@ -76,7 +76,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script_stop: true
           script: |
-            mkdir -p /opt/printexpert/deploy
+            mkdir -p /home/ubuntu/printexpert/deploy
 
       - name: Copy compose file to server
         uses: appleboy/scp-action@v0.1.7
@@ -86,7 +86,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           source: "deploy/docker-compose.server.yml"
-          target: "/opt/printexpert"
+          target: "/home/ubuntu/printexpert"
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.2.0
@@ -105,7 +105,7 @@ jobs:
           envs: APP_IMAGE,MIGRATOR_IMAGE,APP_ENV_PRODUCTION_B64,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
-            APP_DIR="/opt/printexpert"
+            APP_DIR="/home/ubuntu/printexpert"
             COMPOSE_FILE="${APP_DIR}/deploy/docker-compose.server.yml"
             mkdir -p "${APP_DIR}/deploy"
 
