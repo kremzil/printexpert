@@ -199,7 +199,8 @@ export function HeaderSearch({
                     </div>
                     <div className="space-y-1">
                       {results.products.map((product) => {
-                        const imageUrl = resolveProductImageUrl(product.images?.[0]?.url)
+                        const primaryImage = product.images?.[0]
+                        const imageUrl = resolveProductImageUrl(primaryImage?.url)
                         return (
                           <button
                             key={product.id}
@@ -214,7 +215,7 @@ export function HeaderSearch({
                               {imageUrl ? (
                                 <Image
                                   src={imageUrl}
-                                  alt={product.images[0].alt || product.name}
+                                  alt={primaryImage?.alt || product.name}
                                   fill
                                   className="object-cover"
                                   sizes="40px"

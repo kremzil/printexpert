@@ -307,7 +307,8 @@ function ReorderItem({
   onRemove: (productId: string) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const imageUrl = resolveProductImageUrl(product.images?.[0]?.url);
+  const primaryImage = product.images?.[0];
+  const imageUrl = resolveProductImageUrl(primaryImage?.url);
 
   return (
     <div
@@ -337,7 +338,7 @@ function ReorderItem({
         {imageUrl ? (
           <Image
             src={imageUrl}
-            alt={product.images[0].alt || product.name}
+            alt={primaryImage?.alt || product.name}
             fill
             className="object-cover"
           />

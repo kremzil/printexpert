@@ -80,6 +80,7 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
   display: "swap",
   adjustFontFallback: false,
+  preload: false,
 })
 
 export const metadata: Metadata = ROOT_METADATA
@@ -116,7 +117,7 @@ export default function RootLayout({
 
   return (
     <html lang="sk" className={`${workSans.variable} ${playfairDisplay.variable} ${geistMono.variable}`}>
-      <body className="antialiased">
+      <body className={`${workSans.className} antialiased`}>
         <MarketingConsentGate />
         <script
           type="application/ld+json"
