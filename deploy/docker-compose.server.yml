@@ -20,7 +20,11 @@ services:
       - traefik.http.routers.printexpert.entrypoints=websecure
       - traefik.http.routers.printexpert.tls=true
       - traefik.http.routers.printexpert.tls.certresolver=letsencrypt
-      - traefik.http.routers.printexpert-http.rule=Host(`${APP_DOMAIN:-printexpert.sk}`)
+      - traefik.http.routers.printexpert-www.rule=Host(`www.${APP_DOMAIN:-printexpert.sk}`)
+      - traefik.http.routers.printexpert-www.entrypoints=websecure
+      - traefik.http.routers.printexpert-www.tls=true
+      - traefik.http.routers.printexpert-www.tls.certresolver=letsencrypt
+      - traefik.http.routers.printexpert-http.rule=Host(`${APP_DOMAIN:-printexpert.sk}`) || Host(`www.${APP_DOMAIN:-printexpert.sk}`)
       - traefik.http.routers.printexpert-http.entrypoints=web
       - traefik.http.routers.printexpert-http.middlewares=printexpert-https-redirect
       - traefik.http.middlewares.printexpert-https-redirect.redirectscheme.scheme=https
