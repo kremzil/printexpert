@@ -78,6 +78,12 @@ jobs:
           script: |
             mkdir -p /home/ubuntu/printexpert/deploy
 
+      - name: Prepare production env file
+        run: |
+          echo "${{ secrets.APP_ENV_PRODUCTION_B64 }}" | base64 -d > .env.production
+          # docker --env-file keeps quotes literally; normalize KEY="value" -> KEY=value
+          sed -i -E 's/^([A-Za-z_][A-Za-z0-9_]*)="(.*)"$/\1=\2/' .env.production
+
       - name: Copy compose file to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -85,7 +91,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "deploy/docker-compose.server.yml"
+          source: "deploy/docker-compose.server.yml,.env.production"
           target: "/home/ubuntu/printexpert"
 
       - name: Deploy on server
@@ -93,7 +99,6 @@ jobs:
         env:
           APP_IMAGE: ${{ needs.build.outputs.app_image }}
           MIGRATOR_IMAGE: ${{ needs.build.outputs.migrator_image }}
-          APP_ENV_PRODUCTION_B64: ${{ secrets.APP_ENV_PRODUCTION_B64 }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
@@ -102,16 +107,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script_stop: true
-          envs: APP_IMAGE,MIGRATOR_IMAGE,APP_ENV_PRODUCTION_B64,GHCR_USERNAME,GHCR_TOKEN
+          envs: APP_IMAGE,MIGRATOR_IMAGE,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
             APP_DIR="/home/ubuntu/printexpert"
             COMPOSE_FILE="${APP_DIR}/deploy/docker-compose.server.yml"
             mkdir -p "${APP_DIR}/deploy"
-
-            echo "${APP_ENV_PRODUCTION_B64}" | base64 -d > "${APP_DIR}/.env.production"
-            # docker --env-file keeps quotes literally; normalize KEY="value" -> KEY=value
-            sed -i -E 's/^([A-Za-z_][A-Za-z0-9_]*)="(.*)"$/\1=\2/' "${APP_DIR}/.env.production"
 
             PREV_IMAGE="$(sudo docker inspect --format='{{.Config.Image}}' printexpert-web 2>/dev/null || true)"
 
