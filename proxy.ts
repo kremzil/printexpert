@@ -25,6 +25,17 @@ const CSRF_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 const createCsrfToken = () => randomBytes(32).toString("base64url")
 
+const getExpectedOrigin = (request: NextRequest) => {
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim()
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim()
+
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`
+  }
+
+  return request.nextUrl.origin
+}
+
 const ensureCsrfCookie = (request: NextRequest, response: NextResponse) => {
   const existing = request.cookies.get(CSRF_COOKIE_NAME)?.value
   if (existing) return existing
@@ -57,10 +68,11 @@ export async function proxy(request: NextRequest) {
   const isCsrfExcludedRoute = isCsrfExcludedApiPath(nextUrl.pathname)
   const isUnsafeMethod = isUnsafeHttpMethod(request.method)
   const needsCsrfToken = isApiRoute && isUnsafeMethod && !isCsrfExcludedRoute
+  const expectedOrigin = getExpectedOrigin(request)
 
   if (isApiRoute && isUnsafeMethod && !isCsrfExcludedRoute) {
     const origin = request.headers.get("origin")
-    if (origin && origin !== nextUrl.origin) {
+    if (origin && origin !== expectedOrigin) {
       logger.warn({
         event: OBS_EVENT.SECURITY_ORIGIN_BLOCKED,
         requestId,
@@ -68,7 +80,7 @@ export async function proxy(request: NextRequest) {
         path: nextUrl.pathname,
         ipHash,
         origin,
-        expectedOrigin: nextUrl.origin,
+        expectedOrigin,
         userId: session?.user?.id ?? null,
       })
       return withRequestMeta(
@@ -80,7 +92,7 @@ export async function proxy(request: NextRequest) {
     if (referer) {
       try {
         const refererOrigin = new URL(referer).origin
-        if (refererOrigin !== nextUrl.origin) {
+        if (refererOrigin !== expectedOrigin) {
           logger.warn({
             event: OBS_EVENT.SECURITY_ORIGIN_BLOCKED,
             requestId,
@@ -88,7 +100,7 @@ export async function proxy(request: NextRequest) {
             path: nextUrl.pathname,
             ipHash,
             refererOrigin,
-            expectedOrigin: nextUrl.origin,
+            expectedOrigin,
             userId: session?.user?.id ?? null,
           })
           return withRequestMeta(

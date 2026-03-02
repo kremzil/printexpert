@@ -90,6 +90,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const enableVercelTelemetry =
+    process.env.VERCEL === "1" || process.env.ENABLE_VERCEL_ANALYTICS === "true"
+
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -128,8 +131,8 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: toJsonLd(websiteJsonLd) }}
         />
         {children}
-        <SpeedInsights />
-        <Analytics />
+        {enableVercelTelemetry ? <SpeedInsights /> : null}
+        {enableVercelTelemetry ? <Analytics /> : null}
       </body>
     </html>
   )
