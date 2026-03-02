@@ -110,6 +110,8 @@ jobs:
             mkdir -p "${APP_DIR}/deploy"
 
             echo "${APP_ENV_PRODUCTION_B64}" | base64 -d > "${APP_DIR}/.env.production"
+            # docker --env-file keeps quotes literally; normalize KEY="value" -> KEY=value
+            sed -i -E 's/^([A-Za-z_][A-Za-z0-9_]*)="(.*)"$/\1=\2/' "${APP_DIR}/.env.production"
 
             PREV_IMAGE="$(sudo docker inspect --format='{{.Config.Image}}' printexpert-web 2>/dev/null || true)"
 
