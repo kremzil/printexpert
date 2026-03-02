@@ -58,3 +58,30 @@ Expected for anonymous request: `null` (HTTP 200).
 - Migrations are executed via host script (`scripts/db/migrate-prod.mjs`) using `.env.production`.
 - Do not rely on `docker compose exec web npx prisma ...` in runtime container.
 - Postgres is exposed only on loopback (`127.0.0.1:5432`) for host-side migrations.
+
+## GitHub Actions deploy (GHCR -> VPS)
+Workflow: `.github/workflows/deploy-prod.yml`
+
+Required GitHub Secrets:
+- `SSH_HOST` (app server public IPv4)
+- `SSH_USER` (usually `ubuntu`)
+- `SSH_PORT` (usually `22`)
+- `SSH_PRIVATE_KEY` (contents of `.pem`)
+- `APP_ENV_PRODUCTION_B64` (base64 of full `.env.production` file)
+
+Optional (recommended for private GHCR packages):
+- `GHCR_USERNAME` (GitHub username/org that owns package, e.g. `kremzil`)
+- `GHCR_TOKEN` (token with `read:packages`)
+
+PowerShell helper to generate `APP_ENV_PRODUCTION_B64`:
+```powershell
+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content .env.production -Raw)))
+```
+
+Deploy flow:
+1. Build app image (`target=runner`) and migrator image (`target=builder`).
+2. Push both images to GHCR.
+3. Copy `deploy/docker-compose.server.yml` to VPS.
+4. Run `prisma migrate deploy` via migrator image.
+5. Start web container via compose and Traefik labels.
+6. Healthcheck (`/api/health`) + automatic rollback to previous image on failure.
