@@ -1,5 +1,9 @@
 export const CSRF_COOKIE_NAME = "pe_csrf";
-export const CSRF_EXCLUDED_API_PREFIXES = ["/api/auth", "/api/stripe/webhook"] as const;
+export const CSRF_EXCLUDED_API_PREFIXES = [
+  "/api/auth",
+  "/api/stripe/webhook",
+  "/api/client-error",
+] as const;
 
 const SAFE_HTTP_METHODS = ["GET", "HEAD", "OPTIONS"] as const;
 
