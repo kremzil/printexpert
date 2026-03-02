@@ -1,0 +1,31 @@
+services:
+  web:
+    image: ${APP_IMAGE:?APP_IMAGE is required}
+    container_name: printexpert-web
+    env_file:
+      - ${APP_ENV_FILE:-.env.production}
+    environment:
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.printexpert.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.printexpert.entrypoints=websecure
+      - traefik.http.routers.printexpert.tls=true
+      - traefik.http.routers.printexpert.tls.certresolver=le
+      - traefik.http.services.printexpert.loadbalancer.server.port=3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+networks:
+  proxy:
+    external: true
