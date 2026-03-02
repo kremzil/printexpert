@@ -6,6 +6,8 @@ services:
       - ${APP_ENV_FILE:-.env.production}
     environment:
       NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
     ports:
       - "127.0.0.1:3000:3000"
     networks:
@@ -14,10 +16,14 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
-      - traefik.http.routers.printexpert.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.printexpert.rule=Host(`${APP_DOMAIN:-printexpert.sk}`)
       - traefik.http.routers.printexpert.entrypoints=websecure
       - traefik.http.routers.printexpert.tls=true
-      - traefik.http.routers.printexpert.tls.certresolver=le
+      - traefik.http.routers.printexpert.tls.certresolver=letsencrypt
+      - traefik.http.routers.printexpert-http.rule=Host(`${APP_DOMAIN:-printexpert.sk}`)
+      - traefik.http.routers.printexpert-http.entrypoints=web
+      - traefik.http.routers.printexpert-http.middlewares=printexpert-https-redirect
+      - traefik.http.middlewares.printexpert-https-redirect.redirectscheme.scheme=https
       - traefik.http.services.printexpert.loadbalancer.server.port=3000
     restart: unless-stopped
     healthcheck:
