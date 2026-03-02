@@ -67,16 +67,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure target directories
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script_stop: true
-          script: |
-            mkdir -p /home/ubuntu/printexpert/deploy
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Prepare production env file
         run: |
@@ -84,31 +80,20 @@ jobs:
           # docker --env-file keeps quotes literally; normalize KEY="value" -> KEY=value
           sed -i -E 's/^([A-Za-z_][A-Za-z0-9_]*)="(.*)"$/\1=\2/' .env.production
 
-      - name: Copy compose file to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          source: "deploy/docker-compose.server.yml,.env.production"
-          target: "/home/ubuntu/printexpert"
+      - name: Copy deploy files to server
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "mkdir -p /home/ubuntu/printexpert/deploy"
+          scp -i ~/.ssh/deploy_key -P "${{ secrets.SSH_PORT || 22 }}" deploy/docker-compose.server.yml "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/ubuntu/printexpert/deploy/docker-compose.server.yml"
+          scp -i ~/.ssh/deploy_key -P "${{ secrets.SSH_PORT || 22 }}" .env.production "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/ubuntu/printexpert/.env.production"
 
       - name: Deploy on server
-        uses: appleboy/ssh-action@v1.2.0
         env:
           APP_IMAGE: ${{ needs.build.outputs.app_image }}
           MIGRATOR_IMAGE: ${{ needs.build.outputs.migrator_image }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script_stop: true
-          envs: APP_IMAGE,MIGRATOR_IMAGE,GHCR_USERNAME,GHCR_TOKEN
-          script: |
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "APP_IMAGE='${APP_IMAGE}' MIGRATOR_IMAGE='${MIGRATOR_IMAGE}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' bash -s" <<'EOF'
             set -euo pipefail
             APP_DIR="/home/ubuntu/printexpert"
             COMPOSE_FILE="${APP_DIR}/deploy/docker-compose.server.yml"
@@ -148,3 +133,4 @@ jobs:
               fi
               exit 1
             fi
+          EOF
